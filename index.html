@@ -2,872 +2,359 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Hosahalli Pomegranate Tracker (3 Acres)</title>
-  <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-  <script src="[https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2](https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2)"></script>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; background-color: #f4f6f8; }
-    .tap-btn:active { transform: scale(0.97); }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hosahalli Pomegranate Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="text-slate-800 pb-24">
+<body class="bg-slate-100 text-slate-800 pb-20 font-sans">
 
-  <!-- TOP HEADER BAR -->
-  <header class="bg-emerald-900 text-white sticky top-0 z-30 shadow-md">
-    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+  <header class="bg-emerald-900 text-white sticky top-0 z-30 shadow">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
       <div>
-        <div class="flex items-center gap-2">
-          <span class="text-xl">🍎</span>
-          <h1 id="appTitle" class="font-bold text-base sm:text-lg leading-tight">Hosahalli Pomegranate Tracker</h1>
-        </div>
-        <p id="appSubtitle" class="text-xs text-emerald-200 mt-0.5">3 Acres • 1,500 Plants (10×8 ft) • Ethrel: 15 Aug 2026</p>
+        <h1 id="appTitle" class="font-bold text-base sm:text-lg">🍎 Hosahalli Pomegranate Tracker</h1>
+        <p class="text-xs text-emerald-200">3 Acres • 1,500 Plants (10×8) • Ethrel: 15 Aug 2026</p>
       </div>
       <div class="flex items-center gap-2">
-        <span id="syncBadge" class="text-[11px] px-2 py-1 rounded-full bg-emerald-700 text-emerald-100 font-medium">Checking...</span>
-        <button onclick="toggleLanguage()" id="langBtn" class="bg-amber-400 text-slate-900 font-bold text-xs px-3 py-1.5 rounded-lg shadow tap-btn">
-          ಕನ್ನಡ / EN
-        </button>
+        <span id="syncBadge" class="text-[11px] px-2 py-1 rounded-full bg-emerald-700">Syncing...</span>
+        <button onclick="toggleLanguage()" class="bg-amber-400 text-slate-900 font-bold text-xs px-3 py-1.5 rounded-lg">ಕನ್ನಡ / EN</button>
       </div>
     </div>
-
-    <!-- LIVE WEATHER & ORCHARD STATUS BAR -->
-    <div class="bg-emerald-950/90 border-t border-emerald-800 px-4 py-2 text-xs">
-      <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center gap-3 flex-wrap">
-          <span id="weatherTemp" class="font-semibold text-amber-300">🌡️ Loading GPS (14.6618, 76.4543)...</span>
-          <span id="weatherRain" class="text-emerald-100">🌧️ 24h Rain: 0 mm</span>
-          <span id="weatherForecast" class="text-emerald-100">☔ Next 4h Prob: 0%</span>
+    <div class="bg-emerald-950 px-4 py-2 text-xs border-t border-emerald-800">
+      <div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap gap-3">
+          <span id="wTemp" class="text-amber-300 font-semibold">🌡️ GPS (14.6618, 76.4543)...</span>
+          <span id="wRain">🌧️ 24h Rain: 0 mm</span>
+          <span id="wProb">☔ 4h Prob: 0%</span>
         </div>
-        <button onclick="toggleSimDrawer()" class="underline text-amber-300 font-medium">
-          ⚙️ Test Weather / Rain Override
-        </button>
+        <button onclick="document.getElementById('simBox').classList.toggle('hidden')" class="underline text-amber-300">⚙️ Test Weather</button>
       </div>
     </div>
   </header>
 
-  <!-- WEATHER TEST / MANUAL OVERRIDE DRAWER -->
-  <div id="simDrawer" class="hidden bg-slate-800 text-white px-4 py-3 border-b border-slate-700">
-    <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
-      <div class="font-semibold text-amber-300">Simulate Field Weather Event (Tests Gate 1 Rules):</div>
-      <div class="flex flex-wrap gap-2">
-        <button onclick="applyWeatherScenario('NORMAL')" class="bg-slate-600 hover:bg-slate-500 px-3 py-1.5 rounded">☀️ Live GPS Weather</button>
-        <button onclick="applyWeatherScenario('HEAVY_RAIN')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded">🌧️ Unseasonal Rain (&gt;15mm)</button>
-        <button onclick="applyWeatherScenario('RAIN_SOON')" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded">⛈️ Rain in 2 Hrs (Hold Spray)</button>
-        <button onclick="applyWeatherScenario('WARM_JAN')" class="bg-orange-600 hover:bg-orange-500 px-3 py-1.5 rounded">🔥 Warm El Niño Nights (&gt;19°C)</button>
-      </div>
+  <div id="simBox" class="hidden bg-slate-800 text-white px-4 py-2.5 text-xs">
+    <div class="max-w-4xl mx-auto flex flex-wrap items-center gap-2">
+      <span class="font-bold text-amber-300">Simulate Weather Override:</span>
+      <button onclick="setWeather('LIVE')" class="bg-slate-600 px-2.5 py-1 rounded">☀️ Live GPS</button>
+      <button onclick="setWeather('RAIN')" class="bg-blue-600 px-2.5 py-1 rounded">🌧️ Heavy Rain (&gt;15mm)</button>
+      <button onclick="setWeather('HOLD')" class="bg-indigo-600 px-2.5 py-1 rounded">⛈️ Rain in 2h (Hold Spray)</button>
+      <button onclick="setWeather('WARM')" class="bg-orange-600 px-2.5 py-1 rounded">🔥 Warm Jan Nights (&gt;19°C)</button>
     </div>
   </div>
 
-  <!-- MAIN CONTAINER -->
-  <main class="max-w-5xl mx-auto px-3 sm:px-4 pt-4">
-
-    <!-- WEEK & DAD SELECTOR BAR -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 mb-4 flex flex-wrap items-center justify-between gap-3">
+  <main class="max-w-4xl mx-auto px-3 pt-4">
+    <div class="bg-white rounded-xl p-3 mb-3 shadow-sm border flex flex-wrap items-center justify-between gap-2">
       <div>
-        <div class="text-xs uppercase tracking-wider text-slate-400 font-bold" id="lblCurrentStage">ACTIVE ORCHARD WINDOW</div>
-        <div class="text-base sm:text-lg font-extrabold text-slate-800" id="weekHeaderTitle">Week 1 (Oct 18 – Oct 24, 2026)</div>
-        <div class="text-xs text-emerald-700 font-semibold" id="dadStageBadge">64–70 Days After Defoliation (DAD) • Stage A: Early Fruit Sizing</div>
+        <div id="wkTitle" class="font-extrabold text-base">Week 1</div>
+        <div id="dadTitle" class="text-xs text-emerald-700 font-semibold">64–70 DAD</div>
       </div>
-      <div class="flex items-center gap-2">
-        <button onclick="changeWeek(-1)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-lg text-sm tap-btn">◀ Prev</button>
-        <select id="weekSelect" onchange="selectWeek(this.value)" class="bg-emerald-50 border border-emerald-300 text-emerald-950 font-bold text-sm rounded-lg px-2.5 py-2"></select>
-        <button onclick="changeWeek(1)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-lg text-sm tap-btn">Next ▶</button>
+      <div class="flex items-center gap-1.5">
+        <button onclick="stepWeek(-1)" class="bg-slate-100 px-3 py-1.5 rounded-lg font-bold text-sm">◀</button>
+        <select id="wkSelect" onchange="goWeek(this.value)" class="bg-emerald-50 border border-emerald-300 font-bold text-sm rounded-lg px-2 py-1.5"></select>
+        <button onclick="stepWeek(1)" class="bg-slate-100 px-3 py-1.5 rounded-lg font-bold text-sm">▶</button>
       </div>
     </div>
 
-    <!-- DYNAMIC RULE ENGINE ALERTS BANNER -->
-    <div id="ruleAlertsContainer" class="space-y-2 mb-4"></div>
+    <div id="alertsBox" class="space-y-2 mb-3"></div>
 
-    <!-- NAVIGATION TABS -->
-    <div class="grid grid-cols-3 gap-2 bg-slate-200/80 p-1 rounded-xl mb-4 text-xs sm:text-sm font-bold">
-      <button onclick="switchTab('TASKS')" id="tabBtn_TASKS" class="py-2.5 rounded-lg bg-white text-emerald-900 shadow-sm">
-        📋 <span id="tabLblTasks">Week Tasks</span>
-      </button>
-      <button onclick="switchTab('SHOP')" id="tabBtn_SHOP" class="py-2.5 rounded-lg text-slate-600">
-        🏪 <span id="tabLblShop">Store &amp; Shed</span>
-      </button>
-      <button onclick="switchTab('SCOUT')" id="tabBtn_SCOUT" class="py-2.5 rounded-lg text-slate-600">
-        🔍 <span id="tabLblScout">Scouting &amp; All 21 Wks</span>
-      </button>
+    <div class="grid grid-cols-3 gap-1.5 bg-slate-200 p-1 rounded-xl mb-4 text-xs sm:text-sm font-bold">
+      <button onclick="showTab('TASKS')" id="tBtn_TASKS" class="py-2 rounded-lg bg-white text-emerald-900 shadow-sm">📋 Week Tasks</button>
+      <button onclick="showTab('SHOP')" id="tBtn_SHOP" class="py-2 rounded-lg text-slate-600">🏪 Store &amp; Shed</button>
+      <button onclick="showTab('SCOUT')" id="tBtn_SCOUT" class="py-2 rounded-lg text-slate-600">🔍 Scout &amp; 21 Wks</button>
     </div>
 
-    <!-- TAB 1: WEEKLY ACTION CARDS -->
-    <section id="tabPanel_TASKS" class="space-y-4"></section>
+    <section id="panel_TASKS" class="space-y-3"></section>
 
-    <!-- TAB 2: AGRO-STORE SHOPPING LIST & SHED LEFTOVERS -->
-    <section id="tabPanel_SHOP" class="hidden space-y-4">
-      <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <div>
-            <h2 class="font-bold text-base text-slate-800" id="shopTitle">Agro-Store Shopping List (For Selected Week)</h2>
-            <p class="text-xs text-slate-500" id="shopSubtitle">Enter any leftover balance in your farm shed below. Net quantity to buy updates automatically.</p>
-          </div>
-          <button onclick="copyShoppingList()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow tap-btn">
-            📲 Copy List for Store / WhatsApp
-          </button>
+    <section id="panel_SHOP" class="hidden bg-white rounded-xl p-4 shadow-sm border">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h2 class="font-bold text-sm sm:text-base">Agro-Store Shopping List (3 Acres)</h2>
+          <p class="text-xs text-slate-500">Enter shed leftovers below; net quantity to buy updates automatically.</p>
         </div>
-        <div id="shoppingListContainer" class="divide-y divide-slate-100"></div>
+        <button onclick="copyList()" class="bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg">📲 Copy List</button>
       </div>
+      <div id="shopBox" class="divide-y"></div>
     </section>
 
-    <!-- TAB 3: FIELD SCOUTING & 21-WEEK MASTER VIEW -->
-    <section id="tabPanel_SCOUT" class="hidden space-y-4">
-      <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-        <h2 class="font-bold text-base text-slate-800 mb-1">1-Tap Field Problem Reporter (Gate 4 Escalation)</h2>
-        <p class="text-xs text-slate-500 mb-3">Spot an issue on the trees? Tap below to trigger an immediate curative recommendation:</p>
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs font-bold">
-          <button onclick="reportSymptom('BLIGHT_SPOT')" class="p-3 rounded-xl border border-red-200 bg-red-50 text-red-900 text-left tap-btn">
-            🦠 Bacterial Blight Oily Spot<br><span class="font-normal text-[11px] text-red-700">ಬ್ಯಾಕ್ಟೀರಿಯಾ ಅಂಗಮಾರಿ ಮಚ್ಚೆ</span>
-          </button>
-          <button onclick="reportSymptom('THRIPS_SCAR')" class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-left tap-btn">
-            🦗 Thrips Rind Scarring<br><span class="font-normal text-[11px] text-amber-700">ಥ್ರಿಪ್ಸ್ ಕಜ್ಜಿ / ಗೀರು</span>
-          </button>
-          <button onclick="reportSymptom('FRUIT_BORER')" class="p-3 rounded-xl border border-orange-200 bg-orange-50 text-orange-900 text-left tap-btn">
-            🐛 Fruit Borer Hole<br><span class="font-normal text-[11px] text-orange-700">ಹಣ್ಣು ಕೊರೆಯುವ ಹುಳು</span>
-          </button>
-          <button onclick="reportSymptom('MEALYBUG')" class="p-3 rounded-xl border border-purple-200 bg-purple-50 text-purple-900 text-left tap-btn">
-            🐜 Mealybug / Scale Cluster<br><span class="font-normal text-[11px] text-purple-700">ಹಿಟ್ಟು ತಿಗಣೆ</span>
-          </button>
-          <button onclick="reportSymptom('FRUIT_ROT')" class="p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-900 text-left tap-btn">
-            🍄 Fungal Fruit Spot / Rot<br><span class="font-normal text-[11px] text-rose-700">ಹಣ್ಣು ಕೊಳೆ ರೋಗ</span>
-          </button>
-          <button onclick="reportSymptom('CRACKING')" class="p-3 rounded-xl border border-sky-200 bg-sky-50 text-sky-900 text-left tap-btn">
-            ⚡ Rind Sunburn / Cracking<br><span class="font-normal text-[11px] text-sky-700">ಹಣ್ಣು ಸೀಳುವಿಕೆ / ಬಿಸಿಲು ಕಲೆ</span>
-          </button>
+    <section id="panel_SCOUT" class="hidden space-y-4">
+      <div class="bg-white rounded-xl p-4 shadow-sm border">
+        <h2 class="font-bold text-sm mb-2">1-Tap Field Problem Reporter (Gate 4 Escalation)</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-bold">
+          <button onclick="flagIssue('BLIGHT_SPOT')" class="p-2.5 rounded-lg border bg-red-50 text-red-900 text-left">🦠 Blight Oily Spot<br><span class="font-normal text-[11px]">ಅಂಗಮಾರಿ ಮಚ್ಚೆ</span></button>
+          <button onclick="flagIssue('THRIPS_SCAR')" class="p-2.5 rounded-lg border bg-amber-50 text-amber-900 text-left">🦗 Thrips Scarring<br><span class="font-normal text-[11px]">ಥ್ರಿಪ್ಸ್ ಕಜ್ಜಿ</span></button>
+          <button onclick="flagIssue('FRUIT_BORER')" class="p-2.5 rounded-lg border bg-orange-50 text-orange-900 text-left">🐛 Fruit Borer<br><span class="font-normal text-[11px]">ಹಣ್ಣು ಕೊರೆಯುವ ಹುಳು</span></button>
+          <button onclick="flagIssue('MEALYBUG')" class="p-2.5 rounded-lg border bg-purple-50 text-purple-900 text-left">🐜 Mealybug<br><span class="font-normal text-[11px]">ಹಿಟ್ಟು ತಿಗಣೆ</span></button>
+          <button onclick="flagIssue('FRUIT_ROT')" class="p-2.5 rounded-lg border bg-rose-50 text-rose-900 text-left">🍄 Fruit Rot<br><span class="font-normal text-[11px]">ಹಣ್ಣು ಕೊಳೆ ರೋಗ</span></button>
+          <button onclick="flagIssue('CRACKING')" class="p-2.5 rounded-lg border bg-sky-50 text-sky-900 text-left">⚡ Sunburn / Crack<br><span class="font-normal text-[11px]">ಹಣ್ಣು ಸೀಳುವಿಕೆ</span></button>
         </div>
       </div>
-
-      <!-- 21-WEEK MASTER OVERVIEW TABLE -->
-      <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200 overflow-x-auto">
-        <h2 class="font-bold text-base text-slate-800 mb-3">Complete 21-Week Master Schedule (Oct 18, 2026 – Mar 14, 2027)</h2>
-        <table class="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr class="border-b border-slate-200 text-slate-500 uppercase">
-              <th class="py-2 pr-2">Wk / Dates</th>
-              <th class="py-2 px-2">DAD &amp; Stage</th>
-              <th class="py-2 px-2">Task &amp; Target</th>
-              <th class="py-2 pl-2">Status</th>
-            </tr>
-          </thead>
-          <tbody id="masterTableBody" class="divide-y divide-slate-100"></tbody>
+      <div class="bg-white rounded-xl p-4 shadow-sm border overflow-x-auto">
+        <h2 class="font-bold text-sm mb-2">All 21 Weeks Master Schedule</h2>
+        <table class="w-full text-left text-xs border-collapse">
+          <thead><tr class="border-b text-slate-500"><th class="py-1.5">Wk</th><th>DAD</th><th>Task</th><th>Status</th></tr></thead>
+          <tbody id="allWeeksBody" class="divide-y"></tbody>
         </table>
       </div>
     </section>
-
   </main>
 
-  <!-- AGRO-STORE COUNTER SUBSTITUTION MODAL -->
-  <div id="storeModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl max-h-[85vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
-        <h3 class="font-extrabold text-base text-slate-900">🏪 Agro-Store Counter Helper</h3>
-        <button onclick="closeStoreModal()" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+  <div id="swapModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-4 max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b pb-2 mb-3">
+        <h3 class="font-bold text-base">🏪 Agro-Store Counter Helper</h3>
+        <button onclick="document.getElementById('swapModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
       </div>
-      <div id="storeModalBody" class="space-y-3 text-xs sm:text-sm"></div>
+      <div id="swapModalContent" class="space-y-2.5 text-xs"></div>
     </div>
   </div>
 
 <script>
-// ============================================================================
-// CONFIGURATION: HOSAHALLI ORCHARD + SUPABASE CREDENTIALS
-// ============================================================================
-const SUPABASE_URL = "[https://mjkcmghhtbsgxohpzlsq.supabase.co](https://mjkcmghhtbsgxohpzlsq.supabase.co)";
-const SUPABASE_KEY = "sb_publishable_pKLBohG_JzhsQ8C4jqwayw_tQCn4bJA";
-const ORCHARD = {
-  lat: 14.661830,
-  lon: 76.454375,
-  acres: 3.0,
-  plants: 1500,
-  drums: 7.0, // 7 x 200L drums = 1,400L spray solution for 3 acres
-  drumLiters: 200,
-  ethrelDate: "2026-08-15"
-};
+const sb = window.supabase.createClient(
+  "https://mjkcmghhtbsgxohpzlsq.supabase.co",
+  "sb_publishable_pKLBohG_JzhsQ8C4jqwayw_tQCn4bJA"
+);
+const CFG = { lat: 14.661830, lon: 76.454375, acres: 3, drums: 7, drumL: 200 };
+let LANG = "EN", curWk = 1, catalog = {}, subs = [], leftovers = {}, tasks = [], scoutAlert = null;
+let wState = { rain24: 0, prob4: 0, tMax: 30.5, tMin: 18.2 };
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-let LANG = "EN"; // Toggle between 'EN' and 'KN'
-let currentWeek = 1;
-let activeTab = "TASKS";
-let catalogMap = {};
-let substitutionsList = [];
-let shedLeftovers = {};
-let taskQueue = [];
-let activeScoutingAlert = null;
-let lastCopperDoneDate = null;
-
-let weatherState = {
-  rain24h: 0,
-  rainProb4h: 0,
-  windKmh: 8,
-  tempMax: 30.5,
-  tempMinAvg: 18.2,
-  mode: "LIVE"
-};
-
-// ============================================================================
-// INITIALIZATION (ONLINE-FIRST WITH LOCAL CACHE FALLBACK)
-// ============================================================================
 window.addEventListener("DOMContentLoaded", async () => {
-  computeDefaultWeekFromToday();
-  await fetchLiveWeather();
-  await loadDatabaseData();
-  renderAll();
+  const diff = Math.floor((new Date() - new Date("2026-10-18T00:00:00")) / 86400000);
+  if (diff >= 0 && diff < 147) curWk = Math.min(21, Math.max(1, Math.floor(diff / 7) + 1));
+  await loadWeather();
+  await loadDB();
+  render();
 });
 
-function computeDefaultWeekFromToday() {
-  const start = new Date("2026-10-18T00:00:00");
-  const now = new Date();
-  const diffDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-  if (diffDays >= 0 && diffDays < 147) {
-    currentWeek = Math.min(21, Math.max(1, Math.floor(diffDays / 7) + 1));
-  } else {
-    currentWeek = 1;
-  }
-}
-
-async function fetchLiveWeather() {
-  const url = `[https://api.open-meteo.com/v1/forecast?latitude=$](https://api.open-meteo.com/v1/forecast?latitude=$){ORCHARD.lat}&longitude=${ORCHARD.lon}&current=precipitation,wind_speed_10m&hourly=precipitation_probability&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&past_days=3&forecast_days=2`;
+async function loadWeather() {
   try {
-    const res = await fetch(url);
-    const data = await res.json();
-    const todayIdx = 3;
-    const rain24 = (data.daily.precipitation_sum[todayIdx - 1] || 0) + (data.daily.precipitation_sum[todayIdx] || 0);
-    const tMax = data.daily.temperature_2m_max[todayIdx] || 30.5;
-    const minSlice = data.daily.temperature_2m_min.slice(0, todayIdx + 1);
-    const tMinAvg = minSlice.reduce((a, b) => a + b, 0) / minSlice.length;
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&hourly=precipitation_probability&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&past_days=2&forecast_days=2`);
+    const d = await r.json();
     const hr = new Date().getHours();
-    const probs = data.hourly.precipitation_probability.slice(todayIdx * 24 + hr, todayIdx * 24 + hr + 4);
-    weatherState = {
-      rain24h: Number(rain24.toFixed(1)),
-      rainProb4h: Math.max(...probs, 0),
-      windKmh: data.current.wind_speed_10m || 6,
-      tempMax: Number(tMax.toFixed(1)),
-      tempMinAvg: Number(tMinAvg.toFixed(1)),
-      mode: "LIVE"
+    wState = {
+      rain24: Number(((d.daily.precipitation_sum[1] || 0) + (d.daily.precipitation_sum[2] || 0)).toFixed(1)),
+      prob4: Math.max(...d.hourly.precipitation_probability.slice(48 + hr, 52 + hr), 0),
+      tMax: d.daily.temperature_2m_max[2] || 30.5,
+      tMin: d.daily.temperature_2m_min[2] || 18.2
     };
-    localStorage.setItem("hosahalli_weather", JSON.stringify(weatherState));
-  } catch (e) {
-    const cached = localStorage.getItem("hosahalli_weather");
-    if (cached) weatherState = JSON.parse(cached);
-  }
-  updateWeatherHeader();
+  } catch (e) {}
+  updateWBar();
 }
 
-function updateWeatherHeader() {
-  document.getElementById("weatherTemp").textContent = `🌡️ Max ${weatherState.tempMax}°C / Night ${weatherState.tempMinAvg}°C`;
-  document.getElementById("weatherRain").textContent = `🌧️ 24h Rain: ${weatherState.rain24h} mm`;
-  document.getElementById("weatherForecast").textContent = `☔ Next 4h Rain Prob: ${weatherState.rainProb4h}%`;
+function updateWBar() {
+  document.getElementById("wTemp").textContent = `🌡️ ${wState.tMax}°C / Night ${wState.tMin}°C`;
+  document.getElementById("wRain").textContent = `🌧️ 24h Rain: ${wState.rain24} mm`;
+  document.getElementById("wProb").textContent = `☔ 4h Prob: ${wState.prob4}%`;
 }
 
-async function loadDatabaseData() {
-  const badge = document.getElementById("syncBadge");
+function setWeather(m) {
+  if (m === "LIVE") { loadWeather().then(render); return; }
+  if (m === "RAIN") wState = { ...wState, rain24: 24.0, prob4: 25 };
+  if (m === "HOLD") wState = { ...wState, rain24: 1.0, prob4: 80 };
+  if (m === "WARM") wState = { ...wState, tMax: 35.0, tMin: 19.6 };
+  updateWBar();
+  render();
+}
+
+async function loadDB() {
+  const b = document.getElementById("syncBadge");
   try {
-    const [catRes, subRes, shedRes, queueRes, tmplRes] = await Promise.all([
-      supabaseClient.from("inputs_catalog").select("*"),
-      supabaseClient.from("substitution_rules").select("*"),
-      supabaseClient.from("shed_leftovers").select("*"),
-      supabaseClient.from("daily_task_queue").select("*").order("current_scheduled_date", { ascending: true }),
-      supabaseClient.from("baseline_schedule_template").select("*").order("week_number", { ascending: true })
+    const [cR, sR, lR, qR, tR] = await Promise.all([
+      sb.from("inputs_catalog").select("*"),
+      sb.from("substitution_rules").select("*"),
+      sb.from("shed_leftovers").select("*"),
+      sb.from("daily_task_queue").select("*").order("current_scheduled_date", { ascending: true }),
+      sb.from("baseline_schedule_template").select("*")
     ]);
-
-    if (catRes.error) throw catRes.error;
-
-    catRes.data.forEach(item => { catalogMap[item.id] = item; });
-    substitutionsList = subRes.data || [];
-    (shedRes.data || []).forEach(r => { shedLeftovers[r.input_id] = Number(r.leftover_qty); });
-
-    // Join template metadata into task queue
-    const tmplById = {};
-    (tmplRes.data || []).forEach(t => { tmplById[t.id] = t; });
-
-    taskQueue = (queueRes.data || []).map(q => {
-      const tmpl = tmplById[q.template_id] || {};
-      return {
-        ...q,
-        week_number: tmpl.week_number || Math.ceil((q.effective_dad - 63) / 7),
-        stage_name: tmpl.stage_name || "Orchard Task",
-        target_description: tmpl.target_description || q.notes || "Scheduled Activity"
-      };
-    });
-
-    // Check last completed copper spray date for Gate 3 cooldown rule
-    const completedCopper = taskQueue.filter(t => t.task_type === "STANDALONE_COPPER" && t.status === "COMPLETED");
-    if (completedCopper.length > 0) {
-      lastCopperDoneDate = completedCopper[completedCopper.length - 1].executed_at;
-    }
-
-    localStorage.setItem("hosahalli_backup", JSON.stringify({ catalogMap, substitutionsList, shedLeftovers, taskQueue }));
-    badge.textContent = "🟢 Online (Supabase Synced)";
-    badge.className = "text-[11px] px-2 py-1 rounded-full bg-emerald-700 text-emerald-100 font-medium";
-  } catch (err) {
-    console.warn("Falling back to cached data:", err);
-    const backup = localStorage.getItem("hosahalli_backup");
-    if (backup) {
-      const parsed = JSON.parse(backup);
-      catalogMap = parsed.catalogMap || {};
-      substitutionsList = parsed.substitutionsList || [];
-      shedLeftovers = parsed.shedLeftovers || {};
-      taskQueue = parsed.taskQueue || [];
-    }
-    badge.textContent = "🟠 Offline / Check SQL Seed";
-    badge.className = "text-[11px] px-2 py-1 rounded-full bg-amber-600 text-white font-medium";
+    if (cR.error) throw cR.error;
+    cR.data.forEach(x => catalog[x.id] = x);
+    subs = sR.data || [];
+    (lR.data || []).forEach(x => leftovers[x.input_id] = Number(x.leftover_qty));
+    const tMap = {};
+    (tR.data || []).forEach(x => tMap[x.id] = x);
+    tasks = (qR.data || []).map(q => ({
+      ...q,
+      week_number: tMap[q.template_id]?.week_number || Math.ceil((q.effective_dad - 63) / 7),
+      stage_name: tMap[q.template_id]?.stage_name || "Stage",
+      target_description: tMap[q.template_id]?.target_description || "Scheduled Task"
+    }));
+    localStorage.setItem("h_cache", JSON.stringify({ catalog, subs, leftovers, tasks }));
+    b.textContent = "🟢 Online";
+  } catch (e) {
+    const c = localStorage.getItem("h_cache");
+    if (c) ({ catalog, subs, leftovers, tasks } = JSON.parse(c));
+    b.textContent = "🟠 Offline / Run Seed";
   }
-  populateWeekDropdown();
-}
-
-function populateWeekDropdown() {
-  const sel = document.getElementById("weekSelect");
+  const sel = document.getElementById("wkSelect");
   sel.innerHTML = "";
   for (let w = 1; w <= 21; w++) {
-    const startDate = new Date(2026, 9, 18 + (w - 1) * 7);
-    const dateLabel = startDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
-    const opt = document.createElement("option");
-    opt.value = w;
-    opt.textContent = `Week ${w} (${dateLabel})`;
-    if (w === currentWeek) opt.selected = true;
-    sel.appendChild(opt);
+    const dt = new Date(2026, 9, 18 + (w - 1) * 7).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+    sel.innerHTML += `<option value="${w}" ${w === curWk ? "selected" : ""}>Week ${w} (${dt})</option>`;
   }
 }
 
-function selectWeek(val) {
-  currentWeek = Number(val);
-  renderAll();
-}
+function goWeek(w) { curWk = Number(w); render(); }
+function stepWeek(d) { curWk = Math.min(21, Math.max(1, curWk + d)); document.getElementById("wkSelect").value = curWk; render(); }
+function toggleLanguage() { LANG = LANG === "EN" ? "KN" : "EN"; render(); }
 
-function changeWeek(delta) {
-  currentWeek = Math.min(21, Math.max(1, currentWeek + delta));
-  document.getElementById("weekSelect").value = currentWeek;
-  renderAll();
-}
-
-function toggleLanguage() {
-  LANG = LANG === "EN" ? "KN" : "EN";
-  document.getElementById("appTitle").textContent = LANG === "KN"
-    ? "ಹೊಸಹಳ್ಳಿ ದಾಳಿಂಬೆ ನಿರ್ವಹಣಾ ಟ್ರ್ಯಾಕರ್"
-    : "Hosahalli Pomegranate Tracker";
-  document.getElementById("tabLblTasks").textContent = LANG === "KN" ? "ಈ ವಾರದ ಕೆಲಸ" : "Week Tasks";
-  document.getElementById("tabLblShop").textContent = LANG === "KN" ? "ಅಂಗಡಿ ಪಟ್ಟಿ & ಶೆಡ್" : "Store & Shed";
-  document.getElementById("tabLblScout").textContent = LANG === "KN" ? "ರೋಗ ತಪಾಸಣೆ & 21 ವಾರ" : "Scouting & All 21 Wks";
-  renderAll();
-}
-
-function toggleSimDrawer() {
-  document.getElementById("simDrawer").classList.toggle("hidden");
-}
-
-function applyWeatherScenario(type) {
-  if (type === "NORMAL") {
-    fetchLiveWeather().then(renderAll);
-    return;
-  }
-  if (type === "HEAVY_RAIN") {
-    weatherState = { ...weatherState, rain24h: 24.5, rainProb4h: 30, mode: "SIM_RAIN" };
-  } else if (type === "RAIN_SOON") {
-    weatherState = { ...weatherState, rain24h: 2.0, rainProb4h: 85, mode: "SIM_HOLD" };
-  } else if (type === "WARM_JAN") {
-    weatherState = { ...weatherState, tempMax: 35.5, tempMinAvg: 19.8, mode: "SIM_WARM" };
-  }
-  updateWeatherHeader();
-  renderAll();
-}
-
-function switchTab(tab) {
-  activeTab = tab;
-  ["TASKS", "SHOP", "SCOUT"].forEach(t => {
-    document.getElementById(`tabPanel_${t}`).classList.toggle("hidden", t !== tab);
-    document.getElementById(`tabBtn_${t}`).className = t === tab
-      ? "py-2.5 rounded-lg bg-white text-emerald-900 shadow-sm"
-      : "py-2.5 rounded-lg text-slate-600";
+function showTab(t) {
+  ["TASKS", "SHOP", "SCOUT"].forEach(k => {
+    document.getElementById(`panel_${k}`).classList.toggle("hidden", k !== t);
+    document.getElementById(`tBtn_${k}`).className = k === t ? "py-2 rounded-lg bg-white text-emerald-900 shadow-sm" : "py-2 rounded-lg text-slate-600";
   });
-  renderAll();
 }
 
-// ============================================================================
-// RENDER ENGINE (GATES P0 - P5 + CARDS)
-// ============================================================================
-function renderAll() {
-  const weekTasks = taskQueue.filter(t => Number(t.week_number) === Number(currentWeek));
-  const startDate = new Date(2026, 9, 18 + (currentWeek - 1) * 7);
-  const endDate = new Date(2026, 9, 24 + (currentWeek - 1) * 7);
-  const dadStart = 64 + (currentWeek - 1) * 7;
-  const dadEnd = dadStart + 6;
-  const stageName = weekTasks[0]?.stage_name || "Active Fruiting Stage";
+function render() {
+  const wkTasks = tasks.filter(t => Number(t.week_number) === curWk);
+  const d1 = new Date(2026, 9, 18 + (curWk - 1) * 7).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+  const d2 = new Date(2026, 9, 24 + (curWk - 1) * 7).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const dad1 = 64 + (curWk - 1) * 7;
+  document.getElementById("wkTitle").textContent = `Week ${curWk} (${d1} – ${d2})`;
+  document.getElementById("dadTitle").textContent = `${dad1}–${dad1 + 6} DAD • ${wkTasks[0]?.stage_name || ""}`;
 
-  document.getElementById("weekHeaderTitle").textContent =
-    `Week ${currentWeek}: ${startDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} – ${endDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`;
-  document.getElementById("dadStageBadge").textContent =
-    `${dadStart}–${dadEnd} Days After Ethrel (DAD) • ${stageName}`;
+  // Alerts
+  const al = [];
+  if (wState.rain24 > 15) al.push({ c: "bg-red-50 border-red-300 text-red-900", t: "🌧️ Heavy Rain Override (>15mm)", d: "Pause drip fertigation for 48 hrs. Spray Standalone Copper (300g/drum) + Bronopol (100g/drum) once foliage dries." });
+  if (wState.prob4 > 60) al.push({ c: "bg-amber-50 border-amber-300 text-amber-900", t: "⛈️ Spray Hold (>60% Rain Prob in 4h)", d: "Hold foliar spray now to prevent wash-off; shift to next clear morning." });
+  if (dad1 >= 140) al.push({ c: "bg-purple-50 border-purple-300 text-purple-900", t: "🔴 >140 DAD Zero-Nitrogen & Red Color Rule", d: wState.tMin > 18 ? "Warm El Niño nights (>18°C): 00:00:50 (SOP) dose automatically boosted +15% for red aril color." : "Strict Zero-Nitrogen lock active till harvest." });
+  if (scoutAlert) al.push({ c: "bg-rose-50 border-rose-400 text-rose-950", t: `🔍 ${scoutAlert.t}`, d: scoutAlert.d });
+  document.getElementById("alertsBox").innerHTML = al.map(a => `<div class="p-3 rounded-xl border ${a.c} text-xs"><div class="font-bold">${a.t}</div><div>${a.d}</div></div>`).join("");
 
-  renderRuleAlerts(dadStart);
-  renderTaskCards(weekTasks, dadStart);
-  renderShoppingList(weekTasks, dadStart);
-  renderMasterTable();
-}
-
-function renderRuleAlerts(dadStart) {
-  const container = document.getElementById("ruleAlertsContainer");
-  const alerts = [];
-
-  // Gate 1 (P0): Heavy Rain > 15mm
-  if (weatherState.rain24h > 15) {
-    alerts.push({
-      color: "bg-red-50 border-red-300 text-red-900",
-      title: LANG === "KN"
-        ? "🌧️ ತುರ್ತು ಮಳೆ ಎಚ್ಚರಿಕೆ (>15mm ಮಳೆ ಆಗಿದೆ)"
-        : "🌧️ Gate 1 Override: Heavy Rain Detected (>15mm in 24h)",
-      desc: LANG === "KN"
-        ? "ಮುಂದಿನ 48 ಗಂಟೆ ಡ್ರಿಪ್ ಗೊಬ್ಬರ ನಿಲ್ಲಿಸಿ. ಎಲೆ ಒಣಗಿದ ತಕ್ಷಣ ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ (300g/ಡ್ರಮ್) + ಬ್ರೊನೊಪಾಲ್ (100g/ಡ್ರಮ್) ಸಿಂಪಡಿಸಿ."
-        : "PAUSE drip fertigation for 48 hrs to prevent root wilt. As soon as foliage dries, spray Standalone Copper (300g/drum) + Bronopol (100g/drum)."
-    });
-  }
-
-  // Gate 1 (P0): Rain probability next 4h > 60%
-  if (weatherState.rainProb4h > 60) {
-    alerts.push({
-      color: "bg-amber-50 border-amber-300 text-amber-900",
-      title: LANG === "KN"
-        ? "⛈️ ಸಿಂಪಡಣೆ ತಡೆಹಿಡಿಯಿರಿ (ಮುಂದಿನ 4 ಗಂಟೆಯಲ್ಲಿ ಮಳೆ ಸಾಧ್ಯತೆ)"
-        : "⛈️ Gate 1 Foliar Hold: High Rain Probability (>60% in next 4 hrs)",
-      desc: LANG === "KN"
-        ? "ಈಗ ಎಲೆ ಸಿಂಪಡಣೆ ಮಾಡಬೇಡಿ, ಮಳೆಗೆ ತೊಳೆದು ಹೋಗುತ್ತದೆ. ಮುಂದಿನ ಶುಭ್ರ ಬೆಳಿಗ್ಗೆ ಸಿಂಪಡಿಸಿ."
-        : "Hold today's foliar spray to prevent chemical wash-off. Shift foliar spray to the next clear morning."
-    });
-  }
-
-  // Gate 1 & 2: Warm El Nino Night Override + Zero Nitrogen Cutoff (>140 DAD)
-  if (dadStart >= 140) {
-    const sopBoostMsg = weatherState.tempMinAvg > 18
-      ? "Warm El Niño nights (>18°C) detected: 00:00:50 (SOP) dose automatically boosted by +15% to force deep red aril color."
-      : "Zero-Nitrogen Rule Active: Never apply 13:00:45, Calcium Nitrate, or 19:19:19 from this week till harvest.";
-    alerts.push({
-      color: "bg-purple-50 border-purple-300 text-purple-900",
-      title: "🔴 Gate 2 Phenology Lock: >140 DAD (Zero Nitrogen + Red Color Window)",
-      desc: sopBoostMsg
-    });
-  }
-
-  // Gate 4: Active Scouting Symptom Alert
-  if (activeScoutingAlert) {
-    alerts.push({
-      color: "bg-rose-50 border-rose-400 text-rose-950",
-      title: `🔍 Curative Field Alert: ${activeScoutingAlert.title}`,
-      desc: activeScoutingAlert.action
-    });
-  }
-
-  container.innerHTML = alerts.map(a => `
-    <div class="p-3 rounded-xl border ${a.color} text-xs shadow-sm">
-      <div class="font-extrabold mb-0.5">${a.title}</div>
-      <div>${a.desc}</div>
-    </div>
-  `).join("");
-}
-
-function renderTaskCards(weekTasks, dadStart) {
-  const container = document.getElementById("tabPanel_TASKS");
-  if (!weekTasks.length) {
-    container.innerHTML = `<div class="bg-white p-6 rounded-xl text-center text-sm text-slate-500">
-      No tasks loaded yet. Make sure you ran <b>seed_21_weeks.sql</b> in your Supabase SQL Editor!
-    </div>`;
+  // Task Cards
+  const sopMult = (dad1 >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
+  const pTasks = document.getElementById("panel_TASKS");
+  if (!wkTasks.length) {
+    pTasks.innerHTML = `<div class="bg-white p-5 rounded-xl text-center text-xs text-slate-500">No tasks found. Run File 1 SQL in Supabase!</div>`;
     return;
   }
 
-  const sopMultiplier = (dadStart >= 140 && weatherState.tempMinAvg > 18) ? 1.15 : 1.0;
-
-  container.innerHTML = weekTasks.map(task => {
-    const isFoliar = task.task_type === "FOLIAR_SPRAY" || task.task_type === "STANDALONE_COPPER";
-    const isCopper = task.task_type === "STANDALONE_COPPER";
-
-    let badgeTheme = "bg-sky-700 text-white";
-    let cardBorder = "border-sky-200";
-    let typeLabel = LANG === "KN" ? "💧 ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)" : "💧 Drip Fertigation (3 Acres)";
-
-    if (task.task_type === "DRIP_SAT") {
-      badgeTheme = "bg-indigo-700 text-white";
-      cardBorder = "border-indigo-200";
-      typeLabel = LANG === "KN" ? "💧 ಶನಿವಾರದ ಪ್ರತ್ಯೇಕ ಡ್ರಿಪ್" : "💧 Saturday Standalone Drip";
-    } else if (task.task_type === "FOLIAR_SPRAY") {
-      badgeTheme = "bg-emerald-700 text-white";
-      cardBorder = "border-emerald-200";
-      typeLabel = LANG === "KN" ? "🌿 ಎಲೆ ಸಿಂಪಡಣೆ (7 ಡ್ರಮ್ × 200L)" : "🌿 Foliar Spray (7 Drums × 200L)";
-    } else if (isCopper) {
-      badgeTheme = "bg-red-700 text-white";
-      cardBorder = "border-red-300";
-      typeLabel = LANG === "KN" ? "⚠️ ಕಾಪರ್ + ಬ್ರೊನೊಪಾಲ್ (ಬೇರೆ ಏನನ್ನೂ ಬೆರೆಸಬೇಡಿ)" : "⚠️ Standalone Copper Spray (Do NOT Mix)";
-    }
-
-    const recipe = Array.isArray(task.resolved_recipe) ? task.resolved_recipe : [];
-
-    const recipeHtml = recipe.length === 0
-      ? `<div class="p-3 bg-slate-50 rounded-lg text-xs text-slate-600 font-medium">Plain pulsed morning &amp; evening water only (Pre-Harvest Interval active).</div>`
-      : recipe.map((item, idx) => {
-          const cat = catalogMap[item.input_id] || {
-            id: item.input_id,
-            name_en: item.input_id,
-            name_kn: item.input_id,
-            unit: item.dose_per_liter ? "ml" : "kg",
-            procurement_criticality: "FLEXIBLE"
-          };
-
-          const displayName = LANG === "KN" && cat.name_kn ? `${cat.name_kn} (${cat.name_en})` : cat.name_en;
-          const mult = (cat.id === "WSF_00_00_50") ? sopMultiplier : 1.0;
-
-          let doseLine = "";
-          if (item.dose_per_liter) {
-            const perDrum = Number((item.dose_per_liter * mult * ORCHARD.drumLiters).toFixed(0));
-            const total3Ac = Number(((perDrum * ORCHARD.drums) / (cat.unit === "g" || cat.unit === "ml" ? 1 : 1)).toFixed(0));
-            doseLine = LANG === "KN"
-              ? `ಪ್ರತಿ 200L ಡ್ರಮ್‌ಗೆ: <b>${perDrum} ${cat.unit}</b> • ಒಟ್ಟು 3 ಎಕರೆಗೆ (7 ಡ್ರಮ್): <b>${total3Ac} ${cat.unit}</b>`
-              : `Per 200L Drum: <b>${perDrum} ${cat.unit}</b> • Total 3 Acres (7 Drums): <b>${total3Ac} ${cat.unit}</b>`;
-          } else {
-            const perAcre = Number((item.dose_per_acre * mult).toFixed(2));
-            const total3Ac = Number((perAcre * ORCHARD.acres).toFixed(2));
-            doseLine = LANG === "KN"
-              ? `ಪ್ರತಿ ಎಕರೆಗೆ: <b>${perAcre} ${cat.unit}</b> • ಒಟ್ಟು 3 ಎಕರೆಗೆ: <b>${total3Ac} ${cat.unit}</b>`
-              : `Per Acre: <b>${perAcre} ${cat.unit}</b> • Total 3 Acres: <b>${total3Ac} ${cat.unit}</b>`;
-          }
-
-          const critBadge = cat.procurement_criticality === "CRITICAL_MUST_SOURCE"
-            ? `<span class="text-[10px] bg-red-100 text-red-800 px-2 py-0.5 rounded font-bold">🔴 Must Source Exact</span>`
-            : `<span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">🟢 Store Flexible</span>`;
-
-          return `
-            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="font-extrabold text-sm text-slate-900">${displayName}</span>
-                  ${critBadge}
-                </div>
-                <div class="text-xs text-slate-600 mt-0.5">${doseLine}</div>
-                <div class="text-[11px] text-slate-400 mt-0.5">Salt: ${cat.active_ingredient || "Standard"} ${cat.popular_brands ? `• Brands: ${cat.popular_brands}` : ""}</div>
-              </div>
-              <button onclick="openStoreModal('${task.id}', ${idx}, '${cat.id}')" class="self-start sm:self-center shrink-0 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs px-3 py-1.5 rounded-lg shadow-sm tap-btn">
-                🏪 Store Out of Stock?
-              </button>
-            </div>
-          `;
-        }).join("");
-
-    const statusBadge = task.status === "COMPLETED"
-      ? `<span class="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full">✅ Completed</span>`
-      : task.status === "DELAYED"
-      ? `<span class="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-1 rounded-full">⏳ Delayed (${task.delay_reason || "Shifted"})</span>`
-      : `<span class="bg-slate-100 text-slate-700 font-bold text-xs px-2.5 py-1 rounded-full">🕒 Scheduled: ${task.current_scheduled_date}</span>`;
-
-    return `
-      <div class="bg-white rounded-2xl shadow-sm border-2 ${cardBorder} overflow-hidden">
-        <div class="px-4 py-2.5 ${badgeTheme} flex items-center justify-between">
-          <span class="font-bold text-xs sm:text-sm">${typeLabel}</span>
-          <span class="text-xs opacity-90 font-semibold">${task.effective_dad} DAD</span>
-        </div>
-        <div class="p-4 space-y-3">
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <div class="font-bold text-sm text-slate-800">${task.target_description}</div>
-              <div class="text-xs text-slate-500">Scheduled Date: <b>${task.current_scheduled_date}</b></div>
-            </div>
-            ${statusBadge}
-          </div>
-
-          <div class="space-y-2">${recipeHtml}</div>
-
-          <!-- 3-TAP FARMER ACTION BAR -->
-          <div class="pt-2 border-t border-slate-100 flex flex-wrap gap-2">
-            <button onclick="markTaskDone('${task.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm py-2.5 px-3 rounded-xl shadow tap-btn">
-              ✅ ${LANG === "KN" ? "ಪೂರ್ಣಗೊಂಡಿದೆ (Done)" : "Mark Done"}
-            </button>
-            <button onclick="delayTask('${task.id}', 'RAIN')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm py-2.5 px-3 rounded-xl shadow tap-btn">
-              🌧️ ${LANG === "KN" ? "ಮಳೆ / ಮುಂದೂಡಿ (+2 ದಿನ)" : "Delay (+2 Days)"}
-            </button>
-            <button onclick="resetTask('${task.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs py-2.5 px-3 rounded-xl tap-btn">
-              ↺ Reset
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join("");
-}
-
-// ============================================================================
-// AGRO-STORE COUNTER MODAL & 1-TAP CHEMICAL SWAP
-// ============================================================================
-function openStoreModal(taskId, itemIdx, inputId) {
-  const cat = catalogMap[inputId];
-  if (!cat) return;
-
-  const subs = substitutionsList.filter(s => s.primary_input_id === inputId);
-  const modalBody = document.getElementById("storeModalBody");
-
-  let html = `
-    <div class="p-3 rounded-xl bg-slate-100 border border-slate-200">
-      <div class="text-xs text-slate-500">Primary Scheduled Input:</div>
-      <div class="font-extrabold text-base text-slate-900">${cat.name_en} (${cat.name_kn || ""})</div>
-      <div class="text-xs text-slate-700 mt-0.5"><b>Active Salt:</b> ${cat.active_ingredient}</div>
-      <div class="text-xs text-slate-600"><b>Popular Brands:</b> ${cat.popular_brands || "Standard"}</div>
-    </div>
-  `;
-
-  if (cat.dealer_warning_en) {
-    html += `
-      <div class="p-3 rounded-xl bg-red-50 border border-red-200 text-red-900 text-xs">
-        <b>⚠️ Dealer Caution:</b> ${cat.dealer_warning_en}
-      </div>
-    `;
-  }
-
-  if (subs.length === 0) {
-    html += `
-      <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium">
-        🔴 <b>CRITICAL_MUST_SOURCE:</b> Do not accept random store substitutes for this input. Ask the dealer for another brand with the exact same salt (<b>${cat.active_ingredient}</b>), or source it from Kudligi / Hosapete / Chitradurga.
-      </div>
-    `;
-  } else {
-    html += `<div class="font-bold text-slate-800 pt-1">Approved Store Alternatives (Tap to Swap into Schedule):</div>`;
-    subs.forEach(s => {
-      const subCat = catalogMap[s.substitute_input_id];
-      if (!subCat) return;
-      const newDose = subCat.base_dose_per_liter
-        ? `${subCat.base_dose_per_liter * ORCHARD.drumLiters} ${subCat.unit} per 200L Drum`
-        : `${subCat.base_dose_per_acre} ${subCat.unit} per Acre`;
-
-      html += `
-        <div class="p-3 rounded-xl border-2 border-emerald-200 bg-emerald-50/60 flex items-center justify-between gap-2">
-          <div>
-            <div class="font-extrabold text-slate-900">${subCat.name_en} (${subCat.name_kn || ""})</div>
-            <div class="text-xs text-emerald-900 font-semibold">${newDose}</div>
-            <div class="text-[11px] text-slate-600">Salt: ${subCat.active_ingredient} • Brands: ${subCat.popular_brands || ""}</div>
-            <div class="text-[11px] text-slate-500 mt-0.5">${s.adjustment_note_en || ""}</div>
-          </div>
-          <button onclick="confirmStoreSwap('${taskId}', ${itemIdx}, '${subCat.id}')" class="shrink-0 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-3 py-2 rounded-lg shadow tap-btn">
-            Use This
-          </button>
-        </div>
-      `;
-    });
-  }
-
-  modalBody.innerHTML = html;
-  document.getElementById("storeModal").classList.remove("hidden");
-}
-
-function closeStoreModal() {
-  document.getElementById("storeModal").classList.add("hidden");
-}
-
-async function confirmStoreSwap(taskId, itemIdx, newInputId) {
-  const task = taskQueue.find(t => t.id === taskId);
-  const newCat = catalogMap[newInputId];
-  if (!task || !newCat) return;
-
-  const updatedRecipe = [...task.resolved_recipe];
-  updatedRecipe[itemIdx] = newCat.base_dose_per_liter
-    ? { input_id: newInputId, dose_per_liter: Number(newCat.base_dose_per_liter) }
-    : { input_id: newInputId, dose_per_acre: Number(newCat.base_dose_per_acre) };
-
-  task.resolved_recipe = updatedRecipe;
-  closeStoreModal();
-  renderAll();
-
-  await supabaseClient.from("daily_task_queue").update({ resolved_recipe: updatedRecipe }).eq("id", taskId);
-}
-
-// ============================================================================
-// TASK EXECUTION & DELAY HANDLERS (SYNCED WITH SUPABASE)
-// ============================================================================
-async function markTaskDone(taskId) {
-  const task = taskQueue.find(t => t.id === taskId);
-  if (!task) return;
-  task.status = "COMPLETED";
-  task.executed_at = new Date().toISOString();
-  renderAll();
-  await supabaseClient.from("daily_task_queue").update({
-    status: "COMPLETED",
-    executed_at: task.executed_at
-  }).eq("id", taskId);
-}
-
-async function delayTask(taskId, reason) {
-  const task = taskQueue.find(t => t.id === taskId);
-  if (!task) return;
-  const curDate = new Date(task.current_scheduled_date);
-  curDate.setDate(curDate.getDate() + 2);
-  const newDateStr = curDate.toISOString().split("T")[0];
-
-  task.status = "DELAYED";
-  task.delay_reason = reason;
-  task.current_scheduled_date = newDateStr;
-  renderAll();
-
-  await supabaseClient.from("daily_task_queue").update({
-    status: "DELAYED",
-    delay_reason: reason,
-    current_scheduled_date: newDateStr
-  }).eq("id", taskId);
-}
-
-async function resetTask(taskId) {
-  const task = taskQueue.find(t => t.id === taskId);
-  if (!task) return;
-  task.status = "PENDING";
-  task.delay_reason = null;
-  task.current_scheduled_date = task.originally_scheduled_date;
-  renderAll();
-
-  await supabaseClient.from("daily_task_queue").update({
-    status: "PENDING",
-    delay_reason: null,
-    current_scheduled_date: task.originally_scheduled_date
-  }).eq("id", taskId);
-}
-
-// ============================================================================
-// TAB 2: AGRO-STORE WEEKLY SHOPPING CALCULATOR + SHED LEFTOVERS
-// ============================================================================
-function renderShoppingList(weekTasks) {
-  const container = document.getElementById("shoppingListContainer");
-  const totalsByInput = {};
-
-  weekTasks.forEach(task => {
-    (task.resolved_recipe || []).forEach(item => {
-      const cat = catalogMap[item.input_id];
-      if (!cat) return;
-      let req3Acres = 0;
-      if (item.dose_per_liter) {
-        req3Acres = item.dose_per_liter * ORCHARD.drumLiters * ORCHARD.drums;
-      } else {
-        req3Acres = item.dose_per_acre * ORCHARD.acres;
-      }
-      totalsByInput[item.input_id] = (totalsByInput[item.input_id] || 0) + req3Acres;
-    });
-  });
-
-  const keys = Object.keys(totalsByInput);
-  if (keys.length === 0) {
-    container.innerHTML = `<div class="py-4 text-xs text-slate-500">No chemical purchases needed for Week ${currentWeek} (Plain water window).</div>`;
-    return;
-  }
-
-  container.innerHTML = keys.map(id => {
-    const cat = catalogMap[id];
-    const grossNeeded = Number(totalsByInput[id].toFixed(2));
-    const shedQty = Number(shedLeftovers[id] || 0);
-    const netToBuy = Math.max(0, Number((grossNeeded - shedQty).toFixed(2)));
-
-    return `
-      <div class="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  pTasks.innerHTML = wkTasks.map(tk => {
+    const hdr = tk.task_type === "STANDALONE_COPPER" ? "bg-red-700 text-white" : tk.task_type === "FOLIAR_SPRAY" ? "bg-emerald-700 text-white" : "bg-sky-700 text-white";
+    const items = (tk.resolved_recipe || []).map((it, idx) => {
+      const cat = catalog[it.input_id] || { id: it.input_id, name_en: it.input_id, unit: it.dose_per_liter ? "ml" : "kg" };
+      const name = LANG === "KN" && cat.name_kn ? `${cat.name_kn} (${cat.name_en})` : cat.name_en;
+      const m = cat.id === "WSF_00_00_50" ? sopMult : 1.0;
+      const math = it.dose_per_liter
+        ? `Per 200L Drum: <b>${Math.round(it.dose_per_liter * m * CFG.drumL)} ${cat.unit}</b> • Total 7 Drums: <b>${Math.round(it.dose_per_liter * m * CFG.drumL * CFG.drums)} ${cat.unit}</b>`
+        : `Per Acre: <b>${(it.dose_per_acre * m).toFixed(2)} ${cat.unit}</b> • Total 3 Acres: <b>${(it.dose_per_acre * m * CFG.acres).toFixed(2)} ${cat.unit}</b>`;
+      return `<div class="p-2.5 bg-slate-50 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <div class="font-bold text-sm text-slate-900">${cat.name_en} <span class="text-slate-500 font-normal">(${cat.name_kn || ""})</span></div>
-          <div class="text-xs text-slate-600">Salt: ${cat.active_ingredient} • Pack sizes: ${cat.standard_pack_sizes || "Standard"}</div>
-          <div class="text-xs mt-1">
-            3-Acre Need: <b>${grossNeeded} ${cat.unit}</b> |
-            <span class="text-emerald-800 font-extrabold">Net to Buy at Store: ${netToBuy} ${cat.unit}</span>
-          </div>
+          <div class="font-bold text-sm">${name} <span class="text-[10px] px-1.5 py-0.5 rounded ${cat.procurement_criticality === 'CRITICAL_MUST_SOURCE' ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'}">${cat.procurement_criticality === 'CRITICAL_MUST_SOURCE' ? '🔴 Must Source' : '🟢 Flexible'}</span></div>
+          <div class="text-xs text-slate-600">${math}</div>
+          <div class="text-[11px] text-slate-400">Salt: ${cat.active_ingredient || ''} • Brands: ${cat.popular_brands || ''}</div>
         </div>
-        <div class="flex items-center gap-2 text-xs">
-          <label class="text-slate-500 font-medium">Leftover in Shed (${cat.unit}):</label>
-          <input type="number" step="0.5" min="0" value="${shedQty}"
-            onchange="updateShedLeftover('${id}', this.value)"
-            class="w-20 border border-slate-300 rounded-lg px-2 py-1.5 font-bold text-slate-900" />
+        <button onclick="openSwap('${tk.id}',${idx},'${cat.id}')" class="bg-white border text-xs font-bold px-2.5 py-1.5 rounded-lg self-start sm:self-center">🏪 Store Out?</button>
+      </div>`;
+    }).join("") || `<div class="text-xs text-slate-500 p-2 bg-slate-50 rounded">Plain pulsed morning &amp; evening water only.</div>`;
+
+    return `<div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+      <div class="px-3 py-2 ${hdr} flex justify-between text-xs font-bold"><span>${tk.task_type}</span><span>${tk.effective_dad} DAD • ${tk.current_scheduled_date}</span></div>
+      <div class="p-3 space-y-2.5">
+        <div class="flex justify-between items-center"><span class="font-bold text-xs sm:text-sm">${tk.target_description}</span><span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100">${tk.status}</span></div>
+        <div class="space-y-2">${items}</div>
+        <div class="flex gap-2 pt-2 border-t text-xs font-bold">
+          <button onclick="setTaskStatus('${tk.id}','COMPLETED',0)" class="flex-1 bg-emerald-600 text-white py-2 rounded-lg">✅ Done</button>
+          <button onclick="setTaskStatus('${tk.id}','DELAYED',2)" class="flex-1 bg-amber-500 text-white py-2 rounded-lg">🌧️ Delay +2d</button>
+          <button onclick="setTaskStatus('${tk.id}','PENDING',-99)" class="bg-slate-200 px-3 py-2 rounded-lg">↺</button>
         </div>
       </div>
-    `;
+    </div>`;
   }).join("");
+
+  // Shopping List
+  const tot = {};
+  wkTasks.forEach(tk => (tk.resolved_recipe || []).forEach(it => {
+    const req = it.dose_per_liter ? it.dose_per_liter * CFG.drumL * CFG.drums : it.dose_per_acre * CFG.acres;
+    tot[it.input_id] = (tot[it.input_id] || 0) + req;
+  }));
+  document.getElementById("shopBox").innerHTML = Object.keys(tot).map(id => {
+    const c = catalog[id] || { name_en: id, unit: "" };
+    const need = Number(tot[id].toFixed(2)), left = Number(leftovers[id] || 0), buy = Math.max(0, Number((need - left).toFixed(2)));
+    return `<div class="py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+      <div><div class="font-bold text-sm">${c.name_en} (${c.name_kn || ''})</div><div>3-Acre Need: <b>${need} ${c.unit}</b> • <span class="text-emerald-800 font-bold">Net to Buy: ${buy} ${c.unit}</span></div></div>
+      <div class="flex items-center gap-1.5"><span>Shed Leftover:</span><input type="number" value="${left}" onchange="saveLeftover('${id}',this.value)" class="w-16 border rounded px-2 py-1 font-bold"/></div>
+    </div>`;
+  }).join("") || `<div class="py-3 text-xs text-slate-500">No inputs needed this week.</div>`;
+
+  // Master Table
+  document.getElementById("allWeeksBody").innerHTML = tasks.map(t => `<tr onclick="goWeek(${t.week_number});showTab('TASKS')" class="cursor-pointer hover:bg-slate-50"><td class="py-1.5 font-bold">Wk ${t.week_number}</td><td>${t.effective_dad}d</td><td>${t.target_description}</td><td class="font-bold">${t.status}</td></tr>`).join("");
 }
 
-async function updateShedLeftover(inputId, val) {
-  const num = Math.max(0, Number(val) || 0);
-  shedLeftovers[inputId] = num;
-  renderAll();
-  await supabaseClient.from("shed_leftovers").upsert({
-    input_id: inputId,
-    leftover_qty: num,
-    updated_at: new Date().toISOString()
-  });
+function openSwap(taskId, idx, id) {
+  const c = catalog[id];
+  const list = subs.filter(s => s.primary_input_id === id);
+  let h = `<div class="p-2.5 bg-slate-100 rounded-lg"><b>${c.name_en}</b><br>Salt: ${c.active_ingredient}</div>`;
+  if (c.dealer_warning_en) h += `<div class="p-2.5 bg-red-50 text-red-900 rounded-lg">⚠️ ${c.dealer_warning_en}</div>`;
+  if (!list.length) {
+    h += `<div class="p-2.5 bg-amber-50 text-amber-900 rounded-lg font-bold">🔴 CRITICAL: Do not accept different salts. Source ${c.active_ingredient} from another store/town.</div>`;
+  } else {
+    h += list.map(s => {
+      const sc = catalog[s.substitute_input_id];
+      if (!sc) return "";
+      return `<div class="p-2.5 border-2 border-emerald-200 bg-emerald-50 rounded-lg flex justify-between items-center">
+        <div><b>${sc.name_en} (${sc.name_kn || ''})</b><br>${s.adjustment_note_en}</div>
+        <button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg">Swap</button>
+      </div>`;
+    }).join("");
+  }
+  document.getElementById("swapModalContent").innerHTML = h;
+  document.getElementById("swapModal").classList.remove("hidden");
 }
 
-function copyShoppingList() {
-  const weekTasks = taskQueue.filter(t => Number(t.week_number) === Number(currentWeek));
-  const totalsByInput = {};
-  weekTasks.forEach(task => {
-    (task.resolved_recipe || []).forEach(item => {
-      const cat = catalogMap[item.input_id];
-      if (!cat) return;
-      const req = item.dose_per_liter
-        ? item.dose_per_liter * ORCHARD.drumLiters * ORCHARD.drums
-        : item.dose_per_acre * ORCHARD.acres;
-      totalsByInput[item.input_id] = (totalsByInput[item.input_id] || 0) + req;
-    });
-  });
+async function doSwap(taskId, idx, newId) {
+  const tk = tasks.find(x => x.id === taskId), sc = catalog[newId];
+  tk.resolved_recipe[idx] = sc.base_dose_per_liter ? { input_id: newId, dose_per_liter: Number(sc.base_dose_per_liter) } : { input_id: newId, dose_per_acre: Number(sc.base_dose_per_acre) };
+  document.getElementById("swapModal").classList.add("hidden");
+  render();
+  await sb.from("daily_task_queue").update({ resolved_recipe: tk.resolved_recipe }).eq("id", taskId);
+}
 
-  let lines = [`🍎 Hosahalli Orchard - Week ${currentWeek} Shopping List (3 Acres):`];
-  Object.keys(totalsByInput).forEach(id => {
-    const cat = catalogMap[id];
-    const net = Math.max(0, Number((totalsByInput[id] - (shedLeftovers[id] || 0)).toFixed(2)));
-    if (net > 0) {
-      lines.push(`• ${cat.name_en} (${cat.name_kn || ""}): Buy ${net} ${cat.unit} [Salt: ${cat.active_ingredient}]`);
-    }
+async function setTaskStatus(id, st, addDays) {
+  const tk = tasks.find(x => x.id === id);
+  tk.status = st;
+  if (addDays === -99) tk.current_scheduled_date = tk.originally_scheduled_date;
+  else if (addDays > 0) {
+    const d = new Date(tk.current_scheduled_date);
+    d.setDate(d.getDate() + addDays);
+    tk.current_scheduled_date = d.toISOString().split("T")[0];
+  }
+  render();
+  await sb.from("daily_task_queue").update({ status: st, current_scheduled_date: tk.current_scheduled_date }).eq("id", id);
+}
+
+async function saveLeftover(id, v) {
+  leftovers[id] = Math.max(0, Number(v) || 0);
+  render();
+  await sb.from("shed_leftovers").upsert({ input_id: id, leftover_qty: leftovers[id] });
+}
+
+function copyList() {
+  const wkTasks = tasks.filter(t => Number(t.week_number) === curWk), tot = {};
+  wkTasks.forEach(tk => (tk.resolved_recipe || []).forEach(it => {
+    tot[it.input_id] = (tot[it.input_id] || 0) + (it.dose_per_liter ? it.dose_per_liter * CFG.drumL * CFG.drums : it.dose_per_acre * CFG.acres);
+  }));
+  const lines = [`🍎 Hosahalli Orchard Week ${curWk} Store List (3 Acres):`];
+  Object.keys(tot).forEach(id => {
+    const c = catalog[id], net = Math.max(0, Number((tot[id] - (leftovers[id] || 0)).toFixed(2)));
+    if (net > 0) lines.push(`• ${c.name_en}: Buy ${net} ${c.unit} (${c.active_ingredient})`);
   });
   navigator.clipboard.writeText(lines.join("\n"));
-  alert("Shopping list copied to clipboard! You can paste it into WhatsApp or Notes.");
+  alert("Copied to clipboard!");
 }
 
-// ============================================================================
-// TAB 3: FIELD SCOUTING ESCALATION & 21-WEEK TABLE
-// ============================================================================
-async function reportSymptom(symptomCode) {
-  const map = {
-    BLIGHT_SPOT: {
-      title: "Bacterial Blight Oily Spot Reported",
-      action: "Switch to Curative Blight Protocol: Spray Copper Hydroxide (300g/drum) + Bronopol (100g/drum) standalone within 24 hrs, followed by Kasugamycin (300ml/drum) 5 days later."
-    },
-    THRIPS_SCAR: {
-      title: "Active Thrips Scarring Reported",
-      action: "Curative Knockdown: Spray Spinetoram 11.7% SC (160ml/drum) or Cyantraniliprole (140ml/drum). Rotate IRAC group on next spray in 5 days."
-    },
-    FRUIT_BORER: {
-      title: "Deudorix Fruit Borer Activity Reported",
-      action: "Remove and destroy bored fruits immediately. Spray Chlorantraniliprole 18.5% SC (60ml/drum) or Cyantraniliprole (140ml/drum)."
-    },
-    MEALYBUG: {
-      title: "Mealybug / Scale Infestation Reported",
-      action: "Spray Spirotetramat 15.31% OD (200ml/drum) + Buprofezin 25% SC (300ml/drum) ensuring thorough wetting of fruit crowns and stems."
-    },
-    FRUIT_ROT: {
-      title: "Fungal Fruit Rot / Anthracnose Reported",
-      action: "Spray Fluxapyroxad + Pyraclostrobin (120ml/drum) or Fluopyram + Tebuconazole (160ml/drum) immediately."
-    },
-    CRACKING: {
-      title: "Rind Sunburn / Fruit Cracking Reported",
-      action: "Split drip irrigation into Morning (60%) + Evening (40%) pulses. Spray Chelated Calcium-Boron (300g/drum) + Orthosilicic Acid (300ml/drum) immediately."
-    }
+function flagIssue(code) {
+  const m = {
+    BLIGHT_SPOT: { t: "Bacterial Blight Reported", d: "Spray Copper Hydroxide (300g/drum) + Bronopol (100g/drum) standalone within 24h." },
+    THRIPS_SCAR: { t: "Thrips Scarring Reported", d: "Spray Spinetoram (160ml/drum) or Cyantraniliprole (140ml/drum)." },
+    FRUIT_BORER: { t: "Fruit Borer Reported", d: "Remove bored fruits; spray Chlorantraniliprole (60ml/drum)." },
+    MEALYBUG: { t: "Mealybug Reported", d: "Spray Spirotetramat (200ml/drum) + Buprofezin (300ml/drum)." },
+    FRUIT_ROT: { t: "Fruit Rot Reported", d: "Spray Fluxapyroxad + Pyraclostrobin (120ml/drum) immediately." },
+    CRACKING: { t: "Sunburn / Cracking Reported", d: "Split drip into Morning + Evening pulses; spray Chelated Ca-B (300g/drum)." }
   };
-
-  activeScoutingAlert = map[symptomCode];
-  switchTab("TASKS");
-
-  await supabaseClient.from("weather_and_scouting_logs").upsert({
-    log_date: new Date().toISOString().split("T")[0],
-    rain_24h_mm: weatherState.rain24h,
-    temp_max_c: weatherState.tempMax,
-    temp_min_c: weatherState.tempMinAvg,
-    scouting_symptom: symptomCode,
-    symptom_severity: "HIGH"
-  });
-}
-
-function renderMasterTable() {
-  const tbody = document.getElementById("masterTableBody");
-  tbody.innerHTML = taskQueue.map(t => `
-    <tr class="hover:bg-slate-50 cursor-pointer" onclick="selectWeek(${t.week_number}); switchTab('TASKS');">
-      <td class="py-2 pr-2 font-bold text-slate-800">Wk ${t.week_number}<br><span class="font-normal text-slate-500">${t.current_scheduled_date}</span></td>
-      <td class="py-2 px-2 text-emerald-800 font-semibold">${t.effective_dad} DAD<br><span class="font-normal text-slate-500">${t.stage_name}</span></td>
-      <td class="py-2 px-2"><b>${t.task_type}</b>: ${t.target_description}</td>
-      <td class="py-2 pl-2 font-bold">${t.status}</td>
-    </tr>
-  `).join("");
+  scoutAlert = m[code];
+  showTab("TASKS");
+  render();
 }
 </script>
 </body>
 </html>
+<!-- === END OF INDEX.HTML === -->
