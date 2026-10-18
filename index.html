@@ -17,18 +17,13 @@
         <p id="ui_appSub" class="text-[11px] text-emerald-200">3 Acres • 1,500 Plants (10×8) • Planted: 20 Sep 2024 • Ethrel: 15 Aug 2026</p>
       </div>
       <div class="flex items-center gap-1.5">
-        <!-- DYNAMIC USER SELECTOR + MANAGE USERS BUTTON -->
         <div class="flex items-center bg-emerald-800 rounded-lg px-2 py-1 text-xs border border-emerald-700">
           <span class="mr-1">👤</span>
           <select id="userSelect" onchange="changeActiveUser(this.value)" class="bg-transparent text-white font-bold focus:outline-none max-w-[110px]"></select>
-          <button onclick="openUserModal()" title="Add / Edit / Delete Users" class="ml-1.5 pl-1.5 border-l border-emerald-600 text-amber-300 font-bold hover:text-white">
-            ✏️
-          </button>
+          <button onclick="openUserModal()" title="Manage Users" class="ml-1.5 pl-1.5 border-l border-emerald-600 text-amber-300 font-bold">✏️</button>
         </div>
         <span id="syncBadge" class="text-[10px] px-2 py-1 rounded-full bg-emerald-700">...</span>
-        <button onclick="toggleLanguage()" id="langBtn" class="bg-amber-400 text-slate-900 font-extrabold text-xs px-2.5 py-1.5 rounded-lg shadow">
-          ಕನ್ನಡ
-        </button>
+        <button onclick="toggleLanguage()" id="langBtn" class="bg-amber-400 text-slate-900 font-extrabold text-xs px-2.5 py-1.5 rounded-lg shadow">ಕನ್ನಡ</button>
       </div>
     </div>
 
@@ -57,7 +52,7 @@
   </div>
 
   <main class="max-w-4xl mx-auto px-3 pt-3">
-    <!-- WEEK BAR (INCLUDES WEEK 0: PAST KEEP HISTORY) -->
+    <!-- WEEK BAR -->
     <div class="bg-white rounded-xl p-3 mb-3 shadow-sm border flex flex-wrap items-center justify-between gap-2">
       <div>
         <div id="wkTitle" class="font-extrabold text-base">Week 1</div>
@@ -87,7 +82,7 @@
     <!-- TAB 2: MANUAL / PAST ACTIVITY ENTRY -->
     <section id="panel_MANUAL" class="hidden bg-white rounded-xl p-4 shadow-sm border space-y-3">
       <h2 id="ui_manTitle" class="font-extrabold text-sm sm:text-base text-slate-900">➕ Record Manual or Past Spray / Drip</h2>
-      <p id="ui_manSub" class="text-xs text-slate-500">Log any spray or fertilizer you applied. The rule engine automatically shifts conflicting dates, prevents 10-day Boron overdose, and rotates IRAC/FRAC chemical groups.</p>
+      <p id="ui_manSub" class="text-xs text-slate-500">Log any spray or fertilizer you applied. Automatically shifts conflicting dates, prevents 10-day Boron overdose, and rotates IRAC/FRAC chemical groups.</p>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div>
@@ -107,11 +102,21 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div>
           <label id="ui_lblManChem1" class="font-bold block mb-1">Primary Chemical / Fertilizer:</label>
-          <select id="manChem1" class="w-full border rounded-lg px-3 py-2 font-semibold"></select>
+          <select id="manChem1" onchange="prefillManualQty(1)" class="w-full border rounded-lg px-3 py-2 font-semibold"></select>
+          <div class="mt-1 flex items-center gap-1.5">
+            <span class="text-slate-500">Total 3-Acre Qty Used:</span>
+            <input type="number" step="0.1" id="manQty1" class="w-24 border rounded px-2 py-1 font-bold" />
+            <span id="manUnit1" class="font-bold text-slate-600"></span>
+          </div>
         </div>
         <div>
           <label id="ui_lblManChem2" class="font-bold block mb-1">Second Tank-Mix Input (Optional):</label>
-          <select id="manChem2" class="w-full border rounded-lg px-3 py-2 font-semibold"></select>
+          <select id="manChem2" onchange="prefillManualQty(2)" class="w-full border rounded-lg px-3 py-2 font-semibold"></select>
+          <div class="mt-1 flex items-center gap-1.5">
+            <span class="text-slate-500">Total 3-Acre Qty Used:</span>
+            <input type="number" step="0.1" id="manQty2" class="w-24 border rounded px-2 py-1 font-bold" placeholder="Optional" />
+            <span id="manUnit2" class="font-bold text-slate-600"></span>
+          </div>
         </div>
       </div>
 
@@ -123,7 +128,7 @@
       <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs flex items-center gap-2">
         <input type="checkbox" id="manShiftCheck" checked class="w-4 h-4" />
         <label for="manShiftCheck" id="ui_lblManShift" class="font-semibold text-amber-900">
-          Auto-adjust future schedule (+3d spray shift, 5d Copper cooldown, 10d Boron lock &amp; IRAC/FRAC rotation)
+          Auto-adjust future schedule (+3d shift, 5d Copper cooldown, 10d Boron lock &amp; IRAC/FRAC rotation)
         </label>
       </div>
 
@@ -137,7 +142,7 @@
       <div class="flex items-center justify-between mb-3">
         <div>
           <h2 id="ui_shopTitle" class="font-bold text-sm sm:text-base">Agro-Store Shopping List (3 Acres)</h2>
-          <p id="ui_shopSub" class="text-xs text-slate-500">Skipped and completed tasks are excluded. Enter shed leftovers below.</p>
+          <p id="ui_shopSub" class="text-xs text-slate-500">Skipped and completed items are excluded. Enter shed leftovers below.</p>
         </div>
         <button onclick="copyList()" id="ui_btnCopy" class="bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg">📲 Copy List</button>
       </div>
@@ -148,7 +153,7 @@
     <section id="panel_SCOUT" class="hidden space-y-4">
       <div class="bg-white rounded-xl p-4 shadow-sm border">
         <h2 id="ui_scoutTitle" class="font-bold text-sm mb-1">🔍 1-Tap Field Problem Reporter</h2>
-        <p id="ui_scoutSub" class="text-xs text-slate-500 mb-3">Checks live weather, picks the safe spray date, and adds a permanent task card to your schedule.</p>
+        <p id="ui_scoutSub" class="text-xs text-slate-500 mb-3">Tap an issue below. You will be asked to confirm before it adds a weather-smart spray card to your schedule (and you can delete it anytime).</p>
         <div id="scoutGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-bold"></div>
       </div>
 
@@ -174,6 +179,74 @@
     </section>
   </main>
 
+  <!-- DELAY / RESCHEDULE MODAL (CUSTOM DAYS + CASCADE OPTIONS) -->
+  <div id="delayModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-3 text-xs">
+      <div class="flex items-center justify-between border-b pb-2">
+        <h3 id="ui_delayModalTitle" class="font-extrabold text-base text-slate-900">⏳ Delay / Reschedule Task</h3>
+        <button onclick="closeDelayModal()" class="font-bold text-lg px-2">✕</button>
+      </div>
+
+      <div id="delayTaskName" class="p-2.5 bg-slate-100 rounded-lg font-bold text-slate-800"></div>
+
+      <div>
+        <label class="font-bold block mb-1.5 text-slate-700" id="ui_lblQuickDelay">1. Quick Delay (Tap Days) or Pick Date:</label>
+        <div class="grid grid-cols-5 gap-1.5 font-bold mb-2">
+          <button onclick="setDelayOffset(1)" class="py-2 rounded-lg border bg-amber-50 hover:bg-amber-100 text-amber-900">+1d</button>
+          <button onclick="setDelayOffset(2)" class="py-2 rounded-lg border bg-amber-100 hover:bg-amber-200 text-amber-950">+2d</button>
+          <button onclick="setDelayOffset(3)" class="py-2 rounded-lg border bg-amber-50 hover:bg-amber-100 text-amber-900">+3d</button>
+          <button onclick="setDelayOffset(5)" class="py-2 rounded-lg border bg-amber-50 hover:bg-amber-100 text-amber-900">+5d</button>
+          <button onclick="setDelayOffset(7)" class="py-2 rounded-lg border bg-amber-50 hover:bg-amber-100 text-amber-900">+7d</button>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-600 font-semibold" id="ui_lblNewDate">New Date:</span>
+          <input type="date" id="delayCustomDate" class="flex-1 border rounded-lg px-3 py-1.5 font-bold text-slate-900" />
+        </div>
+      </div>
+
+      <div>
+        <label class="font-bold block mb-1.5 text-slate-700" id="ui_lblCascadeMode">2. How should future tasks update?</label>
+        <div class="space-y-1.5">
+          <label class="flex items-start gap-2 p-2 rounded-lg border bg-emerald-50 border-emerald-200 cursor-pointer">
+            <input type="radio" name="cascadeMode" value="ALL" checked class="mt-0.5" />
+            <div>
+              <div class="font-bold text-emerald-950" id="ui_casAllTitle">🌊 Shift ALL upcoming tasks forward (Recommended)</div>
+              <div class="text-[11px] text-emerald-800" id="ui_casAllSub">Pushes upcoming Foliar Sprays (like Oct 20) and Drips forward by the same days so spacing stays intact.</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-2 p-2 rounded-lg border bg-slate-50 cursor-pointer">
+            <input type="radio" name="cascadeMode" value="TRACK" class="mt-0.5" />
+            <div>
+              <div class="font-bold text-slate-800" id="ui_casTrackTitle">🛤️ Shift ONLY same-type tasks (Drip only OR Spray only)</div>
+              <div class="text-[11px] text-slate-600" id="ui_casTrackSub">If delaying a Drip, shifts future Drips while keeping Foliar Spray dates unchanged.</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-2 p-2 rounded-lg border bg-slate-50 cursor-pointer">
+            <input type="radio" name="cascadeMode" value="SINGLE" class="mt-0.5" />
+            <div>
+              <div class="font-bold text-slate-800" id="ui_casSingleTitle">📌 Move ONLY this task (Auto-fixes same-day collisions)</div>
+              <div class="text-[11px] text-slate-600" id="ui_casSingleSub">Moves only this task, and bumps any conflicting task if they land on the exact same day.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <label class="font-bold block mb-1 text-slate-700" id="ui_lblDelayReason">3. Reason for Delay:</label>
+        <select id="delayReasonSelect" class="w-full border rounded-lg px-2.5 py-1.5 font-semibold">
+          <option value="RAIN">🌧️ Rain / Wet Soil</option>
+          <option value="NO_POWER">⚡ No Power / Pump Issue</option>
+          <option value="NO_LABOR">👷 Labor Unavailable</option>
+          <option value="SOURCING_FROM_OTHER_TOWN">🏪 Chemical Sourcing Delay</option>
+        </select>
+      </div>
+
+      <button onclick="confirmDelayModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-2.5 rounded-xl shadow text-sm">
+        ✅ Confirm New Date &amp; Update Schedule
+      </button>
+    </div>
+  </div>
+
   <!-- STORE COUNTER MODAL -->
   <div id="swapModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-4 max-h-[85vh] overflow-y-auto">
@@ -185,7 +258,7 @@
     </div>
   </div>
 
-  <!-- MANAGE USERS MODAL (ADD / RENAME / DELETE USERS) -->
+  <!-- MANAGE USERS MODAL -->
   <div id="userModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[85vh] overflow-y-auto space-y-3">
       <div class="flex items-center justify-between border-b pb-2">
@@ -212,6 +285,7 @@ let activeUser = localStorage.getItem("h_user") || "Vishwanath";
 let usersList = [{ id: 1, name: "Vishwanath" }];
 let curWk = 1, catalog = {}, subs = [], leftovers = {}, tasks = [], auditLogs = [];
 let wState = { rain24: 0, prob4: 0, tMax: 30.5, tMin: 18.2 };
+let activeDelayTaskId = null;
 
 const I18N = {
   EN: {
@@ -236,32 +310,35 @@ const I18N = {
     lblManShift: "Auto-adjust future schedule (+3d shift, 5d Copper cooldown, 10d Boron lock & IRAC/FRAC rotation)",
     btnSaveMan: "💾 Save Activity & Update Schedule",
     shopTitle: "Agro-Store Shopping List (3 Acres)",
-    shopSub: "Skipped and completed tasks are excluded. Enter shed leftovers below.",
+    shopSub: "Skipped and completed items are excluded. Enter shed leftovers below.",
     btnCopy: "📲 Copy List",
     scoutTitle: "🔍 1-Tap Field Problem Reporter",
-    scoutSub: "Checks live weather, picks the safe spray date, and adds a permanent task card to your schedule.",
+    scoutSub: "Tap an issue below. Confirms before adding a weather-smart spray card to your schedule (and you can delete it anytime).",
     auditTitle: "👤 Recent Activity & User Tracking Log",
     masterTitle: "📅 Complete Orchard Schedule (Keep History + 21 Weeks)",
     modalTitle: "🏪 Agro-Store Counter Helper",
     weekWord: "Week",
     pastHistoryLabel: "📜 Week 0: Done History (Sep 2024 – Oct 15, 2026)",
     dadWord: "DAD",
-    doneBtn: "✅ Done",
-    delayBtn: "🌧️ Delay +2d",
-    skipBtn: "⏭️ Skip",
+    doneBtn: "✅ All Done",
+    delayBtn: "⏳ Delay / Move",
+    skipBtn: "⏭️ Skip All",
     resetBtn: "↺ Reset",
-    storeOutBtn: "🏪 Store Out?",
+    deleteBtn: "🗑️ Delete",
+    storeOutBtn: "🏪 Swap",
     mustSource: "🔴 Must Source Exact",
     flexible: "🟢 Store Flexible",
     status_PENDING: "🕒 Pending",
+    status_PARTIAL: "🌗 Partial Done",
     status_COMPLETED: "✅ Completed",
-    status_DELAYED: "⏳ Delayed",
+    status_DELAYED: "⏳ Rescheduled",
     status_SKIPPED: "⏭️ Skipped",
-    type_DRIP_MON_THU: "💧 Mon & Thu Split Drip (3 Acres)",
-    type_DRIP_SAT: "💧 Saturday Standalone Drip (3 Acres)",
+    type_DRIP_MON_THU: "💧 Main P-K Split Drip (3 Acres)",
+    type_DRIP_SAT: "💧 Calcium / Micro Standalone Drip (3 Acres)",
     type_FOLIAR_SPRAY: "🌿 Foliar Spray (7 Drums × 200L)",
     type_STANDALONE_COPPER: "⚠️ Standalone Copper Spray (Do NOT Mix)",
-    updatedBy: "Updated by"
+    updatedBy: "Updated by",
+    splitRemainingBtn: "📅 Move Remaining Unfinished Item(s) to Tomorrow"
   },
   KN: {
     appTitle: "🍎 ಹೊಸಹಳ್ಳಿ ದಾಳಿಂಬೆ ನಿರ್ವಹಣಾ ಟ್ರ್ಯಾಕರ್",
@@ -285,32 +362,35 @@ const I18N = {
     lblManShift: "ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸಿ (+3 ದಿನ ಮುಂದೂಡಿಕೆ, 5 ದಿನ ಕಾಪರ್ ಅಂತರ, ಬೋರಾನ್ ಮಿತಿ)",
     btnSaveMan: "💾 ದಾಖಲಿಸಿ ಮತ್ತು ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ",
     shopTitle: "ಅಗ್ರೋ ಅಂಗಡಿ ಖರೀದಿ ಪಟ್ಟಿ (3 ಎಕರೆ)",
-    shopSub: "ಪೂರ್ಣಗೊಂಡ ಮತ್ತು ಬಿಟ್ಟುಬಿಟ್ಟ ಕೆಲಸಗಳನ್ನು ಕೈಬಿಡಲಾಗಿದೆ. ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣ ನಮೂದಿಸಿ.",
+    shopSub: "ಪೂರ್ಣಗೊಂಡ ಮತ್ತು ಬಿಟ್ಟುಬಿಟ್ಟ ಔಷಧಿಗಳನ್ನು ಕೈಬಿಡಲಾಗಿದೆ. ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣ ನಮೂದಿಸಿ.",
     btnCopy: "📲 ಪಟ್ಟಿ ಕಾಪಿ ಮಾಡಿ",
     scoutTitle: "🔍 ತೋಟದ ರೋಗ / ಕೀಟ ವರದಿ ಮಾಡಿ",
-    scoutSub: "ಮಳೆ ಮತ್ತು ಹವಾಮಾನ ಪರಿಶೀಲಿಸಿ, ಸೂಕ್ತ ದಿನಾಂಕದೊಂದಿಗೆ ನಿಮ್ಮ ವೇಳಾಪಟ್ಟಿಗೆ ಶಾಶ್ವತವಾಗಿ ಸಿಂಪಡಣೆ ಸೇರಿಸುತ್ತದೆ.",
+    scoutSub: "ಕೆಳಗಿನ ಸಮಸ್ಯೆ ಒತ್ತಿರಿ. ದೃಢೀಕರಿಸಿದ ನಂತರ ಹವಾಮಾನ ಪರಿಶೀಲಿಸಿ ನಿಮ್ಮ ವೇಳಾಪಟ್ಟಿಗೆ ಸಿಂಪಡಣೆ ಸೇರಿಸುತ್ತದೆ (ಬೇಕಿದ್ದರೆ ಅಳಿಸಬಹುದು).",
     auditTitle: "👤 ಯಾರು, ಯಾವಾಗ ಬದಲಾವಣೆ ಮಾಡಿದರು (ದಾಖಲೆ ಪಟ್ಟಿ)",
     masterTitle: "📅 ಪೂರ್ಣ ವೇಳಾಪಟ್ಟಿ (ಹಿಂದಿನ ದಾಖಲೆಗಳು + 21 ವಾರಗಳು)",
     modalTitle: "🏪 ಅಗ್ರೋ ಅಂಗಡಿ ಪರ್ಯಾಯ ಔಷಧಿ ಸಹಾಯಕ",
     weekWord: "ವಾರ",
     pastHistoryLabel: "📜 ವಾರ 0: ಹಿಂದಿನ ದಾಖಲೆಗಳು (ಸೆಪ್ಟೆಂಬರ್ 2024 – ಅಕ್ಟೋಬರ್ 15, 2026)",
     dadWord: "ದಿನ (DAD)",
-    doneBtn: "✅ ಪೂರ್ಣಗೊಂಡಿದೆ",
-    delayBtn: "🌧️ +2 ದಿನ ಮುಂದೂಡಿ",
+    doneBtn: "✅ ಎಲ್ಲಾ ಪೂರ್ಣ",
+    delayBtn: "⏳ ದಿನಾಂಕ ಬದಲಿಸಿ",
     skipBtn: "⏭️ ಬಿಟ್ಟುಬಿಡಿ",
     resetBtn: "↺ ಮರುಹೊಂದಿಸಿ",
-    storeOutBtn: "🏪 ಅಂಗಡಿಯಲ್ಲಿ ಇಲ್ಲವೇ?",
+    deleteBtn: "🗑️ ಅಳಿಸಿ",
+    storeOutBtn: "🏪 ಬದಲಿಸಿ",
     mustSource: "🔴 ಇದೇ ಔಷಧಿ ಕಡ್ಡಾಯ",
     flexible: "🟢 ಬದಲಿಸಬಹುದು",
     status_PENDING: "🕒 ಬಾಕಿ ಇದೆ",
+    status_PARTIAL: "🌗 ಅರ್ಧ ಪೂರ್ಣಗೊಂಡಿದೆ",
     status_COMPLETED: "✅ ಪೂರ್ಣಗೊಂಡಿದೆ",
-    status_DELAYED: "⏳ ಮುಂದೂಡಲಾಗಿದೆ",
+    status_DELAYED: "⏳ ದಿನಾಂಕ ಬದಲಾಗಿದೆ",
     status_SKIPPED: "⏭️ ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ",
-    type_DRIP_MON_THU: "💧 ಸೋಮ & ಗುರುವಾರ ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)",
-    type_DRIP_SAT: "💧 ಶನಿವಾರದ ಪ್ರತ್ಯೇಕ ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)",
+    type_DRIP_MON_THU: "💧 ಮುಖ್ಯ P-K ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)",
+    type_DRIP_SAT: "💧 ಕ್ಯಾಲ್ಸಿಯಂ / ಲಘು ಪೋಷಕಾಂಶ ಡ್ರಿಪ್ (3 ಎಕರೆ)",
     type_FOLIAR_SPRAY: "🌿 ಎಲೆ ಸಿಂಪಡಣೆ (7 ಡ್ರಮ್ × 200 ಲೀಟರ್)",
     type_STANDALONE_COPPER: "⚠️ ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ (ಬೇರೆ ಬೆರೆಸಬೇಡಿ)",
-    updatedBy: "ನವೀಕರಿಸಿದವರು"
+    updatedBy: "ನವೀಕರಿಸಿದವರು",
+    splitRemainingBtn: "📅 ಬಾಕಿ ಉಳಿದ ಗೊಬ್ಬರ/ಔಷಧಿಯನ್ನು ನಾಳೆಗೆ ಪ್ರತ್ಯೇಕ ಕಾರ್ಡ್ ಮಾಡಿ"
   }
 };
 
@@ -329,11 +409,26 @@ const STAGE_KN = {
   "Manual / Past Activity": "✍️ ಕೈಯಾರೆ ದಾಖಲಿಸಿದ ಕೆಲಸ"
 };
 
+// Strips hardcoded "Mon & Thu Drip:" or "Sat Drip:" so delayed tasks never show wrong day names
+function cleanHardcodedDayPrefix(desc, isKn) {
+  if (!desc) return "";
+  let s = desc
+    .replace(/^Mon\s*&\s*Thu\s*Split\s*Drip\s*:/i, "Main P-K Drip:")
+    .replace(/^Mon\s*&\s*Thu\s*Drip\s*:/i, "Main P-K Drip:")
+    .replace(/^Monday\s*&\s*Thursday\s*Drip\s*:/i, "Main P-K Drip:")
+    .replace(/^Saturday\s*Drip\s*:/i, "Calcium / Micro Drip:")
+    .replace(/^Sat\s*Drip\s*:/i, "Calcium / Micro Drip:")
+    .replace(/^ಸೋಮ\s*&\s*ಗುರುವಾರ\s*ಡ್ರಿಪ್/i, "ಮುಖ್ಯ P-K ಡ್ರಿಪ್")
+    .replace(/^ಸೋಮ\s*ಮತ್ತು\s*ಗುರುವಾರ\s*ಡ್ರಿಪ್/i, "ಮುಖ್ಯ P-K ಡ್ರಿಪ್")
+    .replace(/^ಶನಿವಾರದ\s*ಡ್ರಿಪ್/i, "ಕ್ಯಾಲ್ಸಿಯಂ / ಲಘು ಪೋಷಕಾಂಶ ಡ್ರಿಪ್");
+  return isKn ? translateDescToKn(s) : s;
+}
+
 function translateDescToKn(desc) {
   if (!desc) return "";
   const map = [
-    ["Mon & Thu Drip:", "ಸೋಮ ಮತ್ತು ಗುರುವಾರ ಡ್ರಿಪ್:"],
-    ["Sat Drip:", "ಶನಿವಾರದ ಡ್ರಿಪ್:"],
+    ["Main P-K Drip:", "ಮುಖ್ಯ P-K ಡ್ರಿಪ್:"],
+    ["Calcium / Micro Drip:", "ಕ್ಯಾಲ್ಸಿಯಂ / ಲಘು ಪೋಷಕಾಂಶ ಡ್ರಿಪ್:"],
     ["Foliar:", "ಎಲೆ ಸಿಂಪಡಣೆ:"],
     ["Standalone Copper:", "ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಸಿಂಪಡಣೆ:"],
     ["Cell division & rind wall", "ಕಾಯಿ ಬೆಳವಣಿಗೆ ಮತ್ತು ಸಿಪ್ಪೆ ಗಟ್ಟಿಗೊಳಿಸಲು"],
@@ -438,6 +533,25 @@ const SCOUT_ISSUES = [
   }
 ];
 
+// Dynamically calculate DAD and Week Number from current_scheduled_date (NOT static template!)
+function computeDynamicDadAndWeek(dateStr, triggerSource) {
+  const dt = new Date(dateStr + "T00:00:00");
+  const ethrel = new Date("2026-08-15T00:00:00");
+  const dad = Math.floor((dt - ethrel) / 86400000);
+  if (triggerSource === "KEEP_NOTE_HISTORY" || dateStr < "2026-10-18") {
+    return { dad, week: 0 };
+  }
+  const daysSinceOct18 = Math.floor((dt - new Date("2026-10-18T00:00:00")) / 86400000);
+  const week = Math.min(25, Math.max(1, Math.floor(daysSinceOct18 / 7) + 1));
+  return { dad, week };
+}
+
+function formatDateWithWeekday(dateStr) {
+  const dt = new Date(dateStr + "T00:00:00");
+  const loc = LANG === "KN" ? "kn-IN" : "en-IN";
+  return dt.toLocaleDateString(loc, { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+}
+
 window.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("manDate").value = new Date().toISOString().split("T")[0];
   const diff = Math.floor((new Date() - new Date("2026-10-18T00:00:00")) / 86400000);
@@ -448,7 +562,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 });
 
 // ============================================================================
-// CUSTOMIZABLE USER MANAGEMENT (ADD / RENAME / DELETE)
+// USER MANAGEMENT
 // ============================================================================
 function renderUserDropdown() {
   const sel = document.getElementById("userSelect");
@@ -601,21 +715,21 @@ async function loadDB() {
 
     tasks = (qR.data || []).map(q => {
       const tmpl = tMap[q.template_id];
-      const isPreOct18 = q.effective_dad < 64 || q.trigger_source === "KEEP_NOTE_HISTORY";
-      const computedWk = isPreOct18 ? 0 : Math.min(21, Math.max(1, Math.ceil((q.effective_dad - 63) / 7)));
+      const dyn = computeDynamicDadAndWeek(q.current_scheduled_date, q.trigger_source);
       return {
         ...q,
-        week_number: tmpl ? tmpl.week_number : computedWk,
-        stage_name: isPreOct18 ? "Past Keep History" : (tmpl ? tmpl.stage_name : (q.trigger_source === "SCOUTING_CURATIVE" ? "Curative Scouting Task" : "Manual / Past Activity")),
+        effective_dad: dyn.dad,
+        week_number: dyn.week,
+        stage_name: dyn.week === 0 ? "Past Keep History" : (tmpl ? tmpl.stage_name : (q.trigger_source === "SCOUTING_CURATIVE" ? "Curative Scouting Task" : "Manual / Past Activity")),
         target_description: q.custom_title_en || (tmpl ? tmpl.target_description : (q.notes || "Scheduled Task")),
         target_description_kn: q.custom_title_kn || ""
       };
     });
 
-    localStorage.setItem("h_cache_v3", JSON.stringify({ catalog, subs, leftovers, tasks, auditLogs, usersList }));
+    localStorage.setItem("h_cache_v4", JSON.stringify({ catalog, subs, leftovers, tasks, auditLogs, usersList }));
     b.textContent = "🟢 Online";
   } catch (e) {
-    const c = localStorage.getItem("h_cache_v3");
+    const c = localStorage.getItem("h_cache_v4");
     if (c) ({ catalog, subs, leftovers, tasks, auditLogs, usersList } = JSON.parse(c));
     b.textContent = "🟠 Offline";
   }
@@ -627,16 +741,35 @@ function populateManualSelects() {
   const s1 = document.getElementById("manChem1");
   const s2 = document.getElementById("manChem2");
   if (!s1 || !s2) return;
+  const cur1 = s1.value, cur2 = s2.value;
   const opts = Object.values(catalog).map(c => {
     const label = LANG === "KN" && c.name_kn ? c.name_kn : c.name_en;
     return `<option value="${c.id}">${label} (${c.unit})</option>`;
   }).join("");
   s1.innerHTML = opts;
   s2.innerHTML = `<option value="">-- ${LANG === "KN" ? "ಯಾವುದೂ ಇಲ್ಲ" : "None"} --</option>` + opts;
+  if (cur1) s1.value = cur1;
+  if (cur2) s2.value = cur2;
+  prefillManualQty(1);
+  prefillManualQty(2);
+}
+
+function prefillManualQty(slot) {
+  const sel = document.getElementById(`manChem${slot}`);
+  const qInp = document.getElementById(`manQty${slot}`);
+  const uSpan = document.getElementById(`manUnit${slot}`);
+  if (!sel || !qInp || !uSpan) return;
+  const c = catalog[sel.value];
+  if (!c) { qInp.value = ""; uSpan.textContent = ""; return; }
+  const def3Ac = c.base_dose_per_liter
+    ? Math.round(c.base_dose_per_liter * CFG.drumL * CFG.drums)
+    : Number(((c.base_dose_per_acre || 2) * CFG.acres).toFixed(2));
+  qInp.value = def3Ac;
+  uSpan.textContent = c.unit;
 }
 
 function goWeek(w) { curWk = Number(w); render(); }
-function stepWeek(d) { curWk = Math.min(21, Math.max(0, curWk + d)); render(); }
+function stepWeek(d) { curWk = Math.min(22, Math.max(0, curWk + d)); render(); }
 
 function showTab(t) {
   ["TASKS", "MANUAL", "SHOP", "SCOUT"].forEach(k => {
@@ -647,7 +780,21 @@ function showTab(t) {
   });
 }
 
+// Re-syncs dynamic week_number & effective_dad across all tasks whenever dates change
+function refreshDynamicTaskWeeks() {
+  tasks.forEach(t => {
+    const dyn = computeDynamicDadAndWeek(t.current_scheduled_date, t.trigger_source);
+    t.effective_dad = dyn.dad;
+    t.week_number = dyn.week;
+  });
+  tasks.sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date));
+}
+
+// ============================================================================
+// MAIN RENDER FUNCTION
+// ============================================================================
 function render() {
+  refreshDynamicTaskWeeks();
   const L = I18N[LANG];
   document.getElementById("langBtn").textContent = LANG === "EN" ? "ಕನ್ನಡ" : "English";
   document.getElementById("ui_appTitle").textContent = L.appTitle;
@@ -680,13 +827,12 @@ function render() {
   document.getElementById("ui_modalTitle").textContent = L.modalTitle;
 
   updateWBar();
-  populateManualSelects();
 
-  // Populate Week Dropdown (Including Week 0: Past Keep History)
   const sel = document.getElementById("wkSelect");
   const loc = LANG === "KN" ? "kn-IN" : "en-IN";
   sel.innerHTML = `<option value="0" ${curWk === 0 ? "selected" : ""}>${L.pastHistoryLabel}</option>`;
-  for (let w = 1; w <= 21; w++) {
+  const maxWk = Math.max(21, ...tasks.map(t => Number(t.week_number) || 1));
+  for (let w = 1; w <= maxWk; w++) {
     const dt = new Date(2026, 9, 18 + (w - 1) * 7).toLocaleDateString(loc, { day: "2-digit", month: "short" });
     sel.innerHTML += `<option value="${w}" ${w === curWk ? "selected" : ""}>${L.weekWord} ${w} (${dt})</option>`;
   }
@@ -711,15 +857,6 @@ function render() {
   // Alerts
   const dad1 = curWk === 0 ? 0 : 64 + (curWk - 1) * 7;
   const al = [];
-  if (curWk === 1) {
-    al.push({
-      c: "bg-emerald-50 border-emerald-300 text-emerald-950",
-      t: LANG === "KN" ? "✅ ನಿಮ್ಮ ಅಕ್ಟೋಬರ್ 12 ಮತ್ತು 15ರ ದಾಖಲೆಗಳ ಪ್ರಕಾರ ವಾರ 1 ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ" : "✅ Week 1 Auto-Adjusted from Your Keep Note (Oct 12 & Oct 15)",
-      d: LANG === "KN"
-        ? "1) ಅಕ್ಟೋಬರ್ 15 ರಂದು C-Phos + ಬೋರಾನ್ ನೀಡಿರುವುದರಿಂದ ಈ ವಾರದ ಶನಿವಾರದ ಬೋರಾನ್ ಕೈಬಿಡಲಾಗಿದೆ. 2) ಅಕ್ಟೋಬರ್ 12 ರಂದು ಕ್ಯಾಬ್ರಿಟಾಪ್ ಸಿಂಪಡಿಸಿರುವುದರಿಂದ ಈ ವಾರ ಡೈಫೆನೊಕೊನಜೋಲ್ + ಸ್ಪೈನೆಟೊರಾಮ್ ನೀಡಲಾಗಿದೆ."
-        : "1) Removed Boron from Sat Drip (since Dot Boron 20% + C-Phos was applied Oct 15). 2) Rotated Foliar Spray to Spinetoram + Difenoconazole (since Cabrio Top was sprayed Oct 12 & Exponus on Oct 7)."
-    });
-  }
   if (wState.rain24 > 15) {
     al.push({
       c: "bg-red-50 border-red-300 text-red-900",
@@ -751,88 +888,163 @@ function render() {
   const sopMult = (dad1 >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
   const pTasks = document.getElementById("panel_TASKS");
 
-  pTasks.innerHTML = wkTasks.map(tk => {
-    const isScout = tk.trigger_source === "SCOUTING_CURATIVE";
-    const isManual = tk.trigger_source === "MANUAL_ENTRY" || tk.trigger_source === "KEEP_NOTE_HISTORY";
-    const isSkipped = tk.status === "SKIPPED";
+  if (wkTasks.length === 0) {
+    pTasks.innerHTML = `<div class="bg-white p-5 rounded-xl text-center text-xs text-slate-500">${LANG === "KN" ? "ಈ ವಾರ ಯಾವುದೇ ಕೆಲಸಗಳು ಇಲ್ಲ (ಮುಂದಿನ ವಾರಕ್ಕೆ ಮುಂದೂಡಲ್ಪಟ್ಟಿರಬಹುದು)." : "No tasks scheduled in this week window (tasks may have been shifted to the next week)."}</div>`;
+  } else {
+    pTasks.innerHTML = wkTasks.map(tk => {
+      const isScout = tk.trigger_source === "SCOUTING_CURATIVE";
+      const isManual = tk.trigger_source === "MANUAL_ENTRY" || tk.trigger_source === "SPLIT_REMAINDER";
+      const isKeep = tk.trigger_source === "KEEP_NOTE_HISTORY";
+      const canDelete = isScout || isManual;
+      const isSkipped = tk.status === "SKIPPED";
 
-    let hdr = tk.task_type === "STANDALONE_COPPER" ? "bg-red-700 text-white" : tk.task_type === "FOLIAR_SPRAY" ? "bg-emerald-700 text-white" : "bg-sky-700 text-white";
-    if (isScout) hdr = "bg-rose-700 text-white";
-    if (tk.trigger_source === "KEEP_NOTE_HISTORY") hdr = "bg-slate-700 text-white";
+      let hdr = tk.task_type === "STANDALONE_COPPER" ? "bg-red-700 text-white" : tk.task_type === "FOLIAR_SPRAY" ? "bg-emerald-700 text-white" : "bg-sky-700 text-white";
+      if (isScout) hdr = "bg-rose-700 text-white";
+      if (isKeep) hdr = "bg-slate-700 text-white";
 
-    const typeTitle = isScout
-      ? (LANG === "KN" ? "🚨 ತುರ್ತು ರೋಗ/ಕೀಟ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ" : "🚨 Curative Scouting Spray")
-      : (L[`type_${tk.task_type}`] || tk.task_type);
+      const typeTitle = isScout
+        ? (LANG === "KN" ? "🚨 ತುರ್ತು ರೋಗ/ಕೀಟ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ" : "🚨 Curative Scouting Spray")
+        : (L[`type_${tk.task_type}`] || tk.task_type);
 
-    const descText = LANG === "KN"
-      ? (tk.target_description_kn || translateDescToKn(tk.target_description))
-      : tk.target_description;
+      const rawDesc = LANG === "KN" ? (tk.target_description_kn || tk.target_description) : tk.target_description;
+      const descText = cleanHardcodedDayPrefix(rawDesc, LANG === "KN");
 
-    const statusText = L[`status_${tk.status}`] || tk.status;
+      const recipeArr = Array.isArray(tk.resolved_recipe) ? tk.resolved_recipe : [];
+      const doneCount = recipeArr.filter(r => r.item_status === "COMPLETED").length;
+      const pendingCount = recipeArr.filter(r => !r.item_status || r.item_status === "PENDING").length;
+      const hasPartialDone = recipeArr.length > 1 && doneCount > 0 && pendingCount > 0;
 
-    const items = (tk.resolved_recipe || []).map((it, idx) => {
-      const cat = catalog[it.input_id] || { id: it.input_id, name_en: it.input_id, name_kn: it.input_id, unit: it.dose_per_liter ? "ml" : "kg", procurement_criticality: "FLEXIBLE" };
-      const chemName = LANG === "KN" ? (cat.name_kn || cat.name_en) : cat.name_en;
-      const m = cat.id === "WSF_00_00_50" ? sopMult : 1.0;
+      const statusText = hasPartialDone
+        ? `${L.status_PARTIAL} (${doneCount}/${recipeArr.length})`
+        : (L[`status_${tk.status}`] || tk.status);
 
-      const math = it.dose_per_liter
-        ? (LANG === "KN"
-            ? `ಪ್ರತಿ 200L ಡ್ರಮ್‌ಗೆ: <b>${Math.round(it.dose_per_liter * m * CFG.drumL)} ${cat.unit}</b> • ಒಟ್ಟು 7 ಡ್ರಮ್ (3 ಎಕರೆ): <b>${Math.round(it.dose_per_liter * m * CFG.drumL * CFG.drums)} ${cat.unit}</b>`
-            : `Per 200L Drum: <b>${Math.round(it.dose_per_liter * m * CFG.drumL)} ${cat.unit}</b> • Total 7 Drums: <b>${Math.round(it.dose_per_liter * m * CFG.drumL * CFG.drums)} ${cat.unit}</b>`)
-        : (LANG === "KN"
-            ? `ಪ್ರತಿ ಎಕರೆಗೆ: <b>${(it.dose_per_acre * m).toFixed(2)} ${cat.unit}</b> • ಒಟ್ಟು 3 ಎಕರೆಗೆ: <b>${(it.dose_per_acre * m * CFG.acres).toFixed(2)} ${cat.unit}</b>`
-            : `Per Acre: <b>${(it.dose_per_acre * m).toFixed(2)} ${cat.unit}</b> • Total 3 Acres: <b>${(it.dose_per_acre * m * CFG.acres).toFixed(2)} ${cat.unit}</b>`);
+      const wasShifted = tk.originally_scheduled_date && tk.originally_scheduled_date !== tk.current_scheduled_date;
+      const dateHeaderStr = `📅 ${formatDateWithWeekday(tk.current_scheduled_date)} • ${tk.effective_dad} ${L.dadWord}`;
 
-      const isCrit = cat.procurement_criticality === "CRITICAL_MUST_SOURCE";
-      const critLabel = isCrit ? L.mustSource : L.flexible;
+      // Render Each Chemical Item with Per-Item Done, Skip, Swap & Editable Quantity
+      const itemsHtml = recipeArr.map((it, idx) => {
+        const cat = catalog[it.input_id] || { id: it.input_id, name_en: it.input_id, name_kn: it.input_id, unit: it.dose_per_liter ? "ml" : "kg", procurement_criticality: "FLEXIBLE" };
+        const chemName = LANG === "KN" ? (cat.name_kn || cat.name_en) : cat.name_en;
+        const m = cat.id === "WSF_00_00_50" ? sopMult : 1.0;
+        const itemSt = it.item_status || (tk.status === "COMPLETED" ? "COMPLETED" : tk.status === "SKIPPED" ? "SKIPPED" : "PENDING");
 
-      return `<div class="p-2.5 bg-slate-50 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <div class="font-bold text-sm flex items-center gap-1.5 flex-wrap">
-            <span>${chemName}</span>
-            <span class="text-[10px] px-1.5 py-0.5 rounded ${isCrit ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'}">${critLabel}</span>
+        // Suggested vs Actual Quantity for 3 Acres
+        let suggestedTotal3Ac = 0;
+        let perUnitText = "";
+        if (it.dose_per_liter) {
+          const perDrum = Math.round(it.dose_per_liter * m * CFG.drumL);
+          suggestedTotal3Ac = Math.round(perDrum * CFG.drums);
+          perUnitText = LANG === "KN" ? `ಪ್ರತಿ 200L ಡ್ರಮ್‌ಗೆ: <b>${perDrum} ${cat.unit}</b>` : `Per 200L Drum: <b>${perDrum} ${cat.unit}</b>`;
+        } else {
+          const perAc = Number((it.dose_per_acre * m).toFixed(2));
+          suggestedTotal3Ac = Number((perAc * CFG.acres).toFixed(2));
+          perUnitText = LANG === "KN" ? `ಪ್ರತಿ ಎಕರೆಗೆ: <b>${perAc} ${cat.unit}</b>` : `Per Acre: <b>${perAc} ${cat.unit}</b>`;
+        }
+
+        const currentTotal3Ac = it.actual_total_3ac !== undefined ? it.actual_total_3ac : suggestedTotal3Ac;
+        const isCrit = cat.procurement_criticality === "CRITICAL_MUST_SOURCE";
+        const critLabel = isCrit ? L.mustSource : L.flexible;
+
+        const rowBg = itemSt === "COMPLETED"
+          ? "bg-emerald-50/80 border-emerald-300"
+          : itemSt === "SKIPPED"
+          ? "bg-slate-100 border-slate-200 opacity-60 line-through"
+          : "bg-slate-50 border-slate-200";
+
+        return `<div class="p-2.5 rounded-xl border ${rowBg} space-y-2">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+            <div>
+              <div class="font-bold text-sm flex items-center gap-1.5 flex-wrap">
+                <span>${chemName}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded ${isCrit ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'}">${critLabel}</span>
+                ${itemSt === "COMPLETED" ? `<span class="text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded-full">✅ Done</span>` : ""}
+                ${itemSt === "SKIPPED" ? `<span class="text-[10px] bg-slate-600 text-white px-2 py-0.5 rounded-full">⏭️ Skipped</span>` : ""}
+              </div>
+              <div class="text-xs text-slate-600 mt-0.5">${perUnitText} • ${LANG === "KN" ? "ಶಿಫಾರಸು (3 ಎಕರೆ)" : "Suggested 3-Acre Total"}: <b>${suggestedTotal3Ac} ${cat.unit}</b></div>
+              <div class="text-[11px] text-slate-400">${cat.active_ingredient || ''} ${cat.popular_brands ? '• ' + cat.popular_brands : ''}</div>
+            </div>
+
+            <!-- EDITABLE QUANTITY & PER-ITEM BUTTONS -->
+            <div class="flex flex-wrap items-center gap-1.5 pt-1 sm:pt-0">
+              <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
+                <span class="text-slate-500 text-[11px]">${LANG === "KN" ? "ಬಳಸಿದ ಪ್ರಮಾಣ:" : "Qty Used:"}</span>
+                <input type="number" step="0.25" min="0" value="${currentTotal3Ac}"
+                  onchange="updateItemQty('${tk.id}', ${idx}, this.value, ${suggestedTotal3Ac})"
+                  class="w-16 font-extrabold text-slate-900 focus:outline-none text-right" />
+                <span class="font-bold text-slate-600">${cat.unit}</span>
+              </div>
+
+              <button onclick="setItemStatus('${tk.id}', ${idx}, '${itemSt === 'COMPLETED' ? 'PENDING' : 'COMPLETED'}', ${suggestedTotal3Ac})"
+                class="${itemSt === 'COMPLETED' ? 'bg-emerald-800 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'} text-xs font-bold px-2.5 py-1.5 rounded-lg shadow-sm">
+                ✅ ${itemSt === 'COMPLETED' ? (LANG === 'KN' ? 'ಆಗಿದೆ' : 'Done') : (LANG === 'KN' ? 'ಮಾಡಲಾಗಿದೆ' : 'Done')}
+              </button>
+
+              <button onclick="setItemStatus('${tk.id}', ${idx}, '${itemSt === 'SKIPPED' ? 'PENDING' : 'SKIPPED'}', ${suggestedTotal3Ac})"
+                class="bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold px-2 py-1.5 rounded-lg">
+                ⏭️
+              </button>
+
+              <button onclick="openSwap('${tk.id}', ${idx}, '${cat.id}')"
+                class="bg-white border border-slate-300 text-xs font-bold px-2 py-1.5 rounded-lg shadow-sm">
+                ${L.storeOutBtn}
+              </button>
+            </div>
           </div>
-          <div class="text-xs text-slate-700 mt-0.5">${math}</div>
-          <div class="text-[11px] text-slate-400">${cat.active_ingredient || ''} ${cat.popular_brands ? '• ' + cat.popular_brands : ''}</div>
+        </div>`;
+      }).join("");
+
+      const splitRemainingBar = hasPartialDone
+        ? `<button onclick="splitRemainingItemsToTomorrow('${tk.id}')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 px-3 rounded-lg shadow">
+            ${L.splitRemainingBtn}
+          </button>`
+        : "";
+
+      const updTime = tk.updated_at ? new Date(tk.updated_at).toLocaleString(loc, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+
+      return `<div class="bg-white rounded-xl shadow-sm border overflow-hidden ${isSkipped ? 'opacity-60' : ''}">
+        <div class="px-3 py-2 ${hdr} flex flex-wrap justify-between items-center gap-1 text-xs font-bold">
+          <span>${typeTitle}</span>
+          <span>${dateHeaderStr}</span>
         </div>
-        <button onclick="openSwap('${tk.id}',${idx},'${cat.id}')" class="bg-white border border-slate-300 text-xs font-bold px-2.5 py-1.5 rounded-lg self-start sm:self-center shadow-sm">${L.storeOutBtn}</button>
+        <div class="p-3 space-y-2.5">
+          <div class="flex justify-between items-start gap-2">
+            <div>
+              <div class="font-bold text-xs sm:text-sm">${descText}</div>
+              ${wasShifted ? `<div class="text-[11px] text-amber-700 font-semibold">↪ Shifted from original date: ${tk.originally_scheduled_date}</div>` : ""}
+            </div>
+            <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 shrink-0">${statusText}</span>
+          </div>
+
+          ${itemsHtml ? `<div class="space-y-2">${itemsHtml}</div>` : ""}
+          ${splitRemainingBar}
+
+          <!-- MAIN CARD ACTION BAR -->
+          <div class="flex flex-wrap gap-1.5 pt-2 border-t text-xs font-bold">
+            <button onclick="markWholeCard('${tk.id}','COMPLETED')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-2 rounded-lg">${L.doneBtn}</button>
+            <button onclick="openDelayModal('${tk.id}')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 px-2 rounded-lg">${L.delayBtn}</button>
+            <button onclick="markWholeCard('${tk.id}','SKIPPED')" class="bg-slate-600 hover:bg-slate-700 text-white py-2 px-2.5 rounded-lg">${L.skipBtn}</button>
+            <button onclick="resetSingleCard('${tk.id}')" class="bg-slate-200 text-slate-700 px-2.5 py-2 rounded-lg">${L.resetBtn}</button>
+            ${canDelete ? `<button onclick="deleteCustomTask('${tk.id}')" class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-2 rounded-lg">${L.deleteBtn}</button>` : ""}
+          </div>
+
+          <div class="text-[11px] text-slate-400 flex justify-between items-center pt-0.5">
+            <span>👤 ${L.updatedBy}: <b>${tk.updated_by || "System"}</b> ${updTime ? `(${updTime})` : ""}</span>
+          </div>
+        </div>
       </div>`;
     }).join("");
+  }
 
-    const updTime = tk.updated_at ? new Date(tk.updated_at).toLocaleString(loc, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
-    const footerTrack = `<div class="text-[11px] text-slate-400 flex justify-between items-center pt-1">
-      <span>👤 ${L.updatedBy}: <b>${tk.updated_by || "System"}</b> ${updTime ? `(${updTime})` : ""}</span>
-      ${(isScout || isManual) ? `<button onclick="deleteCustomTask('${tk.id}')" class="text-red-600 font-bold underline">🗑️ ${LANG === "KN" ? "ಅಳಿಸಿ" : "Delete"}</button>` : ""}
-    </div>`;
-
-    return `<div class="bg-white rounded-xl shadow-sm border overflow-hidden ${isSkipped ? 'opacity-60' : ''}">
-      <div class="px-3 py-2 ${hdr} flex justify-between text-xs font-bold">
-        <span>${typeTitle}</span>
-        <span>${tk.effective_dad} ${L.dadWord} • ${tk.current_scheduled_date}</span>
-      </div>
-      <div class="p-3 space-y-2.5">
-        <div class="flex justify-between items-start gap-2">
-          <span class="font-bold text-xs sm:text-sm">${descText}</span>
-          <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 shrink-0">${statusText}</span>
-        </div>
-        ${items ? `<div class="space-y-2">${items}</div>` : ""}
-        <div class="flex flex-wrap gap-1.5 pt-2 border-t text-xs font-bold">
-          <button onclick="setTaskStatus('${tk.id}','COMPLETED',0)" class="flex-1 bg-emerald-600 text-white py-2 px-2 rounded-lg">${L.doneBtn}</button>
-          <button onclick="setTaskStatus('${tk.id}','DELAYED',2)" class="flex-1 bg-amber-500 text-white py-2 px-2 rounded-lg">${L.delayBtn}</button>
-          <button onclick="setTaskStatus('${tk.id}','SKIPPED',0)" class="flex-1 bg-slate-600 text-white py-2 px-2 rounded-lg">${L.skipBtn}</button>
-          <button onclick="setTaskStatus('${tk.id}','PENDING',-99)" class="bg-slate-200 text-slate-700 px-3 py-2 rounded-lg">${L.resetBtn}</button>
-        </div>
-        ${footerTrack}
-      </div>
-    </div>`;
-  }).join("");
-
-  // Store Shopping List (Excludes SKIPPED and COMPLETED tasks so you only buy what is still pending)
+  // Render Store Shopping List (Only counts PENDING items using their custom quantity!)
   const tot = {};
-  wkTasks.filter(t => t.status !== "SKIPPED" && t.status !== "COMPLETED").forEach(tk => (tk.resolved_recipe || []).forEach(it => {
-    const req = it.dose_per_liter ? it.dose_per_liter * CFG.drumL * CFG.drums : it.dose_per_acre * CFG.acres;
-    tot[it.input_id] = (tot[it.input_id] || 0) + req;
-  }));
+  wkTasks.filter(t => t.status !== "SKIPPED" && t.status !== "COMPLETED").forEach(tk => {
+    (tk.resolved_recipe || []).forEach(it => {
+      if (it.item_status === "COMPLETED" || it.item_status === "SKIPPED") return;
+      const defaultReq = it.dose_per_liter ? it.dose_per_liter * CFG.drumL * CFG.drums : it.dose_per_acre * CFG.acres;
+      const req = it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : defaultReq;
+      tot[it.input_id] = (tot[it.input_id] || 0) + req;
+    });
+  });
 
   document.getElementById("shopBox").innerHTML = Object.keys(tot).map(id => {
     const c = catalog[id] || { name_en: id, name_kn: id, unit: "" };
@@ -841,7 +1053,7 @@ function render() {
     return `<div class="py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
       <div>
         <div class="font-bold text-sm">${dispName}</div>
-        <div>${LANG === "KN" ? "3 ಎಕರೆಗೆ ಒಟ್ಟು ಅಗತ್ಯ" : "3-Acre Need"}: <b>${need} ${c.unit}</b> • <span class="text-emerald-800 font-bold">${LANG === "KN" ? "ಅಂಗಡಿಯಲ್ಲಿ ಖರೀದಿಸಬೇಕಾದ್ದು" : "Net to Buy"}: ${buy} ${c.unit}</span></div>
+        <div>${LANG === "KN" ? "3 ಎಕರೆಗೆ ಬಾಕಿ ಅಗತ್ಯ" : "Pending 3-Acre Need"}: <b>${need} ${c.unit}</b> • <span class="text-emerald-800 font-bold">${LANG === "KN" ? "ಅಂಗಡಿಯಲ್ಲಿ ಖರೀದಿಸಬೇಕಾದ್ದು" : "Net to Buy"}: ${buy} ${c.unit}</span></div>
       </div>
       <div class="flex items-center gap-1.5">
         <span>${LANG === "KN" ? "ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದದ್ದು:" : "Shed Leftover:"}</span>
@@ -871,17 +1083,316 @@ function render() {
 
   // Master Table
   document.getElementById("allWeeksBody").innerHTML = tasks.map(t => {
-    const desc = LANG === "KN" ? (t.target_description_kn || translateDescToKn(t.target_description)) : t.target_description;
+    const rawDesc = LANG === "KN" ? (t.target_description_kn || t.target_description) : t.target_description;
+    const desc = cleanHardcodedDayPrefix(rawDesc, LANG === "KN");
     const wkLbl = t.week_number === 0 ? (LANG === "KN" ? "ಹಿಂದಿನವು" : "History") : `${L.weekWord} ${t.week_number}`;
-    return `<tr onclick="goWeek(${t.week_number});showTab('TASKS')" class="cursor-pointer hover:bg-slate-50">
-      <td class="py-1.5 font-bold">${wkLbl}</td>
-      <td>${t.effective_dad}d<br><span class="text-slate-400">${t.current_scheduled_date}</span></td>
-      <td>${desc}</td>
-      <td class="font-bold">${L[`status_${t.status}`] || t.status}<br><span class="font-normal text-[10px] text-slate-400">👤 ${t.updated_by || "System"}</span></td>
+    const canDel = t.trigger_source === "SCOUTING_CURATIVE" || t.trigger_source === "MANUAL_ENTRY" || t.trigger_source === "SPLIT_REMAINDER";
+    return `<tr class="hover:bg-slate-50">
+      <td onclick="goWeek(${t.week_number});showTab('TASKS')" class="py-1.5 font-bold cursor-pointer">${wkLbl}</td>
+      <td onclick="goWeek(${t.week_number});showTab('TASKS')" class="cursor-pointer">${t.effective_dad}d<br><span class="text-slate-400">${t.current_scheduled_date}</span></td>
+      <td onclick="goWeek(${t.week_number});showTab('TASKS')" class="cursor-pointer">${desc}</td>
+      <td class="font-bold">
+        ${L[`status_${t.status}`] || t.status}
+        ${canDel ? `<button onclick="deleteCustomTask('${t.id}')" class="ml-1 text-red-600 underline text-[11px]">🗑️</button>` : ""}
+        <br><span class="font-normal text-[10px] text-slate-400">👤 ${t.updated_by || "System"}</span>
+      </td>
     </tr>`;
   }).join("");
 }
 
+// ============================================================================
+// PER-ITEM QUANTITY, DONE, SKIP & SPLIT REMAINING LOGIC
+// ============================================================================
+async function updateItemQty(taskId, idx, newVal, suggestedTotal3Ac) {
+  const tk = tasks.find(x => x.id === taskId);
+  if (!tk || !tk.resolved_recipe[idx]) return;
+  const actual3Ac = Math.max(0, Number(newVal) || 0);
+  tk.resolved_recipe[idx].actual_total_3ac = actual3Ac;
+  tk.updated_by = activeUser;
+  tk.updated_at = new Date().toISOString();
+  render();
+
+  await sb.from("daily_task_queue").update({
+    resolved_recipe: tk.resolved_recipe,
+    updated_by: activeUser,
+    updated_at: tk.updated_at
+  }).eq("id", taskId);
+}
+
+async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
+  const tk = tasks.find(x => x.id === taskId);
+  if (!tk || !tk.resolved_recipe[idx]) return;
+  const item = tk.resolved_recipe[idx];
+  item.item_status = newStatus;
+  if (item.actual_total_3ac === undefined) item.actual_total_3ac = suggestedTotal3Ac;
+
+  // Recompute overall card status from its individual items
+  const allItems = tk.resolved_recipe;
+  const allCompleted = allItems.every(r => r.item_status === "COMPLETED");
+  const allSkipped = allItems.every(r => r.item_status === "SKIPPED");
+  const allDoneOrSkipped = allItems.every(r => r.item_status === "COMPLETED" || r.item_status === "SKIPPED");
+
+  if (allCompleted) tk.status = "COMPLETED";
+  else if (allSkipped) tk.status = "SKIPPED";
+  else if (allDoneOrSkipped) tk.status = "COMPLETED";
+  else tk.status = "PENDING";
+
+  tk.updated_by = activeUser;
+  tk.updated_at = new Date().toISOString();
+
+  // If marked COMPLETED at a different quantity than suggested, auto-adjust next week's dose of that input!
+  const diff3Ac = Number((item.actual_total_3ac - suggestedTotal3Ac).toFixed(2));
+  let futureAdjustNote = "";
+  if (newStatus === "COMPLETED" && Math.abs(diff3Ac) >= 0.5 && item.dose_per_acre) {
+    const diffPerAcre = Number((diff3Ac / CFG.acres).toFixed(2));
+    const nextTask = tasks.find(futureT =>
+      futureT.id !== tk.id &&
+      futureT.status === "PENDING" &&
+      futureT.current_scheduled_date > tk.current_scheduled_date &&
+      Array.isArray(futureT.resolved_recipe) &&
+      futureT.resolved_recipe.some(r => r.input_id === item.input_id)
+    );
+    if (nextTask) {
+      nextTask.resolved_recipe = nextTask.resolved_recipe.map(r => {
+        if (r.input_id === item.input_id && r.dose_per_acre) {
+          const adjusted = Math.max(0.5, Number((r.dose_per_acre - diffPerAcre).toFixed(2)));
+          futureAdjustNote = ` (Auto-adjusted next ${catalog[item.input_id]?.name_en || item.input_id} on ${nextTask.current_scheduled_date} to ${adjusted} kg/acre)`;
+          return { ...r, dose_per_acre: adjusted };
+        }
+        return r;
+      });
+      await sb.from("daily_task_queue").update({ resolved_recipe: nextTask.resolved_recipe }).eq("id", nextTask.id);
+    }
+  }
+
+  render();
+  await sb.from("daily_task_queue").update({
+    status: tk.status,
+    resolved_recipe: tk.resolved_recipe,
+    updated_by: activeUser,
+    updated_at: tk.updated_at
+  }).eq("id", taskId);
+
+  const cName = catalog[item.input_id]?.name_en || item.input_id;
+  await logAudit(`ITEM_${newStatus}`, `${cName} (${item.actual_total_3ac} ${catalog[item.input_id]?.unit || ""})`, `On ${tk.current_scheduled_date}${futureAdjustNote}`);
+}
+
+async function splitRemainingItemsToTomorrow(taskId) {
+  const tk = tasks.find(x => x.id === taskId);
+  if (!tk) return;
+  const doneItems = tk.resolved_recipe.filter(r => r.item_status === "COMPLETED" || r.item_status === "SKIPPED");
+  const pendingItems = tk.resolved_recipe.filter(r => !r.item_status || r.item_status === "PENDING");
+  if (!pendingItems.length || !doneItems.length) return;
+
+  // Keep done items on current card and mark current card COMPLETED
+  tk.resolved_recipe = doneItems;
+  tk.status = "COMPLETED";
+  tk.updated_by = activeUser;
+  tk.updated_at = new Date().toISOString();
+
+  await sb.from("daily_task_queue").update({
+    status: "COMPLETED",
+    resolved_recipe: doneItems,
+    updated_by: activeUser,
+    updated_at: tk.updated_at
+  }).eq("id", taskId);
+
+  // Create new follow-up card tomorrow for the remaining pending items
+  const nextD = new Date(tk.current_scheduled_date + "T00:00:00");
+  nextD.setDate(nextD.getDate() + 1);
+  const nextDateStr = nextD.toISOString().split("T")[0];
+  const dyn = computeDynamicDadAndWeek(nextDateStr, "SPLIT_REMAINDER");
+
+  const remNamesEn = pendingItems.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + ");
+  const remNamesKn = pendingItems.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ");
+
+  const payload = {
+    originally_scheduled_date: tk.current_scheduled_date,
+    current_scheduled_date: nextDateStr,
+    effective_dad: dyn.dad,
+    task_type: tk.task_type,
+    trigger_source: "SPLIT_REMAINDER",
+    status: "PENDING",
+    resolved_recipe: pendingItems,
+    custom_title_en: `Remaining Split Task: ${remNamesEn}`,
+    custom_title_kn: `ಬಾಕಿ ಉಳಿದ ಕೆಲಸ: ${remNamesKn}`,
+    updated_by: activeUser,
+    updated_at: new Date().toISOString()
+  };
+
+  const { data } = await sb.from("daily_task_queue").insert([payload]).select();
+  const inserted = (data && data[0]) ? data[0] : { ...payload, id: "split_" + Date.now() };
+  tasks.push({
+    ...inserted,
+    week_number: dyn.week,
+    stage_name: tk.stage_name,
+    target_description: payload.custom_title_en,
+    target_description_kn: payload.custom_title_kn
+  });
+
+  await logAudit("SPLIT_REMAINING", remNamesEn, `Moved remaining item(s) to ${nextDateStr}`);
+  render();
+}
+
+async function markWholeCard(taskId, st) {
+  const tk = tasks.find(x => x.id === taskId);
+  if (!tk) return;
+  tk.status = st;
+  tk.resolved_recipe = (tk.resolved_recipe || []).map(r => ({ ...r, item_status: st }));
+  tk.updated_by = activeUser;
+  tk.updated_at = new Date().toISOString();
+  render();
+
+  await sb.from("daily_task_queue").update({
+    status: st,
+    resolved_recipe: tk.resolved_recipe,
+    updated_by: activeUser,
+    updated_at: tk.updated_at
+  }).eq("id", taskId);
+
+  await logAudit(st, tk.target_description, `Date: ${tk.current_scheduled_date}`);
+}
+
+async function resetSingleCard(taskId) {
+  const tk = tasks.find(x => x.id === taskId);
+  if (!tk) return;
+  tk.status = "PENDING";
+  tk.current_scheduled_date = tk.originally_scheduled_date;
+  tk.resolved_recipe = (tk.resolved_recipe || []).map(r => {
+    const copy = { ...r };
+    delete copy.item_status;
+    delete copy.actual_total_3ac;
+    return copy;
+  });
+  tk.updated_by = activeUser;
+  tk.updated_at = new Date().toISOString();
+  render();
+
+  await sb.from("daily_task_queue").update({
+    status: "PENDING",
+    current_scheduled_date: tk.originally_scheduled_date,
+    resolved_recipe: tk.resolved_recipe,
+    updated_by: activeUser,
+    updated_at: tk.updated_at
+  }).eq("id", taskId);
+}
+
+// ============================================================================
+// CUSTOM DELAY & CASCADE ENGINE MODAL (FIXES OCT 20 & DOWNSTREAM UPDATES!)
+// ============================================================================
+function openDelayModal(taskId) {
+  const tk = tasks.find(x => x.id === taskId);
+  if (!tk) return;
+  activeDelayTaskId = taskId;
+  document.getElementById("delayTaskName").textContent = `${formatDateWithWeekday(tk.current_scheduled_date)} — ${cleanHardcodedDayPrefix(tk.target_description, LANG === "KN")}`;
+  setDelayOffset(2); // Default +2 days preview
+  document.getElementById("delayModal").classList.remove("hidden");
+}
+
+function closeDelayModal() {
+  document.getElementById("delayModal").classList.add("hidden");
+  activeDelayTaskId = null;
+}
+
+function setDelayOffset(days) {
+  const tk = tasks.find(x => x.id === activeDelayTaskId);
+  if (!tk) return;
+  const d = new Date(tk.current_scheduled_date + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  document.getElementById("delayCustomDate").value = d.toISOString().split("T")[0];
+}
+
+async function confirmDelayModal() {
+  const tk = tasks.find(x => x.id === activeDelayTaskId);
+  if (!tk) return;
+  const newDateStr = document.getElementById("delayCustomDate").value;
+  const reason = document.getElementById("delayReasonSelect").value;
+  const cascadeMode = document.querySelector('input[name="cascadeMode"]:checked')?.value || "ALL";
+
+  if (!newDateStr) return;
+
+  const oldDateObj = new Date(tk.current_scheduled_date + "T00:00:00");
+  const newDateObj = new Date(newDateStr + "T00:00:00");
+  const deltaDays = Math.round((newDateObj - oldDateObj) / 86400000);
+
+  if (deltaDays === 0) { closeDelayModal(); return; }
+
+  const originalCutoffDate = tk.current_scheduled_date;
+  const isDripTask = tk.task_type.startsWith("DRIP");
+
+  // 1. Update the target task
+  tk.current_scheduled_date = newDateStr;
+  tk.status = "DELAYED";
+  tk.delay_reason = reason;
+  tk.updated_by = activeUser;
+  tk.updated_at = new Date().toISOString();
+
+  const tasksToUpdateInDB = [tk];
+
+  // 2. Apply selected Cascade Mode to subsequent tasks!
+  tasks.forEach(other => {
+    if (other.id === tk.id) return;
+    if (other.status === "COMPLETED" || other.status === "SKIPPED" || other.trigger_source === "KEEP_NOTE_HISTORY") return;
+    if (other.current_scheduled_date < originalCutoffDate) return;
+
+    const otherIsDrip = other.task_type.startsWith("DRIP");
+
+    if (cascadeMode === "ALL") {
+      // Shift ALL upcoming pending/delayed tasks (including Oct 20 Foliar Spray & Oct 23 Drip!) by deltaDays
+      const od = new Date(other.current_scheduled_date + "T00:00:00");
+      od.setDate(od.getDate() + deltaDays);
+      other.current_scheduled_date = od.toISOString().split("T")[0];
+      other.updated_by = activeUser;
+      other.updated_at = new Date().toISOString();
+      tasksToUpdateInDB.push(other);
+    } else if (cascadeMode === "TRACK" && otherIsDrip === isDripTask) {
+      // Shift only tasks on the same track (Drip vs Spray)
+      const od = new Date(other.current_scheduled_date + "T00:00:00");
+      od.setDate(od.getDate() + deltaDays);
+      other.current_scheduled_date = od.toISOString().split("T")[0];
+      other.updated_by = activeUser;
+      other.updated_at = new Date().toISOString();
+      tasksToUpdateInDB.push(other);
+    } else if (cascadeMode === "SINGLE") {
+      // Auto-collision guard: if moving this task lands on the exact same date as an incompatible task, push the other task +2 days
+      if (other.current_scheduled_date === newDateStr) {
+        const od = new Date(other.current_scheduled_date + "T00:00:00");
+        od.setDate(od.getDate() + 2);
+        other.current_scheduled_date = od.toISOString().split("T")[0];
+        other.updated_by = activeUser;
+        tasksToUpdateInDB.push(other);
+      }
+    }
+  });
+
+  closeDelayModal();
+  refreshDynamicTaskWeeks();
+  curWk = tk.week_number;
+  render();
+
+  // Save all shifted tasks to Supabase in parallel
+  await Promise.all(tasksToUpdateInDB.map(u => {
+    const dyn = computeDynamicDadAndWeek(u.current_scheduled_date, u.trigger_source);
+    return sb.from("daily_task_queue").update({
+      current_scheduled_date: u.current_scheduled_date,
+      effective_dad: dyn.dad,
+      status: u.status,
+      delay_reason: u.delay_reason || null,
+      updated_by: activeUser,
+      updated_at: u.updated_at
+    }).eq("id", u.id);
+  }));
+
+  await logAudit(
+    "CASCADE_DELAY",
+    cleanHardcodedDayPrefix(tk.target_description, false),
+    `Shifted ${deltaDays > 0 ? '+' + deltaDays : deltaDays}d to ${newDateStr} (${cascadeMode} mode: updated ${tasksToUpdateInDB.length} tasks)`
+  );
+}
+
+// ============================================================================
+// STORE COUNTER SWAP MODAL
+// ============================================================================
 function openSwap(taskId, idx, id) {
   const c = catalog[id];
   if (!c) return;
@@ -963,43 +1474,30 @@ async function doSwap(taskId, idx, newId) {
   await logAudit("SWAPPED_CHEMICAL", tk.target_description, `Swapped ${oldId} → ${sc.name_en}`);
 }
 
-async function setTaskStatus(id, st, addDays) {
-  const tk = tasks.find(x => x.id === id);
-  if (!tk) return;
-  tk.status = st;
-  tk.updated_by = activeUser;
-  tk.updated_at = new Date().toISOString();
-
-  if (addDays === -99) {
-    tk.current_scheduled_date = tk.originally_scheduled_date;
-  } else if (addDays > 0) {
-    const d = new Date(tk.current_scheduled_date);
-    d.setDate(d.getDate() + addDays);
-    tk.current_scheduled_date = d.toISOString().split("T")[0];
-  }
-  render();
-
-  await sb.from("daily_task_queue").update({
-    status: st,
-    current_scheduled_date: tk.current_scheduled_date,
-    updated_by: activeUser,
-    updated_at: tk.updated_at
-  }).eq("id", id);
-
-  await logAudit(st, tk.target_description, `Scheduled date: ${tk.current_scheduled_date}`);
-}
-
 async function deleteCustomTask(id) {
   const tk = tasks.find(x => x.id === id);
+  const confirmMsg = LANG === "KN"
+    ? "ಈ ಕೆಲಸವನ್ನು ವೇಳಾಪಟ್ಟಿಯಿಂದ ಅಳಿಸಲು ಖಚಿತವೇ?"
+    : "Are you sure you want to delete this task card from the schedule?";
+  if (!confirm(confirmMsg)) return;
+
   tasks = tasks.filter(x => x.id !== id);
   render();
   await sb.from("daily_task_queue").delete().eq("id", id);
   if (tk) await logAudit("DELETED_TASK", tk.target_description, "");
 }
 
+// ============================================================================
+// SCOUTING ISSUE INJECTION (WITH CONFIRMATION PROMPT TO PREVENT ACCIDENTAL TAPS)
+// ============================================================================
 async function addScoutingTask(code) {
   const iss = SCOUT_ISSUES.find(x => x.code === code);
   if (!iss) return;
+
+  const confirmText = LANG === "KN"
+    ? `'${iss.knTitle}' ಗಾಗಿ ತುರ್ತು ಸಿಂಪಡಣೆಯನ್ನು ವೇಳಾಪಟ್ಟಿಗೆ ಸೇರಿಸಲೇ?`
+    : `Add curative spray for '${iss.enTitle}' to your schedule?`;
+  if (!confirm(confirmText)) return;
 
   const targetDate = new Date();
   let weatherNoteEn = "Weather clear — scheduled for immediate application";
@@ -1012,13 +1510,12 @@ async function addScoutingTask(code) {
   }
 
   const dateStr = targetDate.toISOString().split("T")[0];
-  const dad = Math.max(1, Math.floor((targetDate - new Date("2026-08-15T00:00:00")) / 86400000));
-  const wk = Math.min(21, Math.max(1, Math.ceil((dad - 63) / 7)));
+  const dyn = computeDynamicDadAndWeek(dateStr, "SCOUTING_CURATIVE");
 
   const payload = {
     originally_scheduled_date: dateStr,
     current_scheduled_date: dateStr,
-    effective_dad: dad,
+    effective_dad: dyn.dad,
     task_type: iss.taskType,
     trigger_source: "SCOUTING_CURATIVE",
     status: "PENDING",
@@ -1034,47 +1531,54 @@ async function addScoutingTask(code) {
 
   tasks.push({
     ...inserted,
-    week_number: wk,
+    week_number: dyn.week,
     stage_name: "Curative Scouting Task",
     target_description: inserted.custom_title_en,
     target_description_kn: inserted.custom_title_kn
   });
 
-  await logAudit("SCOUTING_ADDED", iss.enTitle, `Scheduled for ${dateStr} (Week ${wk})`);
-  curWk = wk;
+  await logAudit("SCOUTING_ADDED", iss.enTitle, `Scheduled for ${dateStr} (Week ${dyn.week})`);
+  curWk = dyn.week;
   showTab("TASKS");
   render();
 }
 
 // ============================================================================
-// MANUAL ENTRY + 3-LAYER DYNAMIC SCHEDULE UPDATER (DATE + BORON + IRAC/FRAC)
+// MANUAL ENTRY + QUANTITY & SCHEDULE UPDATER
 // ============================================================================
 async function saveManualActivity() {
   const dateStr = document.getElementById("manDate").value;
   const taskType = document.getElementById("manType").value;
   const chem1 = document.getElementById("manChem1").value;
   const chem2 = document.getElementById("manChem2").value;
+  const qty1 = Number(document.getElementById("manQty1").value) || 0;
+  const qty2 = Number(document.getElementById("manQty2").value) || 0;
   const notes = document.getElementById("manNotes").value.trim();
   const autoShift = document.getElementById("manShiftCheck").checked;
 
   if (!dateStr || !chem1) return;
 
-  const appliedIds = [chem1, chem2].filter(Boolean);
-  const recipe = [];
-  appliedIds.forEach(cid => {
-    const c = catalog[cid];
-    if (!c) return;
-    recipe.push(c.base_dose_per_liter
-      ? { input_id: cid, dose_per_liter: Number(c.base_dose_per_liter) }
-      : { input_id: cid, dose_per_acre: Number(c.base_dose_per_acre || 2.0) });
+  const appliedPairs = [{ id: chem1, q: qty1 }];
+  if (chem2) appliedPairs.push({ id: chem2, q: qty2 });
+
+  const recipe = appliedPairs.map(p => {
+    const c = catalog[p.id];
+    const baseItem = c?.base_dose_per_liter
+      ? { input_id: p.id, dose_per_liter: Number(c.base_dose_per_liter) }
+      : { input_id: p.id, dose_per_acre: Number(c?.base_dose_per_acre || 2.0) };
+    return {
+      ...baseItem,
+      actual_total_3ac: p.q || (c?.base_dose_per_liter ? c.base_dose_per_liter * CFG.drumL * CFG.drums : (c?.base_dose_per_acre || 2) * CFG.acres),
+      item_status: "COMPLETED"
+    };
   });
 
   const dtObj = new Date(dateStr + "T00:00:00");
-  const dad = Math.floor((dtObj - new Date("2026-08-15T00:00:00")) / 86400000);
-  const wk = dad < 64 ? 0 : Math.min(21, Math.max(1, Math.ceil((dad - 63) / 7)));
+  const dyn = computeDynamicDadAndWeek(dateStr, "MANUAL_ENTRY");
+  const appliedIds = appliedPairs.map(p => p.id);
 
-  const namesEn = appliedIds.map(id => catalog[id]?.name_en || id).join(" + ");
-  const namesKn = appliedIds.map(id => catalog[id]?.name_kn || catalog[id]?.name_en || id).join(" + ");
+  const namesEn = appliedPairs.map(p => `${catalog[p.id]?.name_en || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ");
+  const namesKn = appliedPairs.map(p => `${catalog[p.id]?.name_kn || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ");
 
   const titleEn = `Manual Entry (${dateStr}): ${namesEn}${notes ? " [" + notes + "]" : ""}`;
   const titleKn = `ದಾಖಲಿಸಿದ ಕೆಲಸ (${dateStr}): ${namesKn}${notes ? " [" + notes + "]" : ""}`;
@@ -1082,7 +1586,7 @@ async function saveManualActivity() {
   const payload = {
     originally_scheduled_date: dateStr,
     current_scheduled_date: dateStr,
-    effective_dad: dad,
+    effective_dad: dyn.dad,
     task_type: taskType,
     trigger_source: "MANUAL_ENTRY",
     status: "COMPLETED",
@@ -1099,8 +1603,8 @@ async function saveManualActivity() {
 
   tasks.push({
     ...inserted,
-    week_number: wk,
-    stage_name: wk === 0 ? "Past Keep History" : "Manual / Past Activity",
+    week_number: dyn.week,
+    stage_name: dyn.week === 0 ? "Past Keep History" : "Manual / Past Activity",
     target_description: titleEn,
     target_description_kn: titleKn
   });
@@ -1165,9 +1669,9 @@ async function saveManualActivity() {
     }
   }
 
-  await logAudit("MANUAL_WORK_LOGGED", titleEn, `Applied on ${dateStr} (${dad} DAD)`);
+  await logAudit("MANUAL_WORK_LOGGED", titleEn, `Applied on ${dateStr} (${dyn.dad} DAD)`);
   document.getElementById("manNotes").value = "";
-  curWk = wk;
+  curWk = dyn.week;
   showTab("TASKS");
   render();
 }
@@ -1182,7 +1686,10 @@ async function saveLeftover(id, v) {
 function copyList() {
   const wkTasks = tasks.filter(t => Number(t.week_number) === curWk && t.status !== "SKIPPED" && t.status !== "COMPLETED"), tot = {};
   wkTasks.forEach(tk => (tk.resolved_recipe || []).forEach(it => {
-    tot[it.input_id] = (tot[it.input_id] || 0) + (it.dose_per_liter ? it.dose_per_liter * CFG.drumL * CFG.drums : it.dose_per_acre * CFG.acres);
+    if (it.item_status === "COMPLETED" || it.item_status === "SKIPPED") return;
+    const defReq = it.dose_per_liter ? it.dose_per_liter * CFG.drumL * CFG.drums : it.dose_per_acre * CFG.acres;
+    const req = it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : defReq;
+    tot[it.input_id] = (tot[it.input_id] || 0) + req;
   }));
   const lines = [`🍎 Hosahalli Orchard Week ${curWk} Store List (3 Acres):`];
   Object.keys(tot).forEach(id => {
