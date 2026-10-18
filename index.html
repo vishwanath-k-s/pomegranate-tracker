@@ -14,18 +14,16 @@
     <div class="max-w-4xl mx-auto px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
       <div>
         <h1 id="ui_appTitle" class="font-bold text-base sm:text-lg">🍎 Hosahalli Pomegranate Tracker</h1>
-        <p id="ui_appSub" class="text-[11px] text-emerald-200">3 Acres • 1,500 Plants (10×8) • Ethrel: 15 Aug 2026</p>
+        <p id="ui_appSub" class="text-[11px] text-emerald-200">3 Acres • 1,500 Plants (10×8) • Planted: 20 Sep 2024 • Ethrel: 15 Aug 2026</p>
       </div>
       <div class="flex items-center gap-1.5">
-        <!-- ACTIVE USER SELECTOR (WHO IS UPDATING) -->
-        <div class="flex items-center bg-emerald-800 rounded-lg px-2 py-1 text-xs">
+        <!-- DYNAMIC USER SELECTOR + MANAGE USERS BUTTON -->
+        <div class="flex items-center bg-emerald-800 rounded-lg px-2 py-1 text-xs border border-emerald-700">
           <span class="mr-1">👤</span>
-          <select id="userSelect" onchange="changeActiveUser(this.value)" class="bg-transparent text-white font-bold focus:outline-none">
-            <option value="Vishwanath" class="text-slate-900">Vishwanath</option>
-            <option value="Vinod" class="text-slate-900">Vinod</option>
-            <option value="Amma" class="text-slate-900">Amma</option>
-            <option value="Supervisor" class="text-slate-900">Supervisor</option>
-          </select>
+          <select id="userSelect" onchange="changeActiveUser(this.value)" class="bg-transparent text-white font-bold focus:outline-none max-w-[110px]"></select>
+          <button onclick="openUserModal()" title="Add / Edit / Delete Users" class="ml-1.5 pl-1.5 border-l border-emerald-600 text-amber-300 font-bold hover:text-white">
+            ✏️
+          </button>
         </div>
         <span id="syncBadge" class="text-[10px] px-2 py-1 rounded-full bg-emerald-700">...</span>
         <button onclick="toggleLanguage()" id="langBtn" class="bg-amber-400 text-slate-900 font-extrabold text-xs px-2.5 py-1.5 rounded-lg shadow">
@@ -59,7 +57,7 @@
   </div>
 
   <main class="max-w-4xl mx-auto px-3 pt-3">
-    <!-- WEEK BAR -->
+    <!-- WEEK BAR (INCLUDES WEEK 0: PAST KEEP HISTORY) -->
     <div class="bg-white rounded-xl p-3 mb-3 shadow-sm border flex flex-wrap items-center justify-between gap-2">
       <div>
         <div id="wkTitle" class="font-extrabold text-base">Week 1</div>
@@ -89,7 +87,7 @@
     <!-- TAB 2: MANUAL / PAST ACTIVITY ENTRY -->
     <section id="panel_MANUAL" class="hidden bg-white rounded-xl p-4 shadow-sm border space-y-3">
       <h2 id="ui_manTitle" class="font-extrabold text-sm sm:text-base text-slate-900">➕ Record Manual or Past Spray / Drip</h2>
-      <p id="ui_manSub" class="text-xs text-slate-500">Log any spray or fertilizer you already applied. The schedule will automatically adjust for Copper cooldowns or overlapping sprays.</p>
+      <p id="ui_manSub" class="text-xs text-slate-500">Log any spray or fertilizer you applied. The rule engine automatically shifts conflicting dates, prevents 10-day Boron overdose, and rotates IRAC/FRAC chemical groups.</p>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div>
@@ -119,13 +117,13 @@
 
       <div class="text-xs">
         <label id="ui_lblManNotes" class="font-bold block mb-1">Notes / Custom Brand Used (Optional):</label>
-        <input type="text" id="manNotes" placeholder="e.g., Sprayed after morning rain dried" class="w-full border rounded-lg px-3 py-2" />
+        <input type="text" id="manNotes" placeholder="e.g., Sprayed in morning" class="w-full border rounded-lg px-3 py-2" />
       </div>
 
       <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs flex items-center gap-2">
         <input type="checkbox" id="manShiftCheck" checked class="w-4 h-4" />
         <label for="manShiftCheck" id="ui_lblManShift" class="font-semibold text-amber-900">
-          Auto-adjust upcoming schedule (shifts conflicting pending sprays by +3 days or enforces 5-day Copper cooldown)
+          Auto-adjust future schedule (+3d spray shift, 5d Copper cooldown, 10d Boron lock &amp; IRAC/FRAC rotation)
         </label>
       </div>
 
@@ -139,37 +137,35 @@
       <div class="flex items-center justify-between mb-3">
         <div>
           <h2 id="ui_shopTitle" class="font-bold text-sm sm:text-base">Agro-Store Shopping List (3 Acres)</h2>
-          <p id="ui_shopSub" class="text-xs text-slate-500">Skipped tasks are excluded. Enter shed leftovers below.</p>
+          <p id="ui_shopSub" class="text-xs text-slate-500">Skipped and completed tasks are excluded. Enter shed leftovers below.</p>
         </div>
         <button onclick="copyList()" id="ui_btnCopy" class="bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg">📲 Copy List</button>
       </div>
       <div id="shopBox" class="divide-y"></div>
     </section>
 
-    <!-- TAB 4: FIELD SCOUTING (PERSISTENT) + AUDIT LOG + 21 WEEKS -->
+    <!-- TAB 4: FIELD SCOUTING + AUDIT LOG + MASTER SCHEDULE -->
     <section id="panel_SCOUT" class="hidden space-y-4">
       <div class="bg-white rounded-xl p-4 shadow-sm border">
-        <h2 id="ui_scoutTitle" class="font-bold text-sm mb-1">🔍 1-Tap Field Problem Reporter (Adds Weather-Smart Task to Schedule)</h2>
-        <p id="ui_scoutSub" class="text-xs text-slate-500 mb-3">Tapping an issue checks live rain/weather, calculates the safe spray date, and adds a permanent task card to your current week.</p>
+        <h2 id="ui_scoutTitle" class="font-bold text-sm mb-1">🔍 1-Tap Field Problem Reporter</h2>
+        <p id="ui_scoutSub" class="text-xs text-slate-500 mb-3">Checks live weather, picks the safe spray date, and adds a permanent task card to your schedule.</p>
         <div id="scoutGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-bold"></div>
       </div>
 
-      <!-- WHO UPDATED WHAT: ACTIVITY AUDIT LOG -->
       <div class="bg-white rounded-xl p-4 shadow-sm border">
         <h2 id="ui_auditTitle" class="font-bold text-sm mb-2">👤 Recent Activity &amp; User Tracking Log</h2>
         <div id="auditLogBox" class="divide-y text-xs max-h-60 overflow-y-auto"></div>
       </div>
 
-      <!-- 21-WEEK MASTER SCHEDULE -->
       <div class="bg-white rounded-xl p-4 shadow-sm border overflow-x-auto">
-        <h2 id="ui_masterTitle" class="font-bold text-sm mb-2">📅 All 21 Weeks Master Schedule</h2>
+        <h2 id="ui_masterTitle" class="font-bold text-sm mb-2">📅 Complete Orchard Schedule (Keep History + 21 Weeks)</h2>
         <table class="w-full text-left text-xs border-collapse">
           <thead>
             <tr class="border-b text-slate-500">
-              <th class="py-1.5" id="ui_thWk">Wk</th>
-              <th id="ui_thDad">DAD / Date</th>
-              <th id="ui_thTask">Task</th>
-              <th id="ui_thStatus">Status / By</th>
+              <th class="py-1.5">Wk</th>
+              <th>DAD / Date</th>
+              <th>Task</th>
+              <th>Status / By</th>
             </tr>
           </thead>
           <tbody id="allWeeksBody" class="divide-y"></tbody>
@@ -189,6 +185,21 @@
     </div>
   </div>
 
+  <!-- MANAGE USERS MODAL (ADD / RENAME / DELETE USERS) -->
+  <div id="userModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[85vh] overflow-y-auto space-y-3">
+      <div class="flex items-center justify-between border-b pb-2">
+        <h3 class="font-bold text-base">👤 Manage App Users (Add / Edit / Delete)</h3>
+        <button onclick="document.getElementById('userModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
+      </div>
+      <div class="flex gap-2 text-xs">
+        <input type="text" id="newUserName" placeholder="Enter new name..." class="flex-1 border rounded-lg px-3 py-2 font-semibold" />
+        <button onclick="addUser()" class="bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-lg">➕ Add</button>
+      </div>
+      <div id="userListContainer" class="divide-y text-xs"></div>
+    </div>
+  </div>
+
 <script>
 const sb = window.supabase.createClient(
   "https://mjkcmghhtbsgxohpzlsq.supabase.co",
@@ -198,16 +209,14 @@ const CFG = { lat: 14.661830, lon: 76.454375, acres: 3, drums: 7, drumL: 200 };
 
 let LANG = localStorage.getItem("h_lang") || "EN";
 let activeUser = localStorage.getItem("h_user") || "Vishwanath";
+let usersList = [{ id: 1, name: "Vishwanath" }];
 let curWk = 1, catalog = {}, subs = [], leftovers = {}, tasks = [], auditLogs = [];
 let wState = { rain24: 0, prob4: 0, tMax: 30.5, tMin: 18.2 };
 
-// ============================================================================
-// FULL BILINGUAL DICTIONARY (PURE ENGLISH vs PURE KANNADA)
-// ============================================================================
 const I18N = {
   EN: {
     appTitle: "🍎 Hosahalli Pomegranate Tracker",
-    appSub: "3 Acres • 1,500 Plants (10×8 ft) • Ethrel: 15 Aug 2026",
+    appSub: "3 Acres • 1,500 Plants (10×8) • Planted: 20 Sep 2024 • Ethrel: 15 Aug 2026",
     btnSim: "⚙️ Weather Test",
     simLabel: "Simulate Weather:",
     tabTasks: "Tasks",
@@ -215,7 +224,7 @@ const I18N = {
     tabShop: "Store List",
     tabScout: "Scout & Log",
     manTitle: "➕ Record Manual or Past Spray / Drip",
-    manSub: "Log any spray or fertilizer you applied. Schedule adjusts automatically.",
+    manSub: "Log any spray or fertilizer you applied. Automatically shifts conflicting dates, prevents 10-day Boron overdose, and rotates IRAC/FRAC chemical groups.",
     lblManDate: "Date Applied:",
     lblManType: "Activity Type:",
     optFoliar: "🌿 Foliar Spray (7 Drums)",
@@ -224,17 +233,18 @@ const I18N = {
     lblManChem1: "Primary Chemical / Fertilizer:",
     lblManChem2: "Second Input (Optional):",
     lblManNotes: "Notes / Brand Used:",
-    lblManShift: "Auto-adjust upcoming schedule (+3 days shift / 5-day Copper cooldown)",
+    lblManShift: "Auto-adjust future schedule (+3d shift, 5d Copper cooldown, 10d Boron lock & IRAC/FRAC rotation)",
     btnSaveMan: "💾 Save Activity & Update Schedule",
     shopTitle: "Agro-Store Shopping List (3 Acres)",
-    shopSub: "Skipped tasks are excluded. Enter shed leftovers below.",
+    shopSub: "Skipped and completed tasks are excluded. Enter shed leftovers below.",
     btnCopy: "📲 Copy List",
     scoutTitle: "🔍 1-Tap Field Problem Reporter",
     scoutSub: "Checks live weather, picks the safe spray date, and adds a permanent task card to your schedule.",
     auditTitle: "👤 Recent Activity & User Tracking Log",
-    masterTitle: "📅 All 21 Weeks Master Schedule",
+    masterTitle: "📅 Complete Orchard Schedule (Keep History + 21 Weeks)",
     modalTitle: "🏪 Agro-Store Counter Helper",
     weekWord: "Week",
+    pastHistoryLabel: "📜 Week 0: Done History (Sep 2024 – Oct 15, 2026)",
     dadWord: "DAD",
     doneBtn: "✅ Done",
     delayBtn: "🌧️ Delay +2d",
@@ -255,15 +265,15 @@ const I18N = {
   },
   KN: {
     appTitle: "🍎 ಹೊಸಹಳ್ಳಿ ದಾಳಿಂಬೆ ನಿರ್ವಹಣಾ ಟ್ರ್ಯಾಕರ್",
-    appSub: "3 ಎಕರೆ • 1,500 ಗಿಡಗಳು (10×8 ಅಡಿ) • ಎಥ್ರೆಲ್: 15 ಆಗಸ್ಟ್ 2026",
+    appSub: "3 ಎಕರೆ • 1,500 ಗಿಡ (10×8) • ನಾಟಿ: 20 ಸೆಪ್ಟೆಂಬರ್ 2024 • ಎಥ್ರೆಲ್: 15 ಆಗಸ್ಟ್ 2026",
     btnSim: "⚙️ ಹವಾಮಾನ ಪರೀಕ್ಷೆ",
     simLabel: "ಹವಾಮಾನ ಪರೀಕ್ಷಿಸಿ:",
-    tabTasks: "ಈ ವಾರದ ಕೆಲಸ",
+    tabTasks: "ವಾರದ ಕೆಲಸ",
     tabManual: "ಕೆಲಸ ಸೇರಿಸಿ",
     tabShop: "ಅಂಗಡಿ ಪಟ್ಟಿ",
     tabScout: "ರೋಗ & ದಾಖಲೆ",
     manTitle: "➕ ಮಾಡಿದ ಸಿಂಪಡಣೆ / ಡ್ರಿಪ್ ಗೊಬ್ಬರ ದಾಖಲಿಸಿ",
-    manSub: "ನೀವು ಈಗಾಗಲೇ ಮಾಡಿದ ಸಿಂಪಡಣೆ ಅಥವಾ ಡ್ರಿಪ್ ಗೊಬ್ಬರವನ್ನು ಇಲ್ಲಿ ನಮೂದಿಸಿ. ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ತಾನಾಗಿಯೇ ಹೊಂದಾಣಿಕೆಯಾಗುತ್ತದೆ.",
+    manSub: "ನೀವು ಮಾಡಿದ ಸಿಂಪಡಣೆ ಅಥವಾ ಡ್ರಿಪ್ ಇಲ್ಲಿ ನಮೂದಿಸಿ. ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ, 10 ದಿನದ ಬೋರಾನ್ ಮಿತಿ ಮತ್ತು ಔಷಧಿ ಬದಲಾವಣೆ ತಾನಾಗಿಯೇ ಹೊಂದಾಣಿಕೆಯಾಗುತ್ತದೆ.",
     lblManDate: "ಮಾಡಿದ ದಿನಾಂಕ:",
     lblManType: "ಕೆಲಸದ ವಿಧ:",
     optFoliar: "🌿 ಎಲೆ ಸಿಂಪಡಣೆ (7 ಡ್ರಮ್)",
@@ -272,17 +282,18 @@ const I18N = {
     lblManChem1: "ಮೊದಲನೇ ಔಷಧಿ / ಗೊಬ್ಬರ:",
     lblManChem2: "ಎರಡನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಐಚ್ಛಿಕ):",
     lblManNotes: "ವಿವರ / ಬಳಸಿದ ಕಂಪನಿ ಹೆಸರು:",
-    lblManShift: "ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿಯನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸಿ (+3 ದಿನ ಮುಂದೂಡಿ / 5 ದಿನ ಕಾಪರ್ ಅಂತರ)",
+    lblManShift: "ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸಿ (+3 ದಿನ ಮುಂದೂಡಿಕೆ, 5 ದಿನ ಕಾಪರ್ ಅಂತರ, ಬೋರಾನ್ ಮಿತಿ)",
     btnSaveMan: "💾 ದಾಖಲಿಸಿ ಮತ್ತು ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ",
     shopTitle: "ಅಗ್ರೋ ಅಂಗಡಿ ಖರೀದಿ ಪಟ್ಟಿ (3 ಎಕರೆ)",
-    shopSub: "ಬಿಟ್ಟುಬಿಟ್ಟ (Skipped) ಕೆಲಸಗಳನ್ನು ಕೈಬಿಡಲಾಗಿದೆ. ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣವನ್ನು ನಮೂದಿಸಿ.",
+    shopSub: "ಪೂರ್ಣಗೊಂಡ ಮತ್ತು ಬಿಟ್ಟುಬಿಟ್ಟ ಕೆಲಸಗಳನ್ನು ಕೈಬಿಡಲಾಗಿದೆ. ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣ ನಮೂದಿಸಿ.",
     btnCopy: "📲 ಪಟ್ಟಿ ಕಾಪಿ ಮಾಡಿ",
     scoutTitle: "🔍 ತೋಟದ ರೋಗ / ಕೀಟ ವರದಿ ಮಾಡಿ",
     scoutSub: "ಮಳೆ ಮತ್ತು ಹವಾಮಾನ ಪರಿಶೀಲಿಸಿ, ಸೂಕ್ತ ದಿನಾಂಕದೊಂದಿಗೆ ನಿಮ್ಮ ವೇಳಾಪಟ್ಟಿಗೆ ಶಾಶ್ವತವಾಗಿ ಸಿಂಪಡಣೆ ಸೇರಿಸುತ್ತದೆ.",
     auditTitle: "👤 ಯಾರು, ಯಾವಾಗ ಬದಲಾವಣೆ ಮಾಡಿದರು (ದಾಖಲೆ ಪಟ್ಟಿ)",
-    masterTitle: "📅 ಪೂರ್ಣ 21 ವಾರಗಳ ವೇಳಾಪಟ್ಟಿ",
+    masterTitle: "📅 ಪೂರ್ಣ ವೇಳಾಪಟ್ಟಿ (ಹಿಂದಿನ ದಾಖಲೆಗಳು + 21 ವಾರಗಳು)",
     modalTitle: "🏪 ಅಗ್ರೋ ಅಂಗಡಿ ಪರ್ಯಾಯ ಔಷಧಿ ಸಹಾಯಕ",
     weekWord: "ವಾರ",
+    pastHistoryLabel: "📜 ವಾರ 0: ಹಿಂದಿನ ದಾಖಲೆಗಳು (ಸೆಪ್ಟೆಂಬರ್ 2024 – ಅಕ್ಟೋಬರ್ 15, 2026)",
     dadWord: "ದಿನ (DAD)",
     doneBtn: "✅ ಪೂರ್ಣಗೊಂಡಿದೆ",
     delayBtn: "🌧️ +2 ದಿನ ಮುಂದೂಡಿ",
@@ -303,8 +314,8 @@ const I18N = {
   }
 };
 
-// Kannada Stage & Description Translator
 const STAGE_KN = {
+  "Past Keep History": "📜 ಹಿಂದಿನ ದಾಖಲೆಗಳು (ಪ್ಲಾಂಟೇಶನ್ ನಿಂದ ಅಕ್ಟೋಬರ್ 15 ರವರೆಗೆ)",
   "Stage A: Early Sizing": "ಹಂತ A: ಆರಂಭಿಕ ಕಾಯಿ ಬೆಳವಣಿಗೆ (ನಿಂಬೆ ಗಾತ್ರ)",
   "Stage B: Guava-Size": "ಹಂತ B: ಕಾಯಿ ದಪ್ಪವಾಗುವ ಹಂತ (ಪೇರಳೆ ಗಾತ್ರ)",
   "Stage C: Aril Swelling": "ಹಂತ C: ಕಾಳು ತುಂಬುವ ಮತ್ತು ಸಿಪ್ಪೆ ಹಿಗ್ಗುವ ಹಂತ",
@@ -427,11 +438,7 @@ const SCOUT_ISSUES = [
   }
 ];
 
-// ============================================================================
-// STARTUP
-// ============================================================================
 window.addEventListener("DOMContentLoaded", async () => {
-  document.getElementById("userSelect").value = activeUser;
   document.getElementById("manDate").value = new Date().toISOString().split("T")[0];
   const diff = Math.floor((new Date() - new Date("2026-10-18T00:00:00")) / 86400000);
   if (diff >= 0 && diff < 147) curWk = Math.min(21, Math.max(1, Math.floor(diff / 7) + 1));
@@ -440,9 +447,80 @@ window.addEventListener("DOMContentLoaded", async () => {
   render();
 });
 
+// ============================================================================
+// CUSTOMIZABLE USER MANAGEMENT (ADD / RENAME / DELETE)
+// ============================================================================
+function renderUserDropdown() {
+  const sel = document.getElementById("userSelect");
+  if (!usersList.some(u => u.name === activeUser) && usersList.length > 0) {
+    activeUser = usersList[0].name;
+    localStorage.setItem("h_user", activeUser);
+  }
+  sel.innerHTML = usersList.map(u =>
+    `<option value="${u.name}" class="text-slate-900" ${u.name === activeUser ? "selected" : ""}>${u.name}</option>`
+  ).join("");
+}
+
 function changeActiveUser(val) {
   activeUser = val;
   localStorage.setItem("h_user", val);
+}
+
+function openUserModal() {
+  renderUserModalList();
+  document.getElementById("userModal").classList.remove("hidden");
+}
+
+function renderUserModalList() {
+  const box = document.getElementById("userListContainer");
+  box.innerHTML = usersList.map(u => `
+    <div class="py-2 flex items-center justify-between gap-2">
+      <input type="text" id="editUser_${u.id}" value="${u.name}" class="border rounded px-2 py-1 font-bold text-slate-800 flex-1" />
+      <button onclick="renameUser(${u.id})" class="bg-sky-600 text-white font-bold px-2.5 py-1 rounded">💾 Save</button>
+      ${usersList.length > 1 ? `<button onclick="deleteUser(${u.id}, '${u.name}')" class="bg-red-600 text-white font-bold px-2.5 py-1 rounded">🗑️</button>` : ""}
+    </div>
+  `).join("");
+}
+
+async function addUser() {
+  const inp = document.getElementById("newUserName");
+  const name = inp.value.trim();
+  if (!name) return;
+  const { data } = await sb.from("app_users").insert([{ name }]).select();
+  const added = (data && data[0]) ? data[0] : { id: Date.now(), name };
+  usersList.push(added);
+  activeUser = name;
+  localStorage.setItem("h_user", activeUser);
+  inp.value = "";
+  renderUserDropdown();
+  renderUserModalList();
+  await logAudit("USER_ADDED", `Added user: ${name}`, "");
+}
+
+async function renameUser(id) {
+  const inp = document.getElementById(`editUser_${id}`);
+  const newName = inp.value.trim();
+  if (!newName) return;
+  const target = usersList.find(u => u.id === id);
+  const oldName = target ? target.name : "";
+  if (target) target.name = newName;
+  if (activeUser === oldName) {
+    activeUser = newName;
+    localStorage.setItem("h_user", activeUser);
+  }
+  renderUserDropdown();
+  renderUserModalList();
+  await sb.from("app_users").update({ name: newName }).eq("id", id);
+  await logAudit("USER_RENAMED", `Renamed ${oldName} → ${newName}`, "");
+}
+
+async function deleteUser(id, name) {
+  if (usersList.length <= 1) return;
+  usersList = usersList.filter(u => u.id !== id);
+  renderUserDropdown();
+  renderUserModalList();
+  await sb.from("app_users").delete().eq("id", id);
+  await logAudit("USER_DELETED", `Removed user: ${name}`, "");
 }
 
 function toggleLanguage() {
@@ -460,9 +538,7 @@ async function logAudit(actionType, summary, details) {
     created_at: new Date().toISOString()
   };
   auditLogs.unshift(entry);
-  try {
-    await sb.from("activity_audit_log").insert([entry]);
-  } catch (e) {}
+  try { await sb.from("activity_audit_log").insert([entry]); } catch (e) {}
 }
 
 async function loadWeather() {
@@ -504,42 +580,46 @@ function setWeather(m) {
 async function loadDB() {
   const b = document.getElementById("syncBadge");
   try {
-    const [cR, sR, lR, qR, tR, aR] = await Promise.all([
+    const [cR, sR, lR, qR, tR, aR, uR] = await Promise.all([
       sb.from("inputs_catalog").select("*"),
       sb.from("substitution_rules").select("*"),
       sb.from("shed_leftovers").select("*"),
       sb.from("daily_task_queue").select("*").order("current_scheduled_date", { ascending: true }),
       sb.from("baseline_schedule_template").select("*"),
-      sb.from("activity_audit_log").select("*").order("created_at", { ascending: false }).limit(40)
+      sb.from("activity_audit_log").select("*").order("created_at", { ascending: false }).limit(50),
+      sb.from("app_users").select("*").order("id", { ascending: true })
     ]);
     if (cR.error) throw cR.error;
     cR.data.forEach(x => catalog[x.id] = x);
     subs = sR.data || [];
     (lR.data || []).forEach(x => leftovers[x.input_id] = Number(x.leftover_qty));
     auditLogs = aR.data || [];
+    if (uR.data && uR.data.length > 0) usersList = uR.data;
 
     const tMap = {};
     (tR.data || []).forEach(x => tMap[x.id] = x);
 
     tasks = (qR.data || []).map(q => {
       const tmpl = tMap[q.template_id];
-      const computedWk = Math.min(21, Math.max(1, Math.ceil((q.effective_dad - 63) / 7)));
+      const isPreOct18 = q.effective_dad < 64 || q.trigger_source === "KEEP_NOTE_HISTORY";
+      const computedWk = isPreOct18 ? 0 : Math.min(21, Math.max(1, Math.ceil((q.effective_dad - 63) / 7)));
       return {
         ...q,
         week_number: tmpl ? tmpl.week_number : computedWk,
-        stage_name: tmpl ? tmpl.stage_name : (q.trigger_source === "SCOUTING_CURATIVE" ? "Curative Scouting Task" : "Manual / Past Activity"),
+        stage_name: isPreOct18 ? "Past Keep History" : (tmpl ? tmpl.stage_name : (q.trigger_source === "SCOUTING_CURATIVE" ? "Curative Scouting Task" : "Manual / Past Activity")),
         target_description: q.custom_title_en || (tmpl ? tmpl.target_description : (q.notes || "Scheduled Task")),
         target_description_kn: q.custom_title_kn || ""
       };
     });
 
-    localStorage.setItem("h_cache_v2", JSON.stringify({ catalog, subs, leftovers, tasks, auditLogs }));
+    localStorage.setItem("h_cache_v3", JSON.stringify({ catalog, subs, leftovers, tasks, auditLogs, usersList }));
     b.textContent = "🟢 Online";
   } catch (e) {
-    const c = localStorage.getItem("h_cache_v2");
-    if (c) ({ catalog, subs, leftovers, tasks, auditLogs } = JSON.parse(c));
+    const c = localStorage.getItem("h_cache_v3");
+    if (c) ({ catalog, subs, leftovers, tasks, auditLogs, usersList } = JSON.parse(c));
     b.textContent = "🟠 Offline";
   }
+  renderUserDropdown();
   populateManualSelects();
 }
 
@@ -556,7 +636,7 @@ function populateManualSelects() {
 }
 
 function goWeek(w) { curWk = Number(w); render(); }
-function stepWeek(d) { curWk = Math.min(21, Math.max(1, curWk + d)); render(); }
+function stepWeek(d) { curWk = Math.min(21, Math.max(0, curWk + d)); render(); }
 
 function showTab(t) {
   ["TASKS", "MANUAL", "SHOP", "SCOUT"].forEach(k => {
@@ -567,9 +647,6 @@ function showTab(t) {
   });
 }
 
-// ============================================================================
-// RENDER ENGINE (100% KANNADA OR 100% ENGLISH)
-// ============================================================================
 function render() {
   const L = I18N[LANG];
   document.getElementById("langBtn").textContent = LANG === "EN" ? "ಕನ್ನಡ" : "English";
@@ -605,27 +682,44 @@ function render() {
   updateWBar();
   populateManualSelects();
 
-  // Populate Week Dropdown
+  // Populate Week Dropdown (Including Week 0: Past Keep History)
   const sel = document.getElementById("wkSelect");
-  sel.innerHTML = "";
+  const loc = LANG === "KN" ? "kn-IN" : "en-IN";
+  sel.innerHTML = `<option value="0" ${curWk === 0 ? "selected" : ""}>${L.pastHistoryLabel}</option>`;
   for (let w = 1; w <= 21; w++) {
-    const dt = new Date(2026, 9, 18 + (w - 1) * 7).toLocaleDateString(LANG === "KN" ? "kn-IN" : "en-IN", { day: "2-digit", month: "short" });
+    const dt = new Date(2026, 9, 18 + (w - 1) * 7).toLocaleDateString(loc, { day: "2-digit", month: "short" });
     sel.innerHTML += `<option value="${w}" ${w === curWk ? "selected" : ""}>${L.weekWord} ${w} (${dt})</option>`;
   }
 
   const wkTasks = tasks.filter(t => Number(t.week_number) === curWk);
-  const loc = LANG === "KN" ? "kn-IN" : "en-IN";
-  const d1 = new Date(2026, 9, 18 + (curWk - 1) * 7).toLocaleDateString(loc, { day: "2-digit", month: "short" });
-  const d2 = new Date(2026, 9, 24 + (curWk - 1) * 7).toLocaleDateString(loc, { day: "2-digit", month: "short", year: "numeric" });
-  const dad1 = 64 + (curWk - 1) * 7;
-  const rawStage = wkTasks[0]?.stage_name || "Stage A: Early Sizing";
-  const stageDisp = LANG === "KN" ? (STAGE_KN[rawStage] || rawStage) : rawStage;
 
-  document.getElementById("wkTitle").textContent = `${L.weekWord} ${curWk} (${d1} – ${d2})`;
-  document.getElementById("dadTitle").textContent = `${dad1}–${dad1 + 6} ${L.dadWord} • ${stageDisp}`;
+  if (curWk === 0) {
+    document.getElementById("wkTitle").textContent = L.pastHistoryLabel;
+    document.getElementById("dadTitle").textContent = LANG === "KN"
+      ? "ಗೂಗಲ್ ಕೀಪ್ ದಾಖಲೆಗಳು: ಪ್ಲಾಂಟೇಶನ್ (20/09/2024), ಕಟಿಂಗ್, 6 ಡ್ರಿಪ್ ಮತ್ತು 14 ಸಿಂಪಡಣೆಗಳು"
+      : "Google Keep History: Plantation (20/09/2024), Pruning, 6 Drips & 14 Sprays";
+  } else {
+    const d1 = new Date(2026, 9, 18 + (curWk - 1) * 7).toLocaleDateString(loc, { day: "2-digit", month: "short" });
+    const d2 = new Date(2026, 9, 24 + (curWk - 1) * 7).toLocaleDateString(loc, { day: "2-digit", month: "short", year: "numeric" });
+    const dad1 = 64 + (curWk - 1) * 7;
+    const rawStage = wkTasks[0]?.stage_name || "Stage A: Early Sizing";
+    const stageDisp = LANG === "KN" ? (STAGE_KN[rawStage] || rawStage) : rawStage;
+    document.getElementById("wkTitle").textContent = `${L.weekWord} ${curWk} (${d1} – ${d2})`;
+    document.getElementById("dadTitle").textContent = `${dad1}–${dad1 + 6} ${L.dadWord} • ${stageDisp}`;
+  }
 
-  // Weather & Phenology Alerts
+  // Alerts
+  const dad1 = curWk === 0 ? 0 : 64 + (curWk - 1) * 7;
   const al = [];
+  if (curWk === 1) {
+    al.push({
+      c: "bg-emerald-50 border-emerald-300 text-emerald-950",
+      t: LANG === "KN" ? "✅ ನಿಮ್ಮ ಅಕ್ಟೋಬರ್ 12 ಮತ್ತು 15ರ ದಾಖಲೆಗಳ ಪ್ರಕಾರ ವಾರ 1 ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ" : "✅ Week 1 Auto-Adjusted from Your Keep Note (Oct 12 & Oct 15)",
+      d: LANG === "KN"
+        ? "1) ಅಕ್ಟೋಬರ್ 15 ರಂದು C-Phos + ಬೋರಾನ್ ನೀಡಿರುವುದರಿಂದ ಈ ವಾರದ ಶನಿವಾರದ ಬೋರಾನ್ ಕೈಬಿಡಲಾಗಿದೆ. 2) ಅಕ್ಟೋಬರ್ 12 ರಂದು ಕ್ಯಾಬ್ರಿಟಾಪ್ ಸಿಂಪಡಿಸಿರುವುದರಿಂದ ಈ ವಾರ ಡೈಫೆನೊಕೊನಜೋಲ್ + ಸ್ಪೈನೆಟೊರಾಮ್ ನೀಡಲಾಗಿದೆ."
+        : "1) Removed Boron from Sat Drip (since Dot Boron 20% + C-Phos was applied Oct 15). 2) Rotated Foliar Spray to Spinetoram + Difenoconazole (since Cabrio Top was sprayed Oct 12 & Exponus on Oct 7)."
+    });
+  }
   if (wState.rain24 > 15) {
     al.push({
       c: "bg-red-50 border-red-300 text-red-900",
@@ -639,9 +733,7 @@ function render() {
     al.push({
       c: "bg-amber-50 border-amber-300 text-amber-900",
       t: LANG === "KN" ? "⛈️ ಸಿಂಪಡಣೆ ತಡೆಹಿಡಿಯಿರಿ (ಮುಂದಿನ 4 ಗಂಟೆಯಲ್ಲಿ ಮಳೆ ಸಾಧ್ಯತೆ >60%)" : "⛈️ Spray Hold (>60% Rain Prob in next 4h)",
-      d: LANG === "KN"
-        ? "ಈಗ ಎಲೆ ಸಿಂಪಡಣೆ ಮಾಡಬೇಡಿ. ಮುಂದಿನ ಶುಭ್ರ ಬೆಳಿಗ್ಗೆ ಸಿಂಪಡಿಸಿ."
-        : "Hold foliar spray now to prevent wash-off; shift to next clear morning."
+      d: LANG === "KN" ? "ಈಗ ಎಲೆ ಸಿಂಪಡಣೆ ಮಾಡಬೇಡಿ. ಮುಂದಿನ ಶುಭ್ರ ಬೆಳಿಗ್ಗೆ ಸಿಂಪಡಿಸಿ." : "Hold foliar spray now to prevent wash-off; shift to next clear morning."
     });
   }
   if (dad1 >= 140) {
@@ -661,17 +753,15 @@ function render() {
 
   pTasks.innerHTML = wkTasks.map(tk => {
     const isScout = tk.trigger_source === "SCOUTING_CURATIVE";
-    const isManual = tk.trigger_source === "MANUAL_ENTRY";
+    const isManual = tk.trigger_source === "MANUAL_ENTRY" || tk.trigger_source === "KEEP_NOTE_HISTORY";
     const isSkipped = tk.status === "SKIPPED";
 
     let hdr = tk.task_type === "STANDALONE_COPPER" ? "bg-red-700 text-white" : tk.task_type === "FOLIAR_SPRAY" ? "bg-emerald-700 text-white" : "bg-sky-700 text-white";
     if (isScout) hdr = "bg-rose-700 text-white";
-    if (isManual) hdr = "bg-purple-800 text-white";
+    if (tk.trigger_source === "KEEP_NOTE_HISTORY") hdr = "bg-slate-700 text-white";
 
     const typeTitle = isScout
       ? (LANG === "KN" ? "🚨 ತುರ್ತು ರೋಗ/ಕೀಟ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ" : "🚨 Curative Scouting Spray")
-      : isManual
-      ? (LANG === "KN" ? "✍️ ಕೈಯಾರೆ ದಾಖಲಿಸಿದ ಕೆಲಸ" : "✍️ Logged Manual Activity")
       : (L[`type_${tk.task_type}`] || tk.task_type);
 
     const descText = LANG === "KN"
@@ -707,7 +797,7 @@ function render() {
         </div>
         <button onclick="openSwap('${tk.id}',${idx},'${cat.id}')" class="bg-white border border-slate-300 text-xs font-bold px-2.5 py-1.5 rounded-lg self-start sm:self-center shadow-sm">${L.storeOutBtn}</button>
       </div>`;
-    }).join("") || `<div class="text-xs text-slate-500 p-2 bg-slate-50 rounded">${LANG === "KN" ? "ಬೆಳಿಗ್ಗೆ ಮತ್ತು ಸಂಜೆ ಶುದ್ಧ ನೀರು ಮಾತ್ರ." : "Plain pulsed morning & evening water only."}</div>`;
+    }).join("");
 
     const updTime = tk.updated_at ? new Date(tk.updated_at).toLocaleString(loc, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
     const footerTrack = `<div class="text-[11px] text-slate-400 flex justify-between items-center pt-1">
@@ -725,7 +815,7 @@ function render() {
           <span class="font-bold text-xs sm:text-sm">${descText}</span>
           <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 shrink-0">${statusText}</span>
         </div>
-        <div class="space-y-2">${items}</div>
+        ${items ? `<div class="space-y-2">${items}</div>` : ""}
         <div class="flex flex-wrap gap-1.5 pt-2 border-t text-xs font-bold">
           <button onclick="setTaskStatus('${tk.id}','COMPLETED',0)" class="flex-1 bg-emerald-600 text-white py-2 px-2 rounded-lg">${L.doneBtn}</button>
           <button onclick="setTaskStatus('${tk.id}','DELAYED',2)" class="flex-1 bg-amber-500 text-white py-2 px-2 rounded-lg">${L.delayBtn}</button>
@@ -737,9 +827,9 @@ function render() {
     </div>`;
   }).join("");
 
-  // Render Store Shopping List (Excludes SKIPPED tasks)
+  // Store Shopping List (Excludes SKIPPED and COMPLETED tasks so you only buy what is still pending)
   const tot = {};
-  wkTasks.filter(t => t.status !== "SKIPPED").forEach(tk => (tk.resolved_recipe || []).forEach(it => {
+  wkTasks.filter(t => t.status !== "SKIPPED" && t.status !== "COMPLETED").forEach(tk => (tk.resolved_recipe || []).forEach(it => {
     const req = it.dose_per_liter ? it.dose_per_liter * CFG.drumL * CFG.drums : it.dose_per_acre * CFG.acres;
     tot[it.input_id] = (tot[it.input_id] || 0) + req;
   }));
@@ -758,9 +848,9 @@ function render() {
         <input type="number" value="${left}" onchange="saveLeftover('${id}',this.value)" class="w-16 border rounded px-2 py-1 font-bold"/>
       </div>
     </div>`;
-  }).join("") || `<div class="py-3 text-xs text-slate-500">${LANG === "KN" ? "ಈ ವಾರ ಯಾವುದೇ ಖರೀದಿ ಅಗತ್ಯವಿಲ್ಲ." : "No inputs needed this week."}</div>`;
+  }).join("") || `<div class="py-3 text-xs text-slate-500">${LANG === "KN" ? "ಈ ವಾರ ಬಾಕಿ ಇರುವ ಕೆಲಸಗಳಿಗೆ ಯಾವುದೇ ಖರೀದಿ ಅಗತ್ಯವಿಲ್ಲ." : "No pending inputs needed for this week."}</div>`;
 
-  // Render Scouting Buttons
+  // Scouting Grid
   document.getElementById("scoutGrid").innerHTML = SCOUT_ISSUES.map(iss => `
     <button onclick="addScoutingTask('${iss.code}')" class="p-3 rounded-xl border bg-rose-50/70 hover:bg-rose-100 border-rose-200 text-rose-950 text-left shadow-sm">
       <div class="font-extrabold">${LANG === "KN" ? iss.knTitle : iss.enTitle}</div>
@@ -768,7 +858,7 @@ function render() {
     </button>
   `).join("");
 
-  // Render Audit Log
+  // Audit Log
   document.getElementById("auditLogBox").innerHTML = auditLogs.length === 0
     ? `<div class="py-2 text-slate-400">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಬದಲಾವಣೆ ದಾಖಲಾಗಿಲ್ಲ." : "No activity logged yet."}</div>`
     : auditLogs.map(a => {
@@ -779,11 +869,12 @@ function render() {
         </div>`;
       }).join("");
 
-  // Render 21-Week Master Table
+  // Master Table
   document.getElementById("allWeeksBody").innerHTML = tasks.map(t => {
     const desc = LANG === "KN" ? (t.target_description_kn || translateDescToKn(t.target_description)) : t.target_description;
+    const wkLbl = t.week_number === 0 ? (LANG === "KN" ? "ಹಿಂದಿನವು" : "History") : `${L.weekWord} ${t.week_number}`;
     return `<tr onclick="goWeek(${t.week_number});showTab('TASKS')" class="cursor-pointer hover:bg-slate-50">
-      <td class="py-1.5 font-bold">${L.weekWord} ${t.week_number}</td>
+      <td class="py-1.5 font-bold">${wkLbl}</td>
       <td>${t.effective_dad}d<br><span class="text-slate-400">${t.current_scheduled_date}</span></td>
       <td>${desc}</td>
       <td class="font-bold">${L[`status_${t.status}`] || t.status}<br><span class="font-normal text-[10px] text-slate-400">👤 ${t.updated_by || "System"}</span></td>
@@ -791,16 +882,11 @@ function render() {
   }).join("");
 }
 
-// ============================================================================
-// FIXED STORE COUNTER MODAL (HANDLES FLEXIBLE + CRITICAL + SAME-CATEGORY SWAP)
-// ============================================================================
 function openSwap(taskId, idx, id) {
   const c = catalog[id];
   if (!c) return;
   const dispName = LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en;
   const directSubs = subs.filter(s => s.primary_input_id === id);
-
-  // If FLEXIBLE and no direct rule exists, offer same-category items automatically
   const sameCategoryFallback = Object.values(catalog).filter(
     x => x.id !== id && x.category === c.category && x.application_method === c.application_method
   );
@@ -817,12 +903,11 @@ function openSwap(taskId, idx, id) {
   if (c.procurement_criticality === "CRITICAL_MUST_SOURCE" && directSubs.length === 0) {
     h += `<div class="p-3 bg-amber-50 border border-amber-300 text-amber-950 rounded-lg font-bold">
       🔴 ${LANG === "KN"
-        ? `ಇದು ಕಡ್ಡಾಯವಾಗಿ ಬೇಕಾದ ಪೋಷಕಾಂಶ/ಔಷಧಿ (${dispName}). ಅಂಗಡಿಯವರು ಕೊಡುವ ಬೇರೆ ಲವಣಾಂಶದ ಪರ್ಯಾಯವನ್ನು ಬಳಸಬೇಡಿ. ಇದೇ ಲವಣಾಂಶ (${c.active_ingredient}) ಇರುವ ಬೇರೆ ಕಂಪನಿ ಕೇಳಿ ಅಥವಾ ಬೇರೆ ಅಂಗಡಿಯಿಂದ ತನ್ನಿ.`
+        ? `ಇದು ಕಡ್ಡಾಯವಾಗಿ ಬೇಕಾದ ಪೋಷಕಾಂಶ/ಔಷಧಿ (${dispName}). ಬೇರೆ ಲವಣಾಂಶದ ಪರ್ಯಾಯ ಬಳಸಬೇಡಿ. ಇದೇ ಲವಣಾಂಶ (${c.active_ingredient}) ಇರುವ ಬೇರೆ ಕಂಪನಿ ಕೇಳಿ ಅಥವಾ ಬೇರೆ ಅಂಗಡಿಯಿಂದ ತನ್ನಿ.`
         : `CRITICAL INPUT: Do not accept different salts for ${dispName}. Ask for another brand with the exact same salt (${c.active_ingredient}) or source from another store.`}
     </div>`;
   } else {
     h += `<div class="font-bold text-slate-700 pt-1">${LANG === "KN" ? "ಅನುಮೋದಿತ ಪರ್ಯಾಯಗಳು (ಬದಲಿಸಲು ಒತ್ತಿರಿ):" : "Approved Store Alternatives (Tap to Swap):"}</div>`;
-
     if (directSubs.length > 0) {
       h += directSubs.map(s => {
         const sc = catalog[s.substitute_input_id];
@@ -838,7 +923,6 @@ function openSwap(taskId, idx, id) {
         </div>`;
       }).join("");
     }
-
     if (sameCategoryFallback.length > 0) {
       h += `<div class="font-bold text-slate-600 pt-2">${LANG === "KN" ? "ಅದೇ ವರ್ಗದ ಇತರ ಲಭ್ಯವಿರುವ ಔಷಧಿ/ಗೊಬ್ಬರ:" : "Other Same-Category Options in Catalog:"}</div>`;
       h += sameCategoryFallback.map(sc => {
@@ -879,9 +963,6 @@ async function doSwap(taskId, idx, newId) {
   await logAudit("SWAPPED_CHEMICAL", tk.target_description, `Swapped ${oldId} → ${sc.name_en}`);
 }
 
-// ============================================================================
-// TASK STATUS UPDATES (DONE / DELAY / SKIP / RESET) WITH USER TRACKING
-// ============================================================================
 async function setTaskStatus(id, st, addDays) {
   const tk = tasks.find(x => x.id === id);
   if (!tk) return;
@@ -916,14 +997,10 @@ async function deleteCustomTask(id) {
   if (tk) await logAudit("DELETED_TASK", tk.target_description, "");
 }
 
-// ============================================================================
-// WEATHER-SMART PERSISTENT SCOUTING TASK INJECTION (#5)
-// ============================================================================
 async function addScoutingTask(code) {
   const iss = SCOUT_ISSUES.find(x => x.code === code);
   if (!iss) return;
 
-  // Check live weather: if rain24 > 15mm or prob4 > 60%, schedule for tomorrow (+1 day)
   const targetDate = new Date();
   let weatherNoteEn = "Weather clear — scheduled for immediate application";
   let weatherNoteKn = "ಹವಾಮಾನ ಸೂಕ್ತವಾಗಿದೆ — ಇಂದೇ ಸಿಂಪಡಿಸಲು ನಿಗದಿಪಡಿಸಲಾಗಿದೆ";
@@ -952,7 +1029,7 @@ async function addScoutingTask(code) {
     updated_at: new Date().toISOString()
   };
 
-  const { data, error } = await sb.from("daily_task_queue").insert([payload]).select();
+  const { data } = await sb.from("daily_task_queue").insert([payload]).select();
   const inserted = (data && data[0]) ? data[0] : { ...payload, id: "local_" + Date.now() };
 
   tasks.push({
@@ -970,7 +1047,7 @@ async function addScoutingTask(code) {
 }
 
 // ============================================================================
-// MANUAL / PAST ACTIVITY ENTRY + DYNAMIC SCHEDULE UPDATER (#3)
+// MANUAL ENTRY + 3-LAYER DYNAMIC SCHEDULE UPDATER (DATE + BORON + IRAC/FRAC)
 // ============================================================================
 async function saveManualActivity() {
   const dateStr = document.getElementById("manDate").value;
@@ -982,8 +1059,9 @@ async function saveManualActivity() {
 
   if (!dateStr || !chem1) return;
 
+  const appliedIds = [chem1, chem2].filter(Boolean);
   const recipe = [];
-  [chem1, chem2].filter(Boolean).forEach(cid => {
+  appliedIds.forEach(cid => {
     const c = catalog[cid];
     if (!c) return;
     recipe.push(c.base_dose_per_liter
@@ -992,14 +1070,14 @@ async function saveManualActivity() {
   });
 
   const dtObj = new Date(dateStr + "T00:00:00");
-  const dad = Math.max(1, Math.floor((dtObj - new Date("2026-08-15T00:00:00")) / 86400000));
-  const wk = Math.min(21, Math.max(1, Math.ceil((dad - 63) / 7)));
+  const dad = Math.floor((dtObj - new Date("2026-08-15T00:00:00")) / 86400000);
+  const wk = dad < 64 ? 0 : Math.min(21, Math.max(1, Math.ceil((dad - 63) / 7)));
 
-  const c1NameEn = catalog[chem1]?.name_en || chem1;
-  const c1NameKn = catalog[chem1]?.name_kn || c1NameEn;
+  const namesEn = appliedIds.map(id => catalog[id]?.name_en || id).join(" + ");
+  const namesKn = appliedIds.map(id => catalog[id]?.name_kn || catalog[id]?.name_en || id).join(" + ");
 
-  const titleEn = `Manual Entry: ${c1NameEn}${notes ? " (" + notes + ")" : ""}`;
-  const titleKn = `ದಾಖಲಿಸಿದ ಕೆಲಸ: ${c1NameKn}${notes ? " (" + notes + ")" : ""}`;
+  const titleEn = `Manual Entry (${dateStr}): ${namesEn}${notes ? " [" + notes + "]" : ""}`;
+  const titleKn = `ದಾಖಲಿಸಿದ ಕೆಲಸ (${dateStr}): ${namesKn}${notes ? " [" + notes + "]" : ""}`;
 
   const payload = {
     originally_scheduled_date: dateStr,
@@ -1022,29 +1100,64 @@ async function saveManualActivity() {
   tasks.push({
     ...inserted,
     week_number: wk,
-    stage_name: "Manual / Past Activity",
+    stage_name: wk === 0 ? "Past Keep History" : "Manual / Past Activity",
     target_description: titleEn,
     target_description_kn: titleKn
   });
 
-  // Auto-shift conflicting upcoming pending tasks if checked
   if (autoShift) {
-    const isCopper = taskType === "STANDALONE_COPPER" || catalog[chem1]?.is_copper_compound;
+    const isCopper = taskType === "STANDALONE_COPPER" || appliedIds.some(id => catalog[id]?.is_copper_compound);
+    const hasBoron = appliedIds.includes("MIC_BORON_20");
+    const appliedGroups = appliedIds.map(id => catalog[id]?.irac_frac_group).filter(Boolean);
     const shiftDays = isCopper ? 5 : 3;
+
     for (const t of tasks) {
       if (t.status === "PENDING" && t.id !== inserted.id) {
         const tDate = new Date(t.current_scheduled_date + "T00:00:00");
         const diffDays = Math.floor((tDate - dtObj) / 86400000);
-        const sameCategory = (isCopper && t.task_type === "FOLIAR_SPRAY") || (t.task_type === taskType);
-        if (sameCategory && diffDays >= 0 && diffDays < shiftDays) {
+        let changed = false;
+
+        // 1. Shift date if conflicting spray/drip within 3-5 days
+        const sameCat = (isCopper && t.task_type === "FOLIAR_SPRAY") || (t.task_type === taskType);
+        if (sameCat && diffDays >= 0 && diffDays < shiftDays) {
           const newD = new Date(dtObj);
           newD.setDate(newD.getDate() + shiftDays);
           t.current_scheduled_date = newD.toISOString().split("T")[0];
           t.status = "DELAYED";
+          changed = true;
+        }
+
+        // 2. 10-Day Boron Overdose Guard
+        if (hasBoron && diffDays >= 0 && diffDays <= 10 && Array.isArray(t.resolved_recipe)) {
+          const beforeLen = t.resolved_recipe.length;
+          t.resolved_recipe = t.resolved_recipe.filter(r => r.input_id !== "MIC_BORON_20");
+          if (t.resolved_recipe.length !== beforeLen) changed = true;
+        }
+
+        // 3. 14-Day IRAC/FRAC Resistance Auto-Rotation
+        if (appliedGroups.length > 0 && diffDays >= 0 && diffDays <= 14 && Array.isArray(t.resolved_recipe)) {
+          t.resolved_recipe = t.resolved_recipe.map(r => {
+            const rCat = catalog[r.input_id];
+            if (rCat && rCat.irac_frac_group && appliedGroups.includes(rCat.irac_frac_group)) {
+              const altRule = subs.find(s => s.primary_input_id === r.input_id);
+              const altCat = altRule ? catalog[altRule.substitute_input_id] : null;
+              if (altCat) {
+                changed = true;
+                return altCat.base_dose_per_liter
+                  ? { input_id: altCat.id, dose_per_liter: Number(altCat.base_dose_per_liter) }
+                  : { input_id: altCat.id, dose_per_acre: Number(altCat.base_dose_per_acre) };
+              }
+            }
+            return r;
+          });
+        }
+
+        if (changed) {
           t.updated_by = activeUser;
           await sb.from("daily_task_queue").update({
             current_scheduled_date: t.current_scheduled_date,
-            status: "DELAYED",
+            status: t.status,
+            resolved_recipe: t.resolved_recipe,
             updated_by: activeUser
           }).eq("id", t.id);
         }
@@ -1067,7 +1180,7 @@ async function saveLeftover(id, v) {
 }
 
 function copyList() {
-  const wkTasks = tasks.filter(t => Number(t.week_number) === curWk && t.status !== "SKIPPED"), tot = {};
+  const wkTasks = tasks.filter(t => Number(t.week_number) === curWk && t.status !== "SKIPPED" && t.status !== "COMPLETED"), tot = {};
   wkTasks.forEach(tk => (tk.resolved_recipe || []).forEach(it => {
     tot[it.input_id] = (tot[it.input_id] || 0) + (it.dose_per_liter ? it.dose_per_liter * CFG.drumL * CFG.drums : it.dose_per_acre * CFG.acres);
   }));
