@@ -258,6 +258,41 @@ let curWk = 10, catalog = {}, subs = [], leftovers = {}, tasks = [], templates =
 let wState = { rain24: 0, prob4: 0, tMax: 30.5, tMin: 18.2, updatedAt: "", mode: "LIVE" };
 let activeDelayTaskId = null;
 
+// ============================================================================
+// PURE TIMEZONE-SAFE DATE HELPERS (SOLVES IST vs UTC OFF-BY-1-DAY BUG!)
+// ============================================================================
+function parseYMD(dateStr) {
+  const [y, m, d] = (dateStr || "2026-10-18").split("-").map(Number);
+  return Date.UTC(y, m - 1, d);
+}
+function addDaysYMD(dateStr, days) {
+  const ms = parseYMD(dateStr) + Math.round(days) * 86400000;
+  return new Date(ms).toISOString().split("T")[0];
+}
+function diffDaysYMD(startStr, endStr) {
+  return Math.round((parseYMD(endStr) - parseYMD(startStr)) / 86400000);
+}
+function todayYMD() {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+}
+function computeDynamicDadAndWeek(dateStr) {
+  const dad = diffDaysYMD("2026-08-15", dateStr);
+  return { dad, week: dad < 0 ? 0 : Math.floor(dad / 7) + 1 };
+}
+function getWeekStartAndEndDates(wkNum) {
+  const dadStart = (wkNum - 1) * 7;
+  const startStr = addDaysYMD("2026-08-15", dadStart);
+  const endStr = addDaysYMD("2026-08-15", dadStart + 6);
+  const [y1, m1, d1] = startStr.split("-").map(Number);
+  const [y2, m2, d2] = endStr.split("-").map(Number);
+  return { start: new Date(y1, m1 - 1, d1), end: new Date(y2, m2 - 1, d2), dadStart, dadEnd: dadStart + 6 };
+}
+function formatDateWithWeekday(dateStr) {
+  const [y, m, d] = (dateStr || "2026-10-18").split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(LANG === "KN" ? "kn-IN" : "en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+}
+
 const I18N = {
   EN: {
     appTitle: "🍎 Hosahalli Pomegranate Tracker", appSub: "3 Acres • 1,500 Plants (10×8) • Wk 1 (Ethrel): 15 Aug 2026",
@@ -394,26 +429,10 @@ const SCOUT_ISSUES = [
   { code: "CRACKING", taskType: "FOLIAR_SPRAY", enTitle: "⚡ Sunburn / Fruit Cracking", knTitle: "⚡ ಬಿಸಿಲು ಕಲೆ / ಹಣ್ಣು ಸೀಳುವಿಕೆ", enDesc: "Anti-Cracking Shield: Chelated Ca-B + Orthosilicic Acid", knDesc: "ಹಣ್ಣು ಸೀಳುವಿಕೆ ತಡೆಗೆ: ಕ್ಯಾಲ್ಸಿಯಂ-ಬೋರಾನ್ + ಸಿಲಿಕಾನ್ ಸಿಂಪಡಣೆ", recipe: [{ input_id: "MIC_CA_B_LIQUID", dose_per_liter: 1.5 }, { input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 }] }
 ];
 
-function computeDynamicDadAndWeek(dateStr) {
-  const dt = new Date(dateStr + "T00:00:00");
-  const dad = Math.floor((dt - new Date("2026-08-15T00:00:00")) / 86400000);
-  return { dad, week: dad < 0 ? 0 : Math.floor(dad / 7) + 1 };
-}
-
-function getWeekStartAndEndDates(wkNum) {
-  const start = new Date(2026, 7, 15 + (wkNum - 1) * 7);
-  const end = new Date(2026, 7, 21 + (wkNum - 1) * 7);
-  const dadStart = (wkNum - 1) * 7;
-  return { start, end, dadStart, dadEnd: dadStart + 6 };
-}
-
-function formatDateWithWeekday(dateStr) {
-  return new Date(dateStr + "T00:00:00").toLocaleDateString(LANG === "KN" ? "kn-IN" : "en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
-}
-
 window.addEventListener("DOMContentLoaded", async () => {
-  document.getElementById("manDate").value = new Date().toISOString().split("T")[0];
-  const todayDad = Math.floor((new Date() - new Date("2026-08-15T00:00:00")) / 86400000);
+  const tStr = todayYMD();
+  document.getElementById("manDate").value = tStr;
+  const todayDad = diffDaysYMD("2026-08-15", tStr);
   curWk = (todayDad >= 0 && todayDad <= 220) ? Math.floor(todayDad / 7) + 1 : 10;
   await loadWeather();
   setInterval(() => { if (wState.mode !== "SIM") loadWeather().then(render); }, 30 * 60 * 1000);
@@ -525,10 +544,10 @@ async function loadDB() {
         target_description_kn: q.custom_title_kn || ""
       };
     });
-    localStorage.setItem("h_cache_v5", JSON.stringify({ catalog, subs, leftovers, tasks, templates, auditLogs, usersList }));
+    localStorage.setItem("h_cache_v6", JSON.stringify({ catalog, subs, leftovers, tasks, templates, auditLogs, usersList }));
     b.textContent = "🟢 Online";
   } catch (e) {
-    const c = localStorage.getItem("h_cache_v5");
+    const c = localStorage.getItem("h_cache_v6");
     if (c) ({ catalog, subs, leftovers, tasks, templates, auditLogs, usersList } = JSON.parse(c));
     b.textContent = "🟠 Offline";
   }
@@ -739,7 +758,6 @@ function render() {
     }).join("");
   }
 
-  // Shopping List
   const tot = {};
   wkTasks.filter(t => t.status !== "SKIPPED" && t.status !== "COMPLETED").forEach(tk => {
     (tk.resolved_recipe || []).forEach(it => {
@@ -824,8 +842,8 @@ async function splitRemainingItemsToTomorrow(taskId) {
   tk.resolved_recipe = doneItems; tk.status = "COMPLETED"; tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
   await sb.from("daily_task_queue").update({ status: "COMPLETED", resolved_recipe: doneItems, updated_by: activeUser, updated_at: tk.updated_at }).eq("id", taskId);
 
-  const nextD = new Date(tk.current_scheduled_date + "T00:00:00"); nextD.setDate(nextD.getDate() + 1);
-  const nextDateStr = nextD.toISOString().split("T")[0], dyn = computeDynamicDadAndWeek(nextDateStr);
+  const nextDateStr = addDaysYMD(tk.current_scheduled_date, 1);
+  const dyn = computeDynamicDadAndWeek(nextDateStr);
   const remEn = pendingItems.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + ");
   const remKn = pendingItems.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ");
 
@@ -849,6 +867,9 @@ async function markWholeCard(taskId, st) {
   await logAudit(st, tk.target_description, `Date: ${tk.current_scheduled_date}`);
 }
 
+// ============================================================================
+// TIMEZONE-SAFE, PAST-PROTECTED CASCADE SHIFT ENGINE
+// ============================================================================
 function isTaskAfterInBaselineSequence(candidate, anchorTask) {
   const origA = anchorTask.originally_scheduled_date || anchorTask.current_scheduled_date;
   const origB = candidate.originally_scheduled_date || candidate.current_scheduled_date;
@@ -857,29 +878,44 @@ function isTaskAfterInBaselineSequence(candidate, anchorTask) {
   return false;
 }
 
+function getMinimumAllowedDateForTask(tk) {
+  const tStr = todayYMD();
+  const origStr = tk.originally_scheduled_date || tStr;
+  return origStr < tStr ? origStr : tStr;
+}
+
 function openDelayModal(taskId) {
   const tk = tasks.find(x => x.id === taskId);
   if (!tk) return;
   activeDelayTaskId = taskId;
   document.getElementById("delayTaskName").textContent = `${formatDateWithWeekday(tk.current_scheduled_date)} — ${cleanHardcodedDayPrefix(tk.target_description, LANG === "KN")}`;
-  setDelayOffset(2);
+  const dateInp = document.getElementById("delayCustomDate");
+  dateInp.min = getMinimumAllowedDateForTask(tk);
+  dateInp.value = addDaysYMD(tk.current_scheduled_date, 2);
   document.getElementById("delayModal").classList.remove("hidden");
 }
 function closeDelayModal() { document.getElementById("delayModal").classList.add("hidden"); activeDelayTaskId = null; }
+
 function setDelayOffset(days) {
   const tk = tasks.find(x => x.id === activeDelayTaskId);
   if (!tk) return;
-  const d = new Date(tk.current_scheduled_date + "T00:00:00"); d.setDate(d.getDate() + days);
-  document.getElementById("delayCustomDate").value = d.toISOString().split("T")[0];
+  let candidate = addDaysYMD(tk.current_scheduled_date, days);
+  const minAllowed = getMinimumAllowedDateForTask(tk);
+  if (candidate < minAllowed) candidate = minAllowed;
+  document.getElementById("delayCustomDate").value = candidate;
 }
+
 function setDelayToOriginalDate() {
   const tk = tasks.find(x => x.id === activeDelayTaskId);
   if (tk) document.getElementById("delayCustomDate").value = tk.originally_scheduled_date || tk.current_scheduled_date;
 }
 
-async function applyScheduleShift(tk, newDateStr, cascadeMode, reason) {
-  const deltaDays = Math.round((new Date(newDateStr + "T00:00:00") - new Date(tk.current_scheduled_date + "T00:00:00")) / 86400000);
+async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
+  const minAllowed = getMinimumAllowedDateForTask(tk);
+  const newDateStr = requestedDateStr < minAllowed ? minAllowed : requestedDateStr;
+  const deltaDays = diffDaysYMD(tk.current_scheduled_date, newDateStr);
   if (deltaDays === 0) return;
+
   const isDripTask = tk.task_type.startsWith("DRIP");
 
   tk.current_scheduled_date = newDateStr;
@@ -894,16 +930,19 @@ async function applyScheduleShift(tk, newDateStr, cascadeMode, reason) {
     const otherIsDrip = other.task_type.startsWith("DRIP");
 
     if (cascadeMode === "ALL" || (cascadeMode === "TRACK" && otherIsDrip === isDripTask)) {
-      const od = new Date(other.current_scheduled_date + "T00:00:00"); od.setDate(od.getDate() + deltaDays);
-      const uStr = od.toISOString().split("T")[0];
+      let uStr = addDaysYMD(other.current_scheduled_date, deltaDays);
+      // Hard floor: Never push any downstream task earlier than its own originally_scheduled_date!
+      if (other.originally_scheduled_date && uStr < other.originally_scheduled_date) {
+        uStr = other.originally_scheduled_date;
+      }
       other.current_scheduled_date = uStr;
       other.status = (uStr === other.originally_scheduled_date) ? "PENDING" : "DELAYED";
       if (other.status === "PENDING") other.delay_reason = null;
       other.updated_by = activeUser; other.updated_at = new Date().toISOString();
       tasksToUpdateInDB.push(other);
     } else if (cascadeMode === "SINGLE" && other.current_scheduled_date === newDateStr) {
-      const od = new Date(other.current_scheduled_date + "T00:00:00"); od.setDate(od.getDate() + 2);
-      other.current_scheduled_date = od.toISOString().split("T")[0]; other.status = "DELAYED";
+      other.current_scheduled_date = addDaysYMD(other.current_scheduled_date, 2);
+      other.status = "DELAYED";
       other.updated_by = activeUser; tasksToUpdateInDB.push(other);
     }
   });
@@ -916,7 +955,7 @@ async function applyScheduleShift(tk, newDateStr, cascadeMode, reason) {
       delay_reason: u.delay_reason || null, updated_by: activeUser, updated_at: u.updated_at
     }).eq("id", u.id);
   }));
-  await logAudit(deltaDays > 0 ? "CASCADE_DELAY" : "CASCADE_SHIFT_BACK", cleanHardcodedDayPrefix(tk.target_description, false), `Shifted ${deltaDays > 0 ? '+' + deltaDays : deltaDays}d (${cascadeMode}: ${tasksToUpdateInDB.length} tasks)`);
+  await logAudit(deltaDays > 0 ? "CASCADE_DELAY" : "CASCADE_SHIFT_BACK", cleanHardcodedDayPrefix(tk.target_description, false), `Shifted ${deltaDays > 0 ? '+' + deltaDays : deltaDays}d to ${newDateStr} (${cascadeMode}: ${tasksToUpdateInDB.length} tasks)`);
 }
 
 async function confirmDelayModal() {
@@ -934,7 +973,7 @@ async function resetCardWithCascade(taskId) {
   if (!tk) return;
   tk.resolved_recipe = (tk.resolved_recipe || []).map(r => { const c = { ...r }; delete c.item_status; delete c.actual_total_3ac; return c; });
   if (tk.originally_scheduled_date && tk.current_scheduled_date !== tk.originally_scheduled_date) {
-    const delta = Math.round((new Date(tk.originally_scheduled_date + "T00:00:00") - new Date(tk.current_scheduled_date + "T00:00:00")) / 86400000);
+    const delta = diffDaysYMD(tk.current_scheduled_date, tk.originally_scheduled_date);
     const askMsg = LANG === "KN"
       ? `ಈ ಕೆಲಸವನ್ನು ಮೂಲ ದಿನಾಂಕಕ್ಕೆ (${tk.originally_scheduled_date}) ತರಲಾಗುತ್ತಿದೆ. ಮುಂದಿನ ಎಲ್ಲಾ ಕೆಲಸಗಳನ್ನೂ ${delta} ದಿನ ಹಿಂದೆ ತರಲೇ?`
       : `Resetting to original date (${tk.originally_scheduled_date}). Also shift all subsequent tasks by ${delta} days?`;
@@ -986,10 +1025,9 @@ async function deleteCustomTask(id) {
 async function addScoutingTask(code) {
   const iss = SCOUT_ISSUES.find(x => x.code === code); if (!iss) return;
   if (!confirm(LANG === "KN" ? `'${iss.knTitle}' ಗಾಗಿ ತುರ್ತು ಸಿಂಪಡಣೆಯನ್ನು ವೇಳಾಪಟ್ಟಿಗೆ ಸೇರಿಸಲೇ?` : `Add curative spray for '${iss.enTitle}' to your schedule?`)) return;
-  const targetDate = new Date();
   const rainShift = (wState.prob4 > 60 || wState.rain24 > 15);
-  if (rainShift) targetDate.setDate(targetDate.getDate() + 1);
-  const dateStr = targetDate.toISOString().split("T")[0], dyn = computeDynamicDadAndWeek(dateStr);
+  const dateStr = rainShift ? addDaysYMD(todayYMD(), 1) : todayYMD();
+  const dyn = computeDynamicDadAndWeek(dateStr);
 
   const payload = {
     originally_scheduled_date: dateStr, current_scheduled_date: dateStr, effective_dad: dyn.dad, task_type: iss.taskType,
@@ -1016,7 +1054,7 @@ async function saveManualActivity() {
     return { ...(c?.base_dose_per_liter ? { input_id: p.id, dose_per_liter: Number(c.base_dose_per_liter) } : { input_id: p.id, dose_per_acre: Number(c?.base_dose_per_acre || 2) }), actual_total_3ac: p.q, item_status: "COMPLETED" };
   });
 
-  const dtObj = new Date(dateStr + "T00:00:00"), dyn = computeDynamicDadAndWeek(dateStr), appliedIds = pairs.map(p => p.id);
+  const dyn = computeDynamicDadAndWeek(dateStr), appliedIds = pairs.map(p => p.id);
   const titleEn = `Manual Entry (${dateStr}): ${pairs.map(p => `${catalog[p.id]?.name_en || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
   const titleKn = `ದಾಖಲಿಸಿದ ಕೆಲಸ (${dateStr}): ${pairs.map(p => `${catalog[p.id]?.name_kn || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
 
@@ -1032,10 +1070,9 @@ async function saveManualActivity() {
   if (autoShift) {
     const isCopper = taskType === "STANDALONE_COPPER" || appliedIds.some(id => catalog[id]?.is_copper_compound);
     const shiftDays = isCopper ? 5 : 3;
-    const conflicting = tasks.find(t => (t.status === "PENDING" || t.status === "DELAYED") && t.id !== inserted.id && t.trigger_source !== "KEEP_NOTE_HISTORY" && ((isCopper && t.task_type === "FOLIAR_SPRAY") || t.task_type === taskType) && Math.floor((new Date(t.current_scheduled_date + "T00:00:00") - dtObj) / 86400000) >= 0 && Math.floor((new Date(t.current_scheduled_date + "T00:00:00") - dtObj) / 86400000) < shiftDays);
+    const conflicting = tasks.find(t => (t.status === "PENDING" || t.status === "DELAYED") && t.id !== inserted.id && t.trigger_source !== "KEEP_NOTE_HISTORY" && ((isCopper && t.task_type === "FOLIAR_SPRAY") || t.task_type === taskType) && diffDaysYMD(dateStr, t.current_scheduled_date) >= 0 && diffDaysYMD(dateStr, t.current_scheduled_date) < shiftDays);
     if (conflicting) {
-      const targetNewD = new Date(dtObj); targetNewD.setDate(targetNewD.getDate() + shiftDays);
-      await applyScheduleShift(conflicting, targetNewD.toISOString().split("T")[0], "ALL", "MANUAL_OVERLAP");
+      await applyScheduleShift(conflicting, addDaysYMD(dateStr, shiftDays), "ALL", "MANUAL_OVERLAP");
     }
   }
   document.getElementById("manNotes").value = ""; curWk = dyn.week; showTab("TASKS"); render();
