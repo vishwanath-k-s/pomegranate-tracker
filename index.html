@@ -9,42 +9,59 @@
 </head>
 <body class="bg-slate-100 text-slate-800 pb-24 font-sans">
 
-  <header class="bg-emerald-900 text-white sticky top-0 z-30 shadow-md">
-    <div class="max-w-4xl mx-auto px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
+  <!-- TOP HEADER -->
+  <header id="mainHeader" class="bg-emerald-900 text-white sticky top-0 z-30 shadow-md">
+    <div class="max-w-4xl mx-auto px-3 py-2 flex flex-wrap items-center justify-between gap-2">
       <div>
-        <h1 id="ui_appTitle" class="font-bold text-base sm:text-lg">🍎 Hosahalli Pomegranate Tracker</h1>
+        <div class="flex items-center gap-2">
+          <h1 id="ui_appTitle" class="font-bold text-base sm:text-lg">🍎 Hosahalli Pomegranate Tracker</h1>
+          <!-- ENVIRONMENT SWITCHER (PROD vs DEV) -->
+          <select id="envSelect" onchange="switchEnv(this.value)" class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 focus:outline-none cursor-pointer">
+            <option value="PROD">🟢 PROD (Live)</option>
+            <option value="DEV">🧪 DEV (Test)</option>
+          </select>
+        </div>
         <p id="ui_appSub" class="text-[11px] text-emerald-200">3 Acres • 1,500 Plants (10×8) • Wk 1 (Ethrel): 15 Aug 2026</p>
       </div>
       <div class="flex items-center gap-1.5">
         <div class="flex items-center bg-emerald-800 rounded-lg px-2 py-1 text-xs border border-emerald-700">
           <span class="mr-1">👤</span>
-          <select id="userSelect" onchange="changeActiveUser(this.value)" class="bg-transparent text-white font-bold focus:outline-none max-w-[110px]"></select>
-          <button onclick="openUserModal()" class="ml-1.5 pl-1.5 border-l border-emerald-600 text-amber-300 font-bold">✏️</button>
+          <select id="userSelect" onchange="changeActiveUser(this.value)" class="bg-transparent text-white font-bold focus:outline-none max-w-[100px]"></select>
+          <button onclick="openUserModal()" class="ml-1 pl-1 border-l border-emerald-600 text-amber-300 font-bold">✏️</button>
         </div>
         <span id="syncBadge" class="text-[10px] px-2 py-1 rounded-full bg-emerald-700">...</span>
         <button onclick="toggleLanguage()" id="langBtn" class="bg-amber-400 text-slate-900 font-extrabold text-xs px-2.5 py-1.5 rounded-lg shadow">ಕನ್ನಡ</button>
       </div>
     </div>
 
+    <!-- WEATHER BAR (NOW WITH CURRENT TEMP, HUMIDITY & MANUAL RAIN BUTTON) -->
     <div class="bg-emerald-950 px-3 py-1.5 text-xs border-t border-emerald-800">
       <div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2">
         <div class="flex flex-wrap items-center gap-2.5">
           <span id="wTemp" class="text-amber-300 font-semibold">🌡️ ...</span>
+          <span id="wHum" class="text-sky-300 font-semibold">💧 ...</span>
           <span id="wRain">🌧️ ...</span>
           <span id="wProb">☔ ...</span>
           <button onclick="loadWeather().then(render)" id="wUpdatedTime" class="text-[10px] text-emerald-300 underline">🔄</button>
         </div>
-        <div class="flex items-center gap-2.5">
-          <button onclick="document.getElementById('simBox').classList.toggle('hidden')" id="ui_btnSim" class="underline text-amber-300">⚙️ Weather Test</button>
-          <button onclick="resetEntireScheduleToBaseline()" id="ui_btnResetAll" class="bg-rose-700 hover:bg-rose-600 text-white font-bold px-2 py-0.5 rounded text-[11px] shadow">🧪 Temp: Reset All</button>
+        <div class="flex items-center gap-2">
+          <button onclick="openRainModal()" id="ui_btnLogRain" class="bg-sky-600 hover:bg-sky-500 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] shadow">
+            🌧️ Log Farm Rain
+          </button>
+          <!-- DEV-ONLY TOOLS (HIDDEN IN PROD) -->
+          <div id="devToolsBar" class="hidden flex items-center gap-1.5">
+            <button onclick="document.getElementById('simBox').classList.toggle('hidden')" id="ui_btnSim" class="underline text-amber-300 text-[11px]">⚙️ Sim</button>
+            <button onclick="resetEntireScheduleToBaseline()" id="ui_btnResetAll" class="bg-rose-700 hover:bg-rose-600 text-white font-bold px-2 py-0.5 rounded text-[11px]">🧪 Reset DEV</button>
+          </div>
         </div>
       </div>
     </div>
   </header>
 
+  <!-- DEV WEATHER TEST DRAWER -->
   <div id="simBox" class="hidden bg-slate-800 text-white px-3 py-2 text-xs">
     <div class="max-w-4xl mx-auto flex flex-wrap items-center gap-2">
-      <span id="ui_simLabel" class="font-bold text-amber-300">Test Weather:</span>
+      <span class="font-bold text-amber-300">DEV Weather Sim:</span>
       <button onclick="setWeather('LIVE')" class="bg-slate-600 px-2.5 py-1 rounded">☀️ Live GPS</button>
       <button onclick="setWeather('RAIN')" class="bg-blue-600 px-2.5 py-1 rounded">🌧️ Heavy Rain (&gt;15mm)</button>
       <button onclick="setWeather('HOLD')" class="bg-indigo-600 px-2.5 py-1 rounded">⛈️ Rain in 2h (&gt;60%)</button>
@@ -53,6 +70,7 @@
   </div>
 
   <main class="max-w-4xl mx-auto px-3 pt-3">
+    <!-- WEEK BAR -->
     <div class="bg-white rounded-xl p-3 mb-3 shadow-sm border flex flex-wrap items-center justify-between gap-2">
       <div>
         <div id="wkTitle" class="font-extrabold text-base">Week 10</div>
@@ -67,19 +85,24 @@
 
     <div id="alertsBox" class="space-y-2 mb-3"></div>
 
+    <!-- 4 NAVIGATION TABS -->
     <div class="grid grid-cols-4 gap-1 bg-slate-200 p-1 rounded-xl mb-3 text-[11px] sm:text-xs font-bold">
       <button onclick="showTab('TASKS')" id="tBtn_TASKS" class="py-2 rounded-lg bg-white text-emerald-900 shadow-sm">📋 <span id="ui_tabTasks">Tasks</span></button>
       <button onclick="showTab('MANUAL')" id="tBtn_MANUAL" class="py-2 rounded-lg text-slate-600">➕ <span id="ui_tabManual">Log Work</span></button>
-      <button onclick="showTab('SHOP')" id="tBtn_SHOP" class="py-2 rounded-lg text-slate-600">🏪 <span id="ui_tabShop">Store List</span></button>
+      <button onclick="showTab('SHOP')" id="tBtn_SHOP" class="py-2 rounded-lg text-slate-600">🏪 <span id="ui_tabShop">Store &amp; ₹</span></button>
       <button onclick="showTab('SCOUT')" id="tBtn_SCOUT" class="py-2 rounded-lg text-slate-600">🔍 <span id="ui_tabScout">Scout &amp; Log</span></button>
     </div>
 
+    <!-- TAB 1: WEEK TASKS -->
     <section id="panel_TASKS" class="space-y-3"></section>
 
+    <!-- TAB 2: MANUAL / PAST ACTIVITY ENTRY -->
     <section id="panel_MANUAL" class="hidden bg-white rounded-xl p-4 shadow-sm border space-y-3">
-      <h2 id="ui_manTitle" class="font-extrabold text-sm sm:text-base text-slate-900">➕ Record Manual or Past Spray / Drip</h2>
-      <p id="ui_manSub" class="text-xs text-slate-500">Log any spray or fertilizer applied. Automatically adjusts conflicting dates, 10-day Boron lock, and IRAC/FRAC rotation.</p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+      <div class="flex items-center justify-between">
+        <h2 id="ui_manTitle" class="font-extrabold text-sm sm:text-base text-slate-900">➕ Record Manual or Past Spray / Drip</h2>
+        <button onclick="openNewChemModal()" class="bg-indigo-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg shadow">➕ New Chemical</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
         <div>
           <label id="ui_lblManDate" class="font-bold block mb-1">Date Applied:</label>
           <input type="date" id="manDate" class="w-full border rounded-lg px-3 py-2 font-semibold" />
@@ -92,13 +115,17 @@
             <option value="DRIP_MON_THU" id="ui_optDrip">💧 Drip Fertigation (3 Acres)</option>
           </select>
         </div>
+        <div>
+          <label id="ui_lblManCost" class="font-bold block mb-1">Total Cost Paid (₹):</label>
+          <input type="number" id="manCost" placeholder="e.g., 1800" class="w-full border rounded-lg px-3 py-2 font-bold" />
+        </div>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div>
           <label id="ui_lblManChem1" class="font-bold block mb-1">Primary Input:</label>
           <select id="manChem1" onchange="prefillManualQty(1)" class="w-full border rounded-lg px-3 py-2 font-semibold"></select>
           <div class="mt-1 flex items-center gap-1.5">
-            <span class="text-slate-500" id="ui_lblQtyUsed1">3-Acre Qty Used:</span>
+            <span class="text-slate-500">3-Acre Qty:</span>
             <input type="number" step="0.1" id="manQty1" class="w-24 border rounded px-2 py-1 font-bold" />
             <span id="manUnit1" class="font-bold text-slate-600"></span>
           </div>
@@ -107,7 +134,7 @@
           <label id="ui_lblManChem2" class="font-bold block mb-1">Second Input (Optional):</label>
           <select id="manChem2" onchange="prefillManualQty(2)" class="w-full border rounded-lg px-3 py-2 font-semibold"></select>
           <div class="mt-1 flex items-center gap-1.5">
-            <span class="text-slate-500" id="ui_lblQtyUsed2">3-Acre Qty Used:</span>
+            <span class="text-slate-500">3-Acre Qty:</span>
             <input type="number" step="0.1" id="manQty2" class="w-24 border rounded px-2 py-1 font-bold" />
             <span id="manUnit2" class="font-bold text-slate-600"></span>
           </div>
@@ -124,17 +151,32 @@
       <button onclick="saveManualActivity()" id="ui_btnSaveMan" class="w-full bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow text-xs sm:text-sm">💾 Save Activity &amp; Update Schedule</button>
     </section>
 
-    <section id="panel_SHOP" class="hidden bg-white rounded-xl p-4 shadow-sm border">
-      <div class="flex items-center justify-between mb-3">
+    <!-- TAB 3: AGRO-STORE SHOPPING LIST + EXPENSE SUMMARY + ADD NEW CHEMICAL -->
+    <section id="panel_SHOP" class="hidden space-y-3">
+      <div class="bg-emerald-900 text-white rounded-xl p-3.5 shadow-sm flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 id="ui_shopTitle" class="font-bold text-sm sm:text-base">Agro-Store Shopping List (3 Acres)</h2>
-          <p id="ui_shopSub" class="text-xs text-slate-500">Skipped and completed items are excluded. Enter shed leftovers below.</p>
+          <div class="text-xs text-emerald-200 font-semibold" id="ui_expTitle">💰 Total Recorded Orchard Spend (3 Acres)</div>
+          <div class="text-xl font-extrabold text-amber-300" id="totalSeasonCost">₹ 0</div>
         </div>
-        <button onclick="copyList()" id="ui_btnCopy" class="bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg">📲 Copy List</button>
+        <div class="text-right text-xs text-emerald-100">
+          <div id="weekCostSummary">This Week Spend: ₹ 0</div>
+          <button onclick="openNewChemModal()" class="mt-1 bg-amber-400 text-slate-950 font-extrabold px-3 py-1 rounded-lg">➕ Add New Store Chemical</button>
+        </div>
       </div>
-      <div id="shopBox" class="divide-y"></div>
+
+      <div class="bg-white rounded-xl p-4 shadow-sm border">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 id="ui_shopTitle" class="font-bold text-sm sm:text-base">Agro-Store Shopping List (3 Acres)</h2>
+            <p id="ui_shopSub" class="text-xs text-slate-500">Skipped and completed items are excluded. Enter shed leftovers below.</p>
+          </div>
+          <button onclick="copyList()" id="ui_btnCopy" class="bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg">📲 Copy List</button>
+        </div>
+        <div id="shopBox" class="divide-y"></div>
+      </div>
     </section>
 
+    <!-- TAB 4: FIELD SCOUTING + AUDIT LOG + MASTER SCHEDULE -->
     <section id="panel_SCOUT" class="hidden space-y-4">
       <div class="bg-white rounded-xl p-4 shadow-sm border">
         <h2 id="ui_scoutTitle" class="font-bold text-sm mb-1">🔍 1-Tap Field Problem Reporter</h2>
@@ -148,12 +190,104 @@
       <div class="bg-white rounded-xl p-4 shadow-sm border overflow-x-auto">
         <h2 id="ui_masterTitle" class="font-bold text-sm mb-2">📅 Complete Orchard Schedule (Week 0 to Week 30)</h2>
         <table class="w-full text-left text-xs border-collapse">
-          <thead><tr class="border-b text-slate-500"><th class="py-1.5">Wk</th><th>DAD / Date</th><th>Task</th><th>Status / By</th></tr></thead>
+          <thead><tr class="border-b text-slate-500"><th class="py-1.5">Wk</th><th>DAD / Date</th><th>Task</th><th>Status / ₹</th></tr></thead>
           <tbody id="allWeeksBody" class="divide-y"></tbody>
         </table>
       </div>
     </section>
   </main>
+
+  <!-- MANUAL FARM RAIN LOGGER MODAL (VISUAL METRIC + EXACT MM) -->
+  <div id="rainModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-3 text-xs">
+      <div class="flex items-center justify-between border-b pb-2">
+        <h3 id="ui_rainModalTitle" class="font-extrabold text-base text-slate-900">🌧️ Log Rain at Farm (No Weather Station Needed)</h3>
+        <button onclick="document.getElementById('rainModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
+      </div>
+      <p id="ui_rainModalSub" class="text-slate-600">Select how the soil and orchard looked after the rain, or enter exact mm:</p>
+      <div class="space-y-2">
+        <button onclick="saveFarmRain(3, 'Light Drizzle')" class="w-full p-2.5 rounded-xl border bg-sky-50 hover:bg-sky-100 border-sky-200 text-left">
+          <div class="font-extrabold text-sky-950" id="ui_rn1Title">🌦️ Light Drizzle (~3 mm)</div>
+          <div class="text-[11px] text-sky-800" id="ui_rn1Sub">Leaves wet, top 1 cm dust settled, dries in 1 hour (No drip pause needed).</div>
+        </button>
+        <button onclick="saveFarmRain(10, 'Moderate Rain')" class="w-full p-2.5 rounded-xl border bg-blue-50 hover:bg-blue-100 border-blue-200 text-left">
+          <div class="font-extrabold text-blue-950" id="ui_rn2Title">🌧️ Moderate Rain (~10 mm)</div>
+          <div class="text-[11px] text-blue-800" id="ui_rn2Sub">Soil wet 3–4 inches deep, small puddles under drip line (Pause drip 24h).</div>
+        </button>
+        <button onclick="saveFarmRain(20, 'Heavy Downpour')" class="w-full p-2.5 rounded-xl border-2 bg-indigo-50 hover:bg-indigo-100 border-indigo-300 text-left">
+          <div class="font-extrabold text-indigo-950" id="ui_rn3Title">⛈️ Heavy Downpour (~20 mm) — Triggers Gate 1</div>
+          <div class="text-[11px] text-indigo-900" id="ui_rn3Sub">Water flowing in furrows between rows. Pauses drip 48h + prompts Copper &amp; Bronopol blight shield!</div>
+        </button>
+        <button onclick="saveFarmRain(35, 'Very Heavy Storm')" class="w-full p-2.5 rounded-xl border-2 bg-rose-50 hover:bg-rose-100 border-rose-300 text-left">
+          <div class="font-extrabold text-rose-950" id="ui_rn4Title">🌊 Very Heavy Storm (~35 mm) — High Blight/Wilt Risk</div>
+          <div class="text-[11px] text-rose-900" id="ui_rn4Sub">Standing water near bunds/trunks. Open drainage trenches + pause drip 72h + spray Copper &amp; Bronopol!</div>
+        </button>
+      </div>
+      <div class="pt-2 border-t flex items-center gap-2">
+        <span class="font-bold text-slate-700" id="ui_lblExactMm">Exact Gauge (mm):</span>
+        <input type="number" step="0.5" min="0" id="customRainMm" placeholder="e.g., 16" class="w-24 border rounded-lg px-2.5 py-1.5 font-bold" />
+        <button onclick="saveFarmRain(Number(document.getElementById('customRainMm').value||0), 'Custom Gauge')" class="bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg">💾 Save mm</button>
+        <button onclick="clearFarmRain()" class="ml-auto text-red-600 underline font-bold">↺ Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD NEW STORE BRAND / CHEMICAL MODAL -->
+  <div id="newChemModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-2.5 text-xs">
+      <div class="flex items-center justify-between border-b pb-2">
+        <h3 class="font-extrabold text-base text-slate-900">➕ Add New Store Chemical / Fertilizer</h3>
+        <button onclick="document.getElementById('newChemModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
+      </div>
+      <div>
+        <label class="font-bold block mb-0.5">Brand / Chemical Name (English):</label>
+        <input type="text" id="ncNameEn" placeholder="e.g., Score / Solomon / 12:61:00" class="w-full border rounded-lg px-2.5 py-1.5 font-semibold" />
+      </div>
+      <div>
+        <label class="font-bold block mb-0.5">Name in Kannada (Optional):</label>
+        <input type="text" id="ncNameKn" placeholder="ಉದಾ: ಸ್ಕೋರ್ / ಸೊಲೊಮನ್" class="w-full border rounded-lg px-2.5 py-1.5" />
+      </div>
+      <div>
+        <label class="font-bold block mb-0.5">Active Ingredient / Salt Name:</label>
+        <input type="text" id="ncSalt" placeholder="e.g., Beta-Cyfluthrin + Imidacloprid" class="w-full border rounded-lg px-2.5 py-1.5" />
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="font-bold block mb-0.5">Category:</label>
+          <select id="ncCat" class="w-full border rounded-lg px-2 py-1.5 font-semibold">
+            <option value="INSECTICIDE">Insecticide (ಕೀಟನಾಶಕ)</option>
+            <option value="FUNGICIDE">Fungicide (ಶಿಲೀಂಧ್ರನಾಶಕ)</option>
+            <option value="BACTERICIDE">Bactericide (ಬ್ಯಾಕ್ಟೀರಿಯಾ ನಾಶಕ)</option>
+            <option value="FERTIGATION">Drip Fertilizer (ಗೊಬ್ಬರ)</option>
+            <option value="BIOSTIMULANT">Micronutrient / Bio (ಟಾನಿಕ್)</option>
+          </select>
+        </div>
+        <div>
+          <label class="font-bold block mb-0.5">Application Mode:</label>
+          <select id="ncMethod" class="w-full border rounded-lg px-2 py-1.5 font-semibold">
+            <option value="FOLIAR">🌿 Foliar Spray (per Liter)</option>
+            <option value="DRIP">💧 Drip (per Acre)</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="font-bold block mb-0.5">Dose (per Liter OR per Acre):</label>
+          <input type="number" step="0.1" id="ncDose" value="1.0" class="w-full border rounded-lg px-2.5 py-1.5 font-bold" />
+        </div>
+        <div>
+          <label class="font-bold block mb-0.5">Unit:</label>
+          <select id="ncUnit" class="w-full border rounded-lg px-2 py-1.5 font-bold">
+            <option value="ml">ml (ಮಿ.ಲೀ)</option>
+            <option value="g">g (ಗ್ರಾಂ)</option>
+            <option value="kg">kg (ಕೆ.ಜಿ)</option>
+            <option value="L">L (ಲೀಟರ್)</option>
+          </select>
+        </div>
+      </div>
+      <button onclick="saveNewChemical()" class="w-full bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl shadow text-sm mt-1">💾 Add to Catalog</button>
+    </div>
+  </div>
 
   <!-- BILINGUAL DELAY / RESCHEDULE MODAL -->
   <div id="delayModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -229,6 +363,7 @@
         <button onclick="document.getElementById('swapModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
       </div>
       <div id="swapModalContent" class="space-y-2.5 text-xs"></div>
+      <button onclick="document.getElementById('swapModal').classList.add('hidden');openNewChemModal();" class="mt-3 w-full bg-indigo-50 border border-indigo-200 text-indigo-900 font-bold py-2 rounded-lg text-xs">➕ Store gave a brand not in list? Add New Chemical</button>
     </div>
   </div>
 
@@ -251,23 +386,24 @@
 const sb = window.supabase.createClient("https://mjkcmghhtbsgxohpzlsq.supabase.co", "sb_publishable_pKLBohG_JzhsQ8C4jqwayw_tQCn4bJA");
 const CFG = { lat: 14.661830, lon: 76.454375, acres: 3, drums: 7, drumL: 200 };
 
+let APP_ENV = localStorage.getItem("h_env") || "PROD";
 let LANG = localStorage.getItem("h_lang") || "EN";
 let activeUser = localStorage.getItem("h_user") || "Vishwanath";
 let usersList = [{ id: 1, name: "Vishwanath" }];
 let curWk = 10, catalog = {}, subs = [], leftovers = {}, tasks = [], templates = [], auditLogs = [];
-let wState = { rain24: 0, prob4: 0, tMax: 30.5, tMin: 18.2, updatedAt: "", mode: "LIVE" };
+let farmRainToday = null;
+let wState = { tempNow: 29.0, humidity: 58, rain24: 0, prob4: 0, tMax: 30.5, tMin: 18.2, updatedAt: "", mode: "LIVE" };
 let activeDelayTaskId = null;
 
 // ============================================================================
-// PURE TIMEZONE-SAFE DATE HELPERS (SOLVES IST vs UTC OFF-BY-1-DAY BUG!)
+// PURE TIMEZONE-SAFE DATE HELPERS
 // ============================================================================
 function parseYMD(dateStr) {
   const [y, m, d] = (dateStr || "2026-10-18").split("-").map(Number);
   return Date.UTC(y, m - 1, d);
 }
 function addDaysYMD(dateStr, days) {
-  const ms = parseYMD(dateStr) + Math.round(days) * 86400000;
-  return new Date(ms).toISOString().split("T")[0];
+  return new Date(parseYMD(dateStr) + Math.round(days) * 86400000).toISOString().split("T")[0];
 }
 function diffDaysYMD(startStr, endStr) {
   return Math.round((parseYMD(endStr) - parseYMD(startStr)) / 86400000);
@@ -282,10 +418,8 @@ function computeDynamicDadAndWeek(dateStr) {
 }
 function getWeekStartAndEndDates(wkNum) {
   const dadStart = (wkNum - 1) * 7;
-  const startStr = addDaysYMD("2026-08-15", dadStart);
-  const endStr = addDaysYMD("2026-08-15", dadStart + 6);
-  const [y1, m1, d1] = startStr.split("-").map(Number);
-  const [y2, m2, d2] = endStr.split("-").map(Number);
+  const startStr = addDaysYMD("2026-08-15", dadStart), endStr = addDaysYMD("2026-08-15", dadStart + 6);
+  const [y1, m1, d1] = startStr.split("-").map(Number), [y2, m2, d2] = endStr.split("-").map(Number);
   return { start: new Date(y1, m1 - 1, d1), end: new Date(y2, m2 - 1, d2), dadStart, dadEnd: dadStart + 6 };
 }
 function formatDateWithWeekday(dateStr) {
@@ -296,23 +430,23 @@ function formatDateWithWeekday(dateStr) {
 const I18N = {
   EN: {
     appTitle: "🍎 Hosahalli Pomegranate Tracker", appSub: "3 Acres • 1,500 Plants (10×8) • Wk 1 (Ethrel): 15 Aug 2026",
-    btnSim: "⚙️ Weather Test", btnResetAll: "🧪 Temp: Reset All", simLabel: "Simulate Weather:",
-    tabTasks: "Tasks", tabManual: "Log Work", tabShop: "Store List", tabScout: "Scout & Log",
-    manTitle: "➕ Record Manual or Past Spray / Drip", manSub: "Log any spray or fertilizer applied. Automatically adjusts conflicting dates, 10-day Boron lock, and IRAC/FRAC rotation.",
-    lblManDate: "Date Applied:", lblManType: "Activity Type:", optFoliar: "🌿 Foliar Spray (7 Drums)", optCopper: "⚠️ Standalone Copper Spray", optDrip: "💧 Drip Fertigation (3 Acres)",
-    lblManChem1: "Primary Input:", lblManChem2: "Second Input (Optional):", lblQtyUsed: "3-Acre Qty Used:", lblManNotes: "Notes / Brand Used:",
+    btnLogRain: "🌧️ Log Farm Rain", tabTasks: "Tasks", tabManual: "Log Work", tabShop: "Store & ₹", tabScout: "Scout & Log",
+    manTitle: "➕ Record Manual or Past Spray / Drip", lblManDate: "Date Applied:", lblManType: "Activity Type:", lblManCost: "Total Cost Paid (₹):",
+    optFoliar: "🌿 Foliar Spray (7 Drums)", optCopper: "⚠️ Standalone Copper Spray", optDrip: "💧 Drip Fertigation (3 Acres)",
+    lblManChem1: "Primary Input:", lblManChem2: "Second Input (Optional):", lblManNotes: "Notes / Brand Used:",
     lblManShift: "Auto-adjust future schedule (+3d shift, 5d Copper cooldown, 10d Boron lock & IRAC/FRAC rotation)", btnSaveMan: "💾 Save Activity & Update Schedule",
-    shopTitle: "Agro-Store Shopping List (3 Acres)", shopSub: "Skipped and completed items are excluded. Enter shed leftovers below.", btnCopy: "📲 Copy List",
+    expTitle: "💰 Total Recorded Orchard Spend (3 Acres)", shopTitle: "Agro-Store Shopping List (3 Acres)", shopSub: "Skipped and completed items are excluded. Enter shed leftovers below.", btnCopy: "📲 Copy List",
     scoutTitle: "🔍 1-Tap Field Problem Reporter", scoutSub: "Confirms before adding a weather-smart spray card to your schedule (deletable anytime).",
     auditTitle: "👤 Recent Activity & User Tracking Log", masterTitle: "📅 Complete Orchard Schedule (Week 0 to Week 30)",
-    modalTitle: "🏪 Agro-Store Counter Helper", userModalTitle: "👤 Manage App Users (Add / Edit / Delete)",
+    modalTitle: "🏪 Agro-Store Counter Helper", userModalTitle: "👤 Manage App Users",
     delayModalTitle: "⏳ Delay / Reschedule Task", lblQuickDelay: "1. Shift Earlier (-), Later (+) or Pick Date:", btnOrigDate: "↺ Original Date", lblNewDate: "New Date:",
     lblCascadeMode: "2. How should subsequent tasks update?",
     casAllTitle: "🌊 Shift ALL subsequent tasks forward/backward (Recommended)", casAllSub: "Moves all following Sprays and Drips by the exact same days so intervals stay locked.",
     casTrackTitle: "🛤️ Shift ONLY same-type tasks (Drip or Spray)", casTrackSub: "Shifts subsequent Drips if this is a Drip, or subsequent Sprays if this is a Spray.",
     casSingleTitle: "📌 Move ONLY this single task", casSingleSub: "Moves only this card and bumps any task if they collide on the same date.",
-    lblDelayReason: "3. Reason for Schedule Change:", rsnRain: "🌧️ Rain / Wet Soil", rsnPower: "⚡ No Power / Pump Issue", rsnLabor: "👷 Labor Unavailable", rsnStore: "🏪 Chemical Sourcing Delay",
+    lblDelayReason: "3. Reason:", rsnRain: "🌧️ Rain / Wet Soil", rsnPower: "⚡ No Power / Pump Issue", rsnLabor: "👷 Labor Unavailable", rsnStore: "🏪 Chemical Sourcing Delay",
     btnConfirmDelay: "✅ Confirm New Date & Update Schedule",
+    rainModalTitle: "🌧️ Log Rain at Farm (No Weather Station Needed)", rainModalSub: "Select how the orchard looked after rain, or enter exact mm:",
     weekWord: "Week", preEthrelLabel: "📜 Week 0: Pre-Ethrel History (Before 15 Aug 2026)", dadWord: "DAD",
     doneBtn: "✅ All Done", delayBtn: "⏳ Delay / Move", skipBtn: "⏭️ Skip All", resetBtn: "↺ Reset", deleteBtn: "🗑️ Delete", storeOutBtn: "🏪 Swap",
     mustSource: "🔴 Must Source Exact", flexible: "🟢 Store Flexible",
@@ -323,14 +457,13 @@ const I18N = {
   },
   KN: {
     appTitle: "🍎 ಹೊಸಹಳ್ಳಿ ದಾಳಿಂಬೆ ನಿರ್ವಹಣಾ ಟ್ರ್ಯಾಕರ್", appSub: "3 ಎಕರೆ • 1,500 ಗಿಡ (10×8) • ವಾರ 1 (ಎಥ್ರೆಲ್): 15 ಆಗಸ್ಟ್ 2026",
-    btnSim: "⚙️ ಹವಾಮಾನ ಪರೀಕ್ಷೆ", btnResetAll: "🧪 ಎಲ್ಲಾ ಮರುಹೊಂದಿಸಿ", simLabel: "ಹವಾಮಾನ ಪರೀಕ್ಷಿಸಿ:",
-    tabTasks: "ವಾರದ ಕೆಲಸ", tabManual: "ಕೆಲಸ ಸೇರಿಸಿ", tabShop: "ಅಂಗಡಿ ಪಟ್ಟಿ", tabScout: "ರೋಗ & ದಾಖಲೆ",
-    manTitle: "➕ ಮಾಡಿದ ಸಿಂಪಡಣೆ / ಡ್ರಿಪ್ ಗೊಬ್ಬರ ದಾಖಲಿಸಿ", manSub: "ನೀವು ಮಾಡಿದ ಸಿಂಪಡಣೆ ಅಥವಾ ಡ್ರಿಪ್ ಇಲ್ಲಿ ನಮೂದಿಸಿ. ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ, 10 ದಿನದ ಬೋರಾನ್ ಮಿತಿ ಮತ್ತು ಔಷಧಿ ಬದಲಾವಣೆ ತಾನಾಗಿಯೇ ಹೊಂದಾಣಿಕೆಯಾಗುತ್ತದೆ.",
-    lblManDate: "ಮಾಡಿದ ದಿನಾಂಕ:", lblManType: "ಕೆಲಸದ ವಿಧ:", optFoliar: "🌿 ಎಲೆ ಸಿಂಪಡಣೆ (7 ಡ್ರಮ್)", optCopper: "⚠️ ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಸಿಂಪಡಣೆ", optDrip: "💧 ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)",
-    lblManChem1: "ಮೊದಲನೇ ಔಷಧಿ / ಗೊಬ್ಬರ:", lblManChem2: "ಎರಡನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಐಚ್ಛಿಕ):", lblQtyUsed: "ಬಳಸಿದ ಒಟ್ಟು ಪ್ರಮಾಣ (3 ಎಕರೆ):", lblManNotes: "ವಿವರ / ಕಂಪನಿ ಹೆಸರು:",
+    btnLogRain: "🌧️ ಮಳೆ ದಾಖಲಿಸಿ", tabTasks: "ವಾರದ ಕೆಲಸ", tabManual: "ಕೆಲಸ ಸೇರಿಸಿ", tabShop: "ಅಂಗಡಿ & ₹", tabScout: "ರೋಗ & ದಾಖಲೆ",
+    manTitle: "➕ ಮಾಡಿದ ಸಿಂಪಡಣೆ / ಡ್ರಿಪ್ ಗೊಬ್ಬರ ದಾಖಲಿಸಿ", lblManDate: "ಮಾಡಿದ ದಿನಾಂಕ:", lblManType: "ಕೆಲಸದ ವಿಧ:", lblManCost: "ಒಟ್ಟು ಖರ್ಚು (₹):",
+    optFoliar: "🌿 ಎಲೆ ಸಿಂಪಡಣೆ (7 ಡ್ರಮ್)", optCopper: "⚠️ ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಸಿಂಪಡಣೆ", optDrip: "💧 ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)",
+    lblManChem1: "ಮೊದಲನೇ ಔಷಧಿ / ಗೊಬ್ಬರ:", lblManChem2: "ಎರಡನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಐಚ್ಛಿಕ):", lblManNotes: "ವಿವರ / ಕಂಪನಿ ಹೆಸರು:",
     lblManShift: "ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸಿ (+3 ದಿನ ಮುಂದೂಡಿಕೆ, 5 ದಿನ ಕಾಪರ್ ಅಂತರ, ಬೋರಾನ್ ಮಿತಿ)", btnSaveMan: "💾 ದಾಖಲಿಸಿ ಮತ್ತು ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ",
-    shopTitle: "ಅಗ್ರೋ ಅಂಗಡಿ ಖರೀದಿ ಪಟ್ಟಿ (3 ಎಕರೆ)", shopSub: "ಪೂರ್ಣಗೊಂಡ ಮತ್ತು ಬಿಟ್ಟುಬಿಟ್ಟ ಔಷಧಿಗಳನ್ನು ಕೈಬಿಡಲಾಗಿದೆ. ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣ ನಮೂದಿಸಿ.", btnCopy: "📲 ಪಟ್ಟಿ ಕಾಪಿ ಮಾಡಿ",
-    scoutTitle: "🔍 ತೋಟದ ರೋಗ / ಕೀಟ ವರದಿ ಮಾಡಿ", scoutSub: "ಕೆಳಗಿನ ಸಮಸ್ಯೆ ಒತ್ತಿರಿ. ದೃಢೀಕರಿಸಿದ ನಂತರ ಹವಾಮಾನ ಪರಿಶೀಲಿಸಿ ನಿಮ್ಮ ವೇಳಾಪಟ್ಟಿಗೆ ಸಿಂಪಡಣೆ ಸೇರಿಸುತ್ತದೆ (ಬೇಕಿದ್ದರೆ ಅಳಿಸಬಹುದು).",
+    expTitle: "💰 ಒಟ್ಟು ದಾಖಲಾದ ತೋಟದ ಖರ್ಚು (3 ಎಕರೆ)", shopTitle: "ಅಗ್ರೋ ಅಂಗಡಿ ಖರೀದಿ ಪಟ್ಟಿ (3 ಎಕರೆ)", shopSub: "ಪೂರ್ಣಗೊಂಡ ಮತ್ತು ಬಿಟ್ಟುಬಿಟ್ಟ ಔಷಧಿಗಳನ್ನು ಕೈಬಿಡಲಾಗಿದೆ. ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣ ನಮೂದಿಸಿ.", btnCopy: "📲 ಪಟ್ಟಿ ಕಾಪಿ ಮಾಡಿ",
+    scoutTitle: "🔍 ತೋಟದ ರೋಗ / ಕೀಟ ವರದಿ ಮಾಡಿ", scoutSub: "ಕೆಳಗಿನ ಸಮಸ್ಯೆ ಒತ್ತಿರಿ. ದೃಢೀಕರಿಸಿದ ನಂತರ ಹವಾಮಾನ ಪರಿಶೀಲಿಸಿ ನಿಮ್ಮ ವೇಳಾಪಟ್ಟಿಗೆ ಸಿಂಪಡಣೆ ಸೇರಿಸುತ್ತದೆ.",
     auditTitle: "👤 ಯಾರು, ಯಾವಾಗ ಬದಲಾವಣೆ ಮಾಡಿದರು (ದಾಖಲೆ ಪಟ್ಟಿ)", masterTitle: "📅 ಪೂರ್ಣ ವೇಳಾಪಟ್ಟಿ (ವಾರ 0 ರಿಂದ ವಾರ 30 ರವರೆಗೆ)",
     modalTitle: "🏪 ಅಗ್ರೋ ಅಂಗಡಿ ಪರ್ಯಾಯ ಔಷಧಿ ಸಹಾಯಕ", userModalTitle: "👤 ಬಳಕೆದಾರರ ಹೆಸರು ನಿರ್ವಹಿಸಿ",
     delayModalTitle: "⏳ ದಿನಾಂಕ ಬದಲಿಸಿ / ಮುಂದೂಡಿ", lblQuickDelay: "1. ದಿನಗಳನ್ನು ಹಿಂದೆ (-) / ಮುಂದೆ (+) ಮಾಡಿ ಅಥವಾ ದಿನಾಂಕ ಆರಿಸಿ:", btnOrigDate: "↺ ಮೂಲ ದಿನಾಂಕಕ್ಕೆ ತನ್ನಿ", lblNewDate: "ಹೊಸ ದಿನಾಂಕ:",
@@ -340,6 +473,7 @@ const I18N = {
     casSingleTitle: "📌 ಈ ಒಂದು ಕೆಲಸವನ್ನು ಮಾತ್ರ ಬದಲಿಸಿ", casSingleSub: "ಈ ಕಾರ್ಡ್ ಮಾತ್ರ ಬದಲಾಗುತ್ತದೆ (ಅದೇ ದಿನ ಬೇರೆ ಕೆಲಸವಿದ್ದರೆ ಅದನ್ನು +2 ದಿನ ಮುಂದೆ ಹಾಕುತ್ತದೆ).",
     lblDelayReason: "3. ದಿನಾಂಕ ಬದಲಿಸಲು ಕಾರಣ:", rsnRain: "🌧️ ಮಳೆ / ಹಸಿ ಮಣ್ಣು", rsnPower: "⚡ ವಿದ್ಯುತ್ / ಮೋಟಾರ್ ಸಮಸ್ಯೆ", rsnLabor: "👷 ಕೂಲಿ ಕಾರ್ಮಿಕರ ಕೊರತೆ", rsnStore: "🏪 ಔಷಧಿ / ಗೊಬ್ಬರ ತರಲು ವಿಳಂಬ",
     btnConfirmDelay: "✅ ಹೊಸ ದಿನಾಂಕ ಖಚಿತಪಡಿಸಿ & ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ",
+    rainModalTitle: "🌧️ ತೋಟದ ಮಳೆ ಪ್ರಮಾಣ ದಾಖಲಿಸಿ", rainModalSub: "ಮಳೆಯ ನಂತರ ತೋಟದ ಮಣ್ಣು ಹೇಗಿತ್ತು ಎಂದು ಆರಿಸಿ ಅಥವಾ ಮಿ.ಮೀ ನಮೂದಿಸಿ:",
     weekWord: "ವಾರ", preEthrelLabel: "📜 ವಾರ 0: ಎಥ್ರೆಲ್ ಮುಂಚಿನ ದಾಖಲೆಗಳು (15 ಆಗಸ್ಟ್ 2026 ಕ್ಕಿಂತ ಮೊದಲು)", dadWord: "ದಿನ (DAD)",
     doneBtn: "✅ ಎಲ್ಲಾ ಪೂರ್ಣ", delayBtn: "⏳ ದಿನಾಂಕ ಬದಲಿಸಿ", skipBtn: "⏭️ ಬಿಟ್ಟುಬಿಡಿ", resetBtn: "↺ ಮರುಹೊಂದಿಸಿ", deleteBtn: "🗑️ ಅಳಿಸಿ", storeOutBtn: "🏪 ಬದಲಿಸಿ",
     mustSource: "🔴 ಇದೇ ಔಷಧಿ ಕಡ್ಡಾಯ", flexible: "🟢 ಬದಲಿಸಬಹುದು",
@@ -432,6 +566,8 @@ const SCOUT_ISSUES = [
 window.addEventListener("DOMContentLoaded", async () => {
   const tStr = todayYMD();
   document.getElementById("manDate").value = tStr;
+  document.getElementById("envSelect").value = APP_ENV;
+  applyEnvStyling();
   const todayDad = diffDaysYMD("2026-08-15", tStr);
   curWk = (todayDad >= 0 && todayDad <= 220) ? Math.floor(todayDad / 7) + 1 : 10;
   await loadWeather();
@@ -440,11 +576,182 @@ window.addEventListener("DOMContentLoaded", async () => {
   render();
 });
 
+// ============================================================================
+// ENVIRONMENT SWITCHER (PROD vs DEV)
+// ============================================================================
+function applyEnvStyling() {
+  const hdr = document.getElementById("mainHeader");
+  const devBar = document.getElementById("devToolsBar");
+  const envSel = document.getElementById("envSelect");
+  if (APP_ENV === "DEV") {
+    hdr.className = "bg-indigo-950 text-white sticky top-0 z-30 shadow-md";
+    envSel.className = "text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 focus:outline-none cursor-pointer";
+    devBar.classList.remove("hidden");
+  } else {
+    hdr.className = "bg-emerald-900 text-white sticky top-0 z-30 shadow-md";
+    envSel.className = "text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950 focus:outline-none cursor-pointer";
+    devBar.classList.add("hidden");
+    document.getElementById("simBox").classList.add("hidden");
+  }
+}
+
+async function switchEnv(newEnv) {
+  APP_ENV = newEnv;
+  localStorage.setItem("h_env", APP_ENV);
+  applyEnvStyling();
+  await loadDB();
+  render();
+}
+
+// ============================================================================
+// WEATHER + LIVE TEMP & HUMIDITY + MANUAL FARM RAIN LOGGER
+// ============================================================================
+async function loadWeather() {
+  try {
+    const [r, rainRes] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&current=temperature_2m,relative_humidity_2m,precipitation&hourly=precipitation_probability&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&past_days=2&forecast_days=2`),
+      sb.from("farm_rain_logs").select("*").eq("log_date", todayYMD()).maybeSingle()
+    ]);
+    const d = await r.json(), hr = new Date().getHours();
+    farmRainToday = rainRes?.data || null;
+    const satRain = Number(((d.daily.precipitation_sum[1] || 0) + (d.daily.precipitation_sum[2] || 0)).toFixed(1));
+
+    wState = {
+      tempNow: d.current?.temperature_2m ?? 29.5,
+      humidity: d.current?.relative_humidity_2m ?? 55,
+      rain24: farmRainToday ? Number(farmRainToday.rain_mm) : satRain,
+      prob4: Math.max(...d.hourly.precipitation_probability.slice(48 + hr, 52 + hr), 0),
+      tMax: d.daily.temperature_2m_max[2] || 30.5,
+      tMin: d.daily.temperature_2m_min[2] || 18.2,
+      updatedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      mode: farmRainToday ? "FARM_LOGGED" : "LIVE"
+    };
+  } catch (e) {}
+  updateWBar();
+}
+
+function updateWBar() {
+  const srcTag = wState.mode === "FARM_LOGGED" ? (LANG === "KN" ? " (🏡 ತೋಟದ ದಾಖಲೆ)" : " (🏡 Farm)") : "";
+  if (LANG === "KN") {
+    document.getElementById("wTemp").textContent = `🌡️ ಈಗ: ${wState.tempNow}°C (ಗರಿಷ್ಠ ${wState.tMax}° / ರಾತ್ರಿ ${wState.tMin}°)`;
+    document.getElementById("wHum").textContent = `💧 ತೇವಾಂಶ: ${wState.humidity}%`;
+    document.getElementById("wRain").textContent = `🌧️ 24ಗಂ ಮಳೆ: ${wState.rain24} ಮಿ.ಮೀ${srcTag}`;
+    document.getElementById("wProb").textContent = `☔ 4ಗಂ ಸಾಧ್ಯತೆ: ${wState.prob4}%`;
+  } else {
+    document.getElementById("wTemp").textContent = `🌡️ Now: ${wState.tempNow}°C (Max ${wState.tMax}° / Night ${wState.tMin}°)`;
+    document.getElementById("wHum").textContent = `💧 Humidity: ${wState.humidity}%`;
+    document.getElementById("wRain").textContent = `🌧️ 24h Rain: ${wState.rain24} mm${srcTag}`;
+    document.getElementById("wProb").textContent = `☔ 4h Prob: ${wState.prob4}%`;
+  }
+  document.getElementById("wUpdatedTime").textContent = `🔄 ${wState.updatedAt || ""}`;
+}
+
+function openRainModal() {
+  document.getElementById("customRainMm").value = farmRainToday ? farmRainToday.rain_mm : "";
+  document.getElementById("rainModal").classList.remove("hidden");
+}
+
+async function saveFarmRain(mm, label) {
+  const val = Math.max(0, Number(mm) || 0);
+  const tStr = todayYMD();
+  farmRainToday = { log_date: tStr, rain_mm: val, rain_label: label, logged_by: activeUser };
+  wState.rain24 = val;
+  wState.mode = "FARM_LOGGED";
+  document.getElementById("rainModal").classList.add("hidden");
+  updateWBar();
+  render();
+
+  await sb.from("farm_rain_logs").upsert([farmRainToday]);
+  await logAudit("FARM_RAIN_LOGGED", `Logged ${val} mm (${label})`, `Date: ${tStr}`);
+
+  // If Heavy Rain (>=15mm), offer 1-click schedule adjustment (Pause next drip +2d & add Copper+Bronopol)
+  if (val >= 15) {
+    const ask = LANG === "KN"
+      ? `🌧️ ${val} ಮಿ.ಮೀ ಮಳೆ ದಾಖಲಾಗಿದೆ! ಮುಂದಿನ ಡ್ರಿಪ್ ಗೊಬ್ಬರವನ್ನು +2 ದಿನ ಮುಂದೂಡಿ, ನಾಳೆಗೆ ತುರ್ತು ಕಾಪರ್ + ಬ್ರೊನೊಪಾಲ್ ಸಿಂಪಡಣೆಯನ್ನು ವೇಳಾಪಟ್ಟಿಗೆ ಸೇರಿಸಲೇ?`
+      : `🌧️ ${val} mm heavy rain logged! Would you like to pause/shift the next pending Drip by +2 days and add a Standalone Copper + Bronopol spray for tomorrow?`;
+    if (confirm(ask)) {
+      const nextDrip = tasks.find(t => t.status === "PENDING" && t.task_type.startsWith("DRIP") && t.current_scheduled_date >= tStr);
+      if (nextDrip) {
+        await applyScheduleShift(nextDrip, addDaysYMD(nextDrip.current_scheduled_date, 2), "TRACK", "RAIN");
+      }
+      const tomStr = addDaysYMD(tStr, 1), dyn = computeDynamicDadAndWeek(tomStr);
+      const payload = {
+        env: APP_ENV, originally_scheduled_date: tomStr, current_scheduled_date: tomStr, effective_dad: dyn.dad,
+        task_type: "STANDALONE_COPPER", trigger_source: "SCOUTING_CURATIVE", status: "PENDING",
+        resolved_recipe: [{ input_id: "BAC_COPPER_HYDROXIDE", dose_per_liter: 1.5 }, { input_id: "BAC_BRONOPOL", dose_per_liter: 0.5 }],
+        custom_title_en: `Post-Rain Emergency Shield (${val}mm Rain): Copper Hydroxide + Bronopol`,
+        custom_title_kn: `ಮಳೆಯ ನಂತರದ ತುರ್ತು ರಕ್ಷಣೆ (${val}ಮಿ.ಮೀ ಮಳೆ): ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ + ಬ್ರೊನೊಪಾಲ್`,
+        updated_by: activeUser, updated_at: new Date().toISOString()
+      };
+      const { data } = await sb.from("daily_task_queue").insert([payload]).select();
+      tasks.push({ ...(data?.[0] || { ...payload, id: "rain_" + Date.now() }), week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn });
+      render();
+    }
+  }
+}
+
+async function clearFarmRain() {
+  farmRainToday = null;
+  document.getElementById("rainModal").classList.add("hidden");
+  await sb.from("farm_rain_logs").delete().eq("log_date", todayYMD());
+  await loadWeather();
+  render();
+}
+
+function setWeather(m) {
+  if (m === "LIVE") { loadWeather().then(render); return; }
+  if (m === "RAIN") wState = { ...wState, rain24: 24.0, prob4: 25, mode: "SIM" };
+  if (m === "HOLD") wState = { ...wState, rain24: 1.0, prob4: 80, mode: "SIM" };
+  if (m === "WARM") wState = { ...wState, tMax: 35.0, tMin: 19.6, mode: "SIM" };
+  updateWBar(); render();
+}
+
+// ============================================================================
+// ADD NEW STORE BRAND / CHEMICAL TO CATALOG
+// ============================================================================
+function openNewChemModal() {
+  document.getElementById("ncNameEn").value = "";
+  document.getElementById("ncNameKn").value = "";
+  document.getElementById("ncSalt").value = "";
+  document.getElementById("newChemModal").classList.remove("hidden");
+}
+
+async function saveNewChemical() {
+  const nameEn = document.getElementById("ncNameEn").value.trim();
+  const nameKn = document.getElementById("ncNameKn").value.trim() || nameEn;
+  const salt = document.getElementById("ncSalt").value.trim() || nameEn;
+  const category = document.getElementById("ncCat").value;
+  const method = document.getElementById("ncMethod").value;
+  const dose = Number(document.getElementById("ncDose").value) || 1.0;
+  const unit = document.getElementById("ncUnit").value;
+  if (!nameEn) return;
+
+  const id = "CUSTOM_" + nameEn.toUpperCase().replace(/[^A-Z0-9]/g, "_").slice(0, 18) + "_" + Math.floor(Math.random() * 90 + 10);
+  const newChem = {
+    id, name_en: nameEn, name_kn: nameKn, category, active_ingredient: salt, popular_brands: nameEn,
+    application_method: method,
+    base_dose_per_liter: method === "FOLIAR" ? dose : null,
+    base_dose_per_acre: method === "DRIP" ? dose : null,
+    unit, standard_pack_sizes: "Store Pack", procurement_criticality: "FLEXIBLE",
+    phi_days: 7, is_copper_compound: category === "BACTERICIDE" && salt.toLowerCase().includes("copper")
+  };
+
+  catalog[id] = newChem;
+  document.getElementById("newChemModal").classList.add("hidden");
+  populateManualSelects();
+  render();
+
+  await sb.from("inputs_catalog").insert([newChem]);
+  await logAudit("NEW_CHEMICAL_ADDED", `${nameEn} (${salt})`, `${dose} ${unit} via ${method}`);
+}
+
+// ============================================================================
+// USER MANAGEMENT & DATABASE LOADER
+// ============================================================================
 function renderUserDropdown() {
   const sel = document.getElementById("userSelect");
   if (!usersList.some(u => u.name === activeUser) && usersList.length > 0) {
-    activeUser = usersList[0].name;
-    localStorage.setItem("h_user", activeUser);
+    activeUser = usersList[0].name; localStorage.setItem("h_user", activeUser);
   }
   sel.innerHTML = usersList.map(u => `<option value="${u.name}" class="text-slate-900" ${u.name === activeUser ? "selected" : ""}>${u.name}</option>`).join("");
 }
@@ -459,16 +766,14 @@ function renderUserModalList() {
     </div>`).join("");
 }
 async function addUser() {
-  const inp = document.getElementById("newUserName"), name = inp.value.trim();
-  if (!name) return;
+  const inp = document.getElementById("newUserName"), name = inp.value.trim(); if (!name) return;
   const { data } = await sb.from("app_users").insert([{ name }]).select();
   usersList.push((data && data[0]) ? data[0] : { id: Date.now(), name });
   activeUser = name; localStorage.setItem("h_user", name); inp.value = "";
   renderUserDropdown(); renderUserModalList();
 }
 async function renameUser(id) {
-  const newName = document.getElementById(`editUser_${id}`).value.trim();
-  if (!newName) return;
+  const newName = document.getElementById(`editUser_${id}`).value.trim(); if (!newName) return;
   const u = usersList.find(x => x.id === id);
   if (u) { if (activeUser === u.name) activeUser = newName; u.name = newName; }
   renderUserDropdown(); renderUserModalList();
@@ -483,38 +788,9 @@ async function deleteUser(id, name) {
 function toggleLanguage() { LANG = LANG === "EN" ? "KN" : "EN"; localStorage.setItem("h_lang", LANG); render(); }
 
 async function logAudit(actionType, summary, details) {
-  const entry = { actor_name: activeUser, action_type: actionType, task_summary: summary, details, created_at: new Date().toISOString() };
+  const entry = { env: APP_ENV, actor_name: activeUser, action_type: actionType, task_summary: summary, details, created_at: new Date().toISOString() };
   auditLogs.unshift(entry);
   try { await sb.from("activity_audit_log").insert([entry]); } catch (e) {}
-}
-
-async function loadWeather() {
-  try {
-    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&hourly=precipitation_probability&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&past_days=2&forecast_days=2`);
-    const d = await r.json(), hr = new Date().getHours();
-    wState = {
-      rain24: Number(((d.daily.precipitation_sum[1] || 0) + (d.daily.precipitation_sum[2] || 0)).toFixed(1)),
-      prob4: Math.max(...d.hourly.precipitation_probability.slice(48 + hr, 52 + hr), 0),
-      tMax: d.daily.temperature_2m_max[2] || 30.5, tMin: d.daily.temperature_2m_min[2] || 18.2,
-      updatedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), mode: "LIVE"
-    };
-  } catch (e) {}
-  updateWBar();
-}
-
-function updateWBar() {
-  document.getElementById("wTemp").textContent = LANG === "KN" ? `🌡️ ಗರಿಷ್ಠ ${wState.tMax}°C / ರಾತ್ರಿ ${wState.tMin}°C` : `🌡️ Max ${wState.tMax}°C / Night ${wState.tMin}°C`;
-  document.getElementById("wRain").textContent = LANG === "KN" ? `🌧️ 24ಗಂ ಮಳೆ: ${wState.rain24} ಮಿ.ಮೀ` : `🌧️ 24h Rain: ${wState.rain24} mm`;
-  document.getElementById("wProb").textContent = LANG === "KN" ? `☔ 4ಗಂ ಮಳೆ ಸಾಧ್ಯತೆ: ${wState.prob4}%` : `☔ 4h Rain Prob: ${wState.prob4}%`;
-  document.getElementById("wUpdatedTime").textContent = `🔄 ${wState.updatedAt || ""}`;
-}
-
-function setWeather(m) {
-  if (m === "LIVE") { loadWeather().then(render); return; }
-  if (m === "RAIN") wState = { ...wState, rain24: 24.0, prob4: 25, mode: "SIM" };
-  if (m === "HOLD") wState = { ...wState, rain24: 1.0, prob4: 80, mode: "SIM" };
-  if (m === "WARM") wState = { ...wState, tMax: 35.0, tMin: 19.6, mode: "SIM" };
-  updateWBar(); render();
 }
 
 async function loadDB() {
@@ -522,9 +798,10 @@ async function loadDB() {
   try {
     const [cR, sR, lR, qR, tR, aR, uR] = await Promise.all([
       sb.from("inputs_catalog").select("*"), sb.from("substitution_rules").select("*"),
-      sb.from("shed_leftovers").select("*"), sb.from("daily_task_queue").select("*").order("current_scheduled_date", { ascending: true }),
+      sb.from("shed_leftovers").select("*"),
+      sb.from("daily_task_queue").select("*").eq("env", APP_ENV).order("current_scheduled_date", { ascending: true }),
       sb.from("baseline_schedule_template").select("*").order("id", { ascending: true }),
-      sb.from("activity_audit_log").select("*").order("created_at", { ascending: false }).limit(50),
+      sb.from("activity_audit_log").select("*").eq("env", APP_ENV).order("created_at", { ascending: false }).limit(50),
       sb.from("app_users").select("*").order("id", { ascending: true })
     ]);
     if (cR.error) throw cR.error;
@@ -544,10 +821,10 @@ async function loadDB() {
         target_description_kn: q.custom_title_kn || ""
       };
     });
-    localStorage.setItem("h_cache_v6", JSON.stringify({ catalog, subs, leftovers, tasks, templates, auditLogs, usersList }));
-    b.textContent = "🟢 Online";
+    localStorage.setItem(`h_cache_v7_${APP_ENV}`, JSON.stringify({ catalog, subs, leftovers, tasks, templates, auditLogs, usersList }));
+    b.textContent = `🟢 ${APP_ENV}`;
   } catch (e) {
-    const c = localStorage.getItem("h_cache_v6");
+    const c = localStorage.getItem(`h_cache_v7_${APP_ENV}`);
     if (c) ({ catalog, subs, leftovers, tasks, templates, auditLogs, usersList } = JSON.parse(c));
     b.textContent = "🟠 Offline";
   }
@@ -586,14 +863,13 @@ function refreshDynamicTaskWeeks() {
   tasks.sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date) || (a.originally_scheduled_date || "").localeCompare(b.originally_scheduled_date || ""));
 }
 
+// DEV-ONLY RESET FUNCTION
 async function resetEntireScheduleToBaseline() {
-  const msg = LANG === "KN"
-    ? "ಅಕ್ಟೋಬರ್ 18 ರಿಂದ ಮಾರ್ಚ್ 14 ರವರೆಗಿನ ಎಲ್ಲಾ ವೇಳಾಪಟ್ಟಿಗಳನ್ನು ಮೂಲ ದಿನಾಂಕಕ್ಕೆ ಮರುಹೊಂದಿಸಲೇ? (ನಿಮ್ಮ ಗೂಗಲ್ ಕೀಪ್ ಹಿಂದಿನ ದಾಖಲೆಗಳು ಸುರಕ್ಷಿತವಾಗಿರುತ್ತವೆ)."
-    : "Reset ALL tasks from Oct 18, 2026 onwards back to their clean baseline dates and Pending status? (Your Google Keep history in Weeks 0–9 stays safe.)";
-  if (!confirm(msg)) return;
+  if (APP_ENV !== "DEV") return;
+  if (!confirm("Reset DEV environment back to clean baseline dates?")) return;
 
-  await sb.from("daily_task_queue").delete().in("trigger_source", ["SCOUTING_CURATIVE", "SPLIT_REMAINDER"]);
-  await sb.from("daily_task_queue").delete().eq("trigger_source", "MANUAL_ENTRY").gte("originally_scheduled_date", "2026-10-18");
+  await sb.from("daily_task_queue").delete().eq("env", "DEV").in("trigger_source", ["SCOUTING_CURATIVE", "SPLIT_REMAINDER"]);
+  await sb.from("daily_task_queue").delete().eq("env", "DEV").eq("trigger_source", "MANUAL_ENTRY").gte("originally_scheduled_date", "2026-10-18");
 
   const tMap = {}; templates.forEach(t => tMap[t.id] = t);
   const baselineTasks = tasks.filter(t => t.trigger_source === "BASELINE" && t.template_id);
@@ -607,11 +883,11 @@ async function resetEntireScheduleToBaseline() {
       customKn = "ಮುಖ್ಯ P-K ಡ್ರಿಪ್ (ಅಕ್ಟೋಬರ್ 15ರ C-Phos ನಂತರ ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ)";
     } else if (bt.originally_scheduled_date === "2026-10-20" && bt.task_type === "FOLIAR_SPRAY") {
       cleanRecipe = [{ input_id: "INS_SPINETORAM", dose_per_liter: 0.8 }, { input_id: "FUN_DIFENOCONAZOLE", dose_per_liter: 0.5 }];
-      customEn = "Foliar Spray (Rotated after Oct 7 Exponus & Oct 12 Cabrio Top): Spinetoram + Score (Difenoconazole)";
+      customEn = "Foliar Spray (Rotated after Oct 7 Exponus & Oct 12 Cabrio Top): Spinetoram + Difenoconazole";
       customKn = "ಎಲೆ ಸಿಂಪಡಣೆ (ಅಕ್ಟೋಬರ್ 12ರ ಕ್ಯಾಬ್ರಿಟಾಪ್ ನಂತರ ಬದಲಾಯಿಸಿದ ಔಷಧಿ): ಸ್ಪೈನೆಟೊರಾಮ್ + ಡೈಫೆನೊಕೊನಜೋಲ್";
     } else if (bt.originally_scheduled_date === "2026-10-23" && bt.task_type === "DRIP_SAT") {
       cleanRecipe = [{ input_id: "WSF_CALCIUM_NITRATE", dose_per_acre: 2.5 }];
-      customEn = "Calcium / Micro Drip (Boron removed — already applied on Oct 15): Calcium Nitrate Only";
+      customEn = "Calcium Drip (Boron removed — applied on Oct 15): Calcium Nitrate Only";
       customKn = "ಕ್ಯಾಲ್ಸಿಯಂ ಡ್ರಿಪ್ (ಅಕ್ಟೋಬರ್ 15 ರಂದು ಬೋರಾನ್ ನೀಡಿರುವುದರಿಂದ ಇಂದು ಕ್ಯಾಲ್ಸಿಯಂ ನೈಟ್ರೇಟ್ ಮಾತ್ರ)";
     }
     const dyn = computeDynamicDadAndWeek(bt.originally_scheduled_date);
@@ -620,26 +896,25 @@ async function resetEntireScheduleToBaseline() {
       resolved_recipe: cleanRecipe, custom_title_en: customEn, custom_title_kn: customKn, updated_by: activeUser, updated_at: new Date().toISOString()
     }).eq("id", bt.id);
   }));
-
-  await logAudit("RESET_ALL_BASELINE", "Restored entire schedule to baseline dates", "");
   await loadDB(); curWk = 10; render();
 }
 
+// ============================================================================
+// MAIN RENDER ENGINE
+// ============================================================================
 function render() {
   refreshDynamicTaskWeeks();
   const L = I18N[LANG];
   document.getElementById("langBtn").textContent = LANG === "EN" ? "ಕನ್ನಡ" : "English";
   [
-    "appTitle","appSub","btnSim","btnResetAll","simLabel","tabTasks","tabManual","tabShop","tabScout",
-    "manTitle","manSub","lblManDate","lblManType","optFoliar","optCopper","optDrip","lblManChem1","lblManChem2",
-    "lblManNotes","lblManShift","btnSaveMan","shopTitle","shopSub","btnCopy","scoutTitle","scoutSub",
+    "appTitle","appSub","btnLogRain","tabTasks","tabManual","tabShop","tabScout",
+    "manTitle","lblManDate","lblManType","lblManCost","optFoliar","optCopper","optDrip","lblManChem1","lblManChem2",
+    "lblManNotes","lblManShift","btnSaveMan","expTitle","shopTitle","shopSub","btnCopy","scoutTitle","scoutSub",
     "auditTitle","masterTitle","modalTitle","userModalTitle",
     "delayModalTitle","lblQuickDelay","btnOrigDate","lblNewDate","lblCascadeMode",
     "casAllTitle","casAllSub","casTrackTitle","casTrackSub","casSingleTitle","casSingleSub",
-    "lblDelayReason","rsnRain","rsnPower","rsnLabor","rsnStore","btnConfirmDelay"
+    "lblDelayReason","rsnRain","rsnPower","rsnLabor","rsnStore","btnConfirmDelay","rainModalTitle","rainModalSub"
   ].forEach(k => { const el = document.getElementById(`ui_${k}`); if (el && L[k]) el.textContent = L[k]; });
-  document.getElementById("ui_lblQtyUsed1").textContent = L.lblQtyUsed;
-  document.getElementById("ui_lblQtyUsed2").textContent = L.lblQtyUsed;
 
   updateWBar();
   populateManualSelects();
@@ -667,7 +942,7 @@ function render() {
   }
 
   const dad1 = curWk === 0 ? -10 : (curWk - 1) * 7, al = [];
-  if (wState.rain24 > 15) al.push({ c: "bg-red-50 border-red-300 text-red-900", t: LANG === "KN" ? "🌧️ ತುರ್ತು ಮಳೆ ಎಚ್ಚರಿಕೆ (>15 ಮಿ.ಮೀ ಮಳೆ)" : "🌧️ Heavy Rain Override (>15mm in 24h)", d: LANG === "KN" ? "ಮುಂದಿನ 48 ಗಂಟೆ ಡ್ರಿಪ್ ಗೊಬ್ಬರ ನಿಲ್ಲಿಸಿ. ಎಲೆ ಒಣಗಿದ ತಕ್ಷಣ ಪ್ರತ್ಯೇಕ ಕಾಪರ್ (300g/ಡ್ರಮ್) + ಬ್ರೊನೊಪಾಲ್ (100g/ಡ್ರಮ್) ಸಿಂಪಡಿಸಿ." : "Pause drip fertigation for 48 hrs. Spray Standalone Copper (300g/drum) + Bronopol (100g/drum) once foliage dries." });
+  if (wState.rain24 > 15) al.push({ c: "bg-red-50 border-red-300 text-red-900", t: LANG === "KN" ? `🌧️ ತುರ್ತು ಮಳೆ ಎಚ್ಚರಿಕೆ (${wState.rain24} ಮಿ.ಮೀ ಮಳೆ)` : `🌧️ Heavy Rain Override (${wState.rain24}mm in 24h)`, d: LANG === "KN" ? "ಮುಂದಿನ 48 ಗಂಟೆ ಡ್ರಿಪ್ ಗೊಬ್ಬರ ನಿಲ್ಲಿಸಿ. ಎಲೆ ಒಣಗಿದ ತಕ್ಷಣ ಪ್ರತ್ಯೇಕ ಕಾಪರ್ (300g/ಡ್ರಮ್) + ಬ್ರೊನೊಪಾಲ್ (100g/ಡ್ರಮ್) ಸಿಂಪಡಿಸಿ." : "Pause drip fertigation for 48 hrs. Spray Standalone Copper (300g/drum) + Bronopol (100g/drum) once foliage dries." });
   if (wState.prob4 > 60) al.push({ c: "bg-amber-50 border-amber-300 text-amber-900", t: LANG === "KN" ? "⛈️ ಸಿಂಪಡಣೆ ತಡೆಹಿಡಿಯಿರಿ (4 ಗಂಟೆಯಲ್ಲಿ ಮಳೆ ಸಾಧ್ಯತೆ >60%)" : "⛈️ Spray Hold (>60% Rain Prob in next 4h)", d: LANG === "KN" ? "ಈಗ ಎಲೆ ಸಿಂಪಡಣೆ ಮಾಡಬೇಡಿ. ಮುಂದಿನ ಶುಭ್ರ ಬೆಳಿಗ್ಗೆ ಸಿಂಪಡಿಸಿ." : "Hold foliar spray now to prevent wash-off; shift to next clear morning." });
   if (dad1 >= 140) al.push({ c: "bg-purple-50 border-purple-300 text-purple-900", t: LANG === "KN" ? "🔴 >140 ದಿನ: ಸಾರಜನಕ ಮುಕ್ತ ಮತ್ತು ಕೆಂಪು ಬಣ್ಣದ ಹಂತ" : "🔴 >140 DAD Zero-Nitrogen & Red Color Rule", d: LANG === "KN" ? (wState.tMin > 18 ? "ರಾತ್ರಿ ಉಷ್ಣಾಂಶ >18°C ಇರುವುದರಿಂದ ಕೆಂಪು ಬಣ್ಣಕ್ಕಾಗಿ 00:00:50 (SOP) ಪ್ರಮಾಣವನ್ನು +15% ಹೆಚ್ಚಿಸಲಾಗಿದೆ." : "ಕಟಾವಿನವರೆಗೆ ಯಾವುದೇ ಸಾರಜನಕ ಗೊಬ್ಬರ ಬಳಸಬೇಡಿ.") : (wState.tMin > 18 ? "Warm El Niño nights (>18°C): 00:00:50 (SOP) dose automatically boosted +15%." : "Strict Zero-Nitrogen lock active till harvest.") });
   document.getElementById("alertsBox").innerHTML = al.map(a => `<div class="p-3 rounded-xl border ${a.c} text-xs"><div class="font-bold">${a.t}</div><div>${a.d}</div></div>`).join("");
@@ -745,18 +1020,30 @@ function render() {
           </div>
           ${itemsHtml ? `<div class="space-y-2">${itemsHtml}</div>` : ""}
           ${hasPartialDone ? `<button onclick="splitRemainingItemsToTomorrow('${tk.id}')" class="w-full bg-indigo-600 text-white font-bold text-xs py-2 px-3 rounded-lg shadow">${L.splitRemainingBtn}</button>` : ""}
-          <div class="flex flex-wrap gap-1.5 pt-2 border-t text-xs font-bold">
+          <div class="flex flex-wrap gap-1.5 pt-2 border-t text-xs font-bold items-center">
             <button onclick="markWholeCard('${tk.id}','COMPLETED')" class="flex-1 bg-emerald-600 text-white py-2 px-2 rounded-lg">${L.doneBtn}</button>
             <button onclick="openDelayModal('${tk.id}')" class="flex-1 bg-amber-500 text-white py-2 px-2 rounded-lg">${L.delayBtn}</button>
-            <button onclick="markWholeCard('${tk.id}','SKIPPED')" class="bg-slate-600 text-white py-2 px-2.5 rounded-lg">${L.skipBtn}</button>
+            <button onclick="markWholeCard('${tk.id}','SKIPPED')" class="bg-slate-600 text-white py-2 px-2 rounded-lg">${L.skipBtn}</button>
             <button onclick="resetCardWithCascade('${tk.id}')" class="bg-slate-200 text-slate-700 px-2.5 py-2 rounded-lg">${L.resetBtn}</button>
             ${canDelete ? `<button onclick="deleteCustomTask('${tk.id}')" class="bg-red-600 text-white px-2.5 py-2 rounded-lg">${L.deleteBtn}</button>` : ""}
           </div>
-          <div class="text-[11px] text-slate-400 pt-0.5">👤 ${L.updatedBy}: <b>${tk.updated_by || "System"}</b> ${updTime ? `(${updTime})` : ""}</div>
+          <div class="text-[11px] text-slate-500 flex flex-wrap justify-between items-center pt-1 gap-2">
+            <span>👤 ${L.updatedBy}: <b>${tk.updated_by || "System"}</b> ${updTime ? `(${updTime})` : ""}</span>
+            <div class="flex items-center gap-1 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+              <span class="font-bold text-amber-900">₹ ${LANG === "KN" ? "ಖರ್ಚು:" : "Cost:"}</span>
+              <input type="number" step="10" min="0" value="${tk.cost_rs || 0}" onchange="saveTaskCost('${tk.id}', this.value)" class="w-16 bg-transparent font-extrabold text-slate-900 text-right focus:outline-none" />
+            </div>
+          </div>
         </div>
       </div>`;
     }).join("");
   }
+
+  // Expense Summary & Shopping List
+  const totalSpend = tasks.reduce((s, t) => s + (Number(t.cost_rs) || 0), 0);
+  const weekSpend = wkTasks.reduce((s, t) => s + (Number(t.cost_rs) || 0), 0);
+  document.getElementById("totalSeasonCost").textContent = `₹ ${totalSpend.toLocaleString("en-IN")}`;
+  document.getElementById("weekCostSummary").textContent = `${LANG === "KN" ? "ಈ ವಾರದ ಖರ್ಚು" : "This Week Spend"}: ₹ ${weekSpend.toLocaleString("en-IN")}`;
 
   const tot = {};
   wkTasks.filter(t => t.status !== "SKIPPED" && t.status !== "COMPLETED").forEach(tk => {
@@ -793,14 +1080,21 @@ function render() {
       <td onclick="goWeek(${t.week_number});showTab('TASKS')" class="py-1.5 font-bold cursor-pointer">${L.weekWord} ${t.week_number}</td>
       <td onclick="goWeek(${t.week_number});showTab('TASKS')" class="cursor-pointer">${t.effective_dad}d<br><span class="text-slate-400">${t.current_scheduled_date}</span></td>
       <td onclick="goWeek(${t.week_number});showTab('TASKS')" class="cursor-pointer">${desc}</td>
-      <td class="font-bold">${L[`status_${t.status}`] || t.status} ${canDel ? `<button onclick="deleteCustomTask('${t.id}')" class="text-red-600 underline text-[11px]">🗑️</button>` : ""}<br><span class="font-normal text-[10px] text-slate-400">👤 ${t.updated_by || "System"}</span></td>
+      <td class="font-bold">${L[`status_${t.status}`] || t.status} ${t.cost_rs > 0 ? `<span class="text-emerald-700">(₹${t.cost_rs})</span>` : ""} ${canDel ? `<button onclick="deleteCustomTask('${t.id}')" class="text-red-600 underline text-[11px]">🗑️</button>` : ""}<br><span class="font-normal text-[10px] text-slate-400">👤 ${t.updated_by || "System"}</span></td>
     </tr>`;
   }).join("");
 }
 
+async function saveTaskCost(taskId, val) {
+  const tk = tasks.find(x => x.id === taskId); if (!tk) return;
+  tk.cost_rs = Math.max(0, Number(val) || 0);
+  tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
+  render();
+  await sb.from("daily_task_queue").update({ cost_rs: tk.cost_rs, updated_by: activeUser, updated_at: tk.updated_at }).eq("id", taskId);
+}
+
 async function updateItemQty(taskId, idx, newVal, suggestedTotal3Ac) {
-  const tk = tasks.find(x => x.id === taskId);
-  if (!tk || !tk.resolved_recipe[idx]) return;
+  const tk = tasks.find(x => x.id === taskId); if (!tk || !tk.resolved_recipe[idx]) return;
   tk.resolved_recipe[idx].actual_total_3ac = Math.max(0, Number(newVal) || 0);
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
   render();
@@ -808,8 +1102,7 @@ async function updateItemQty(taskId, idx, newVal, suggestedTotal3Ac) {
 }
 
 async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
-  const tk = tasks.find(x => x.id === taskId);
-  if (!tk || !tk.resolved_recipe[idx]) return;
+  const tk = tasks.find(x => x.id === taskId); if (!tk || !tk.resolved_recipe[idx]) return;
   const item = tk.resolved_recipe[idx];
   item.item_status = newStatus;
   if (item.actual_total_3ac === undefined) item.actual_total_3ac = suggestedTotal3Ac;
@@ -833,8 +1126,7 @@ async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
 }
 
 async function splitRemainingItemsToTomorrow(taskId) {
-  const tk = tasks.find(x => x.id === taskId);
-  if (!tk) return;
+  const tk = tasks.find(x => x.id === taskId); if (!tk) return;
   const doneItems = tk.resolved_recipe.filter(r => r.item_status === "COMPLETED" || r.item_status === "SKIPPED");
   const pendingItems = tk.resolved_recipe.filter(r => !r.item_status || r.item_status === "PENDING");
   if (!pendingItems.length || !doneItems.length) return;
@@ -842,13 +1134,12 @@ async function splitRemainingItemsToTomorrow(taskId) {
   tk.resolved_recipe = doneItems; tk.status = "COMPLETED"; tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
   await sb.from("daily_task_queue").update({ status: "COMPLETED", resolved_recipe: doneItems, updated_by: activeUser, updated_at: tk.updated_at }).eq("id", taskId);
 
-  const nextDateStr = addDaysYMD(tk.current_scheduled_date, 1);
-  const dyn = computeDynamicDadAndWeek(nextDateStr);
+  const nextDateStr = addDaysYMD(tk.current_scheduled_date, 1), dyn = computeDynamicDadAndWeek(nextDateStr);
   const remEn = pendingItems.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + ");
   const remKn = pendingItems.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ");
 
   const payload = {
-    originally_scheduled_date: nextDateStr, current_scheduled_date: nextDateStr, effective_dad: dyn.dad, task_type: tk.task_type,
+    env: APP_ENV, originally_scheduled_date: nextDateStr, current_scheduled_date: nextDateStr, effective_dad: dyn.dad, task_type: tk.task_type,
     trigger_source: "SPLIT_REMAINDER", status: "PENDING", resolved_recipe: pendingItems,
     custom_title_en: `Remaining Split Task: ${remEn}`, custom_title_kn: `ಬಾಕಿ ಉಳಿದ ಕೆಲಸ: ${remKn}`, updated_by: activeUser, updated_at: new Date().toISOString()
   };
@@ -858,8 +1149,7 @@ async function splitRemainingItemsToTomorrow(taskId) {
 }
 
 async function markWholeCard(taskId, st) {
-  const tk = tasks.find(x => x.id === taskId);
-  if (!tk) return;
+  const tk = tasks.find(x => x.id === taskId); if (!tk) return;
   tk.status = st; tk.resolved_recipe = (tk.resolved_recipe || []).map(r => ({ ...r, item_status: st }));
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
   render();
@@ -867,9 +1157,6 @@ async function markWholeCard(taskId, st) {
   await logAudit(st, tk.target_description, `Date: ${tk.current_scheduled_date}`);
 }
 
-// ============================================================================
-// TIMEZONE-SAFE, PAST-PROTECTED CASCADE SHIFT ENGINE
-// ============================================================================
 function isTaskAfterInBaselineSequence(candidate, anchorTask) {
   const origA = anchorTask.originally_scheduled_date || anchorTask.current_scheduled_date;
   const origB = candidate.originally_scheduled_date || candidate.current_scheduled_date;
@@ -879,14 +1166,12 @@ function isTaskAfterInBaselineSequence(candidate, anchorTask) {
 }
 
 function getMinimumAllowedDateForTask(tk) {
-  const tStr = todayYMD();
-  const origStr = tk.originally_scheduled_date || tStr;
+  const tStr = todayYMD(), origStr = tk.originally_scheduled_date || tStr;
   return origStr < tStr ? origStr : tStr;
 }
 
 function openDelayModal(taskId) {
-  const tk = tasks.find(x => x.id === taskId);
-  if (!tk) return;
+  const tk = tasks.find(x => x.id === taskId); if (!tk) return;
   activeDelayTaskId = taskId;
   document.getElementById("delayTaskName").textContent = `${formatDateWithWeekday(tk.current_scheduled_date)} — ${cleanHardcodedDayPrefix(tk.target_description, LANG === "KN")}`;
   const dateInp = document.getElementById("delayCustomDate");
@@ -897,14 +1182,12 @@ function openDelayModal(taskId) {
 function closeDelayModal() { document.getElementById("delayModal").classList.add("hidden"); activeDelayTaskId = null; }
 
 function setDelayOffset(days) {
-  const tk = tasks.find(x => x.id === activeDelayTaskId);
-  if (!tk) return;
+  const tk = tasks.find(x => x.id === activeDelayTaskId); if (!tk) return;
   let candidate = addDaysYMD(tk.current_scheduled_date, days);
   const minAllowed = getMinimumAllowedDateForTask(tk);
   if (candidate < minAllowed) candidate = minAllowed;
   document.getElementById("delayCustomDate").value = candidate;
 }
-
 function setDelayToOriginalDate() {
   const tk = tasks.find(x => x.id === activeDelayTaskId);
   if (tk) document.getElementById("delayCustomDate").value = tk.originally_scheduled_date || tk.current_scheduled_date;
@@ -917,7 +1200,6 @@ async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
   if (deltaDays === 0) return;
 
   const isDripTask = tk.task_type.startsWith("DRIP");
-
   tk.current_scheduled_date = newDateStr;
   tk.status = (newDateStr === tk.originally_scheduled_date) ? "PENDING" : "DELAYED";
   tk.delay_reason = (tk.status === "PENDING") ? null : reason;
@@ -931,10 +1213,7 @@ async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
 
     if (cascadeMode === "ALL" || (cascadeMode === "TRACK" && otherIsDrip === isDripTask)) {
       let uStr = addDaysYMD(other.current_scheduled_date, deltaDays);
-      // Hard floor: Never push any downstream task earlier than its own originally_scheduled_date!
-      if (other.originally_scheduled_date && uStr < other.originally_scheduled_date) {
-        uStr = other.originally_scheduled_date;
-      }
+      if (other.originally_scheduled_date && uStr < other.originally_scheduled_date) uStr = other.originally_scheduled_date;
       other.current_scheduled_date = uStr;
       other.status = (uStr === other.originally_scheduled_date) ? "PENDING" : "DELAYED";
       if (other.status === "PENDING") other.delay_reason = null;
@@ -942,8 +1221,7 @@ async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
       tasksToUpdateInDB.push(other);
     } else if (cascadeMode === "SINGLE" && other.current_scheduled_date === newDateStr) {
       other.current_scheduled_date = addDaysYMD(other.current_scheduled_date, 2);
-      other.status = "DELAYED";
-      other.updated_by = activeUser; tasksToUpdateInDB.push(other);
+      other.status = "DELAYED"; other.updated_by = activeUser; tasksToUpdateInDB.push(other);
     }
   });
 
@@ -959,8 +1237,7 @@ async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
 }
 
 async function confirmDelayModal() {
-  const tk = tasks.find(x => x.id === activeDelayTaskId);
-  if (!tk) return;
+  const tk = tasks.find(x => x.id === activeDelayTaskId); if (!tk) return;
   const newDateStr = document.getElementById("delayCustomDate").value;
   const reason = document.getElementById("delayReasonSelect").value;
   const cascadeMode = document.querySelector('input[name="cascadeMode"]:checked')?.value || "ALL";
@@ -969,8 +1246,7 @@ async function confirmDelayModal() {
 }
 
 async function resetCardWithCascade(taskId) {
-  const tk = tasks.find(x => x.id === taskId);
-  if (!tk) return;
+  const tk = tasks.find(x => x.id === taskId); if (!tk) return;
   tk.resolved_recipe = (tk.resolved_recipe || []).map(r => { const c = { ...r }; delete c.item_status; delete c.actual_total_3ac; return c; });
   if (tk.originally_scheduled_date && tk.current_scheduled_date !== tk.originally_scheduled_date) {
     const delta = diffDaysYMD(tk.current_scheduled_date, tk.originally_scheduled_date);
@@ -1030,7 +1306,7 @@ async function addScoutingTask(code) {
   const dyn = computeDynamicDadAndWeek(dateStr);
 
   const payload = {
-    originally_scheduled_date: dateStr, current_scheduled_date: dateStr, effective_dad: dyn.dad, task_type: iss.taskType,
+    env: APP_ENV, originally_scheduled_date: dateStr, current_scheduled_date: dateStr, effective_dad: dyn.dad, task_type: iss.taskType,
     trigger_source: "SCOUTING_CURATIVE", status: "PENDING", resolved_recipe: iss.recipe,
     custom_title_en: `${iss.enDesc} (${rainShift ? "Shifted to tomorrow due to rain" : "Scheduled for immediate application"})`,
     custom_title_kn: `${iss.knDesc} (${rainShift ? "ಮಳೆ ಕಾರಣ ನಾಳೆಗೆ ನಿಗದಿಪಡಿಸಲಾಗಿದೆ" : "ಇಂದೇ ಸಿಂಪಡಿಸಲು ನಿಗದಿಪಡಿಸಲಾಗಿದೆ"})`,
@@ -1045,6 +1321,7 @@ async function saveManualActivity() {
   const dateStr = document.getElementById("manDate").value, taskType = document.getElementById("manType").value;
   const chem1 = document.getElementById("manChem1").value, chem2 = document.getElementById("manChem2").value;
   const qty1 = Number(document.getElementById("manQty1").value) || 0, qty2 = Number(document.getElementById("manQty2").value) || 0;
+  const costRs = Number(document.getElementById("manCost").value) || 0;
   const notes = document.getElementById("manNotes").value.trim(), autoShift = document.getElementById("manShiftCheck").checked;
   if (!dateStr || !chem1) return;
 
@@ -1059,8 +1336,8 @@ async function saveManualActivity() {
   const titleKn = `ದಾಖಲಿಸಿದ ಕೆಲಸ (${dateStr}): ${pairs.map(p => `${catalog[p.id]?.name_kn || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
 
   const payload = {
-    originally_scheduled_date: dateStr, current_scheduled_date: dateStr, effective_dad: dyn.dad, task_type: taskType,
-    trigger_source: "MANUAL_ENTRY", status: "COMPLETED", resolved_recipe: recipe,
+    env: APP_ENV, originally_scheduled_date: dateStr, current_scheduled_date: dateStr, effective_dad: dyn.dad, task_type: taskType,
+    trigger_source: "MANUAL_ENTRY", status: "COMPLETED", resolved_recipe: recipe, cost_rs: costRs,
     custom_title_en: titleEn, custom_title_kn: titleKn, updated_by: activeUser, updated_at: new Date().toISOString(), executed_at: new Date().toISOString()
   };
   const { data } = await sb.from("daily_task_queue").insert([payload]).select();
@@ -1071,11 +1348,10 @@ async function saveManualActivity() {
     const isCopper = taskType === "STANDALONE_COPPER" || appliedIds.some(id => catalog[id]?.is_copper_compound);
     const shiftDays = isCopper ? 5 : 3;
     const conflicting = tasks.find(t => (t.status === "PENDING" || t.status === "DELAYED") && t.id !== inserted.id && t.trigger_source !== "KEEP_NOTE_HISTORY" && ((isCopper && t.task_type === "FOLIAR_SPRAY") || t.task_type === taskType) && diffDaysYMD(dateStr, t.current_scheduled_date) >= 0 && diffDaysYMD(dateStr, t.current_scheduled_date) < shiftDays);
-    if (conflicting) {
-      await applyScheduleShift(conflicting, addDaysYMD(dateStr, shiftDays), "ALL", "MANUAL_OVERLAP");
-    }
+    if (conflicting) await applyScheduleShift(conflicting, addDaysYMD(dateStr, shiftDays), "ALL", "MANUAL_OVERLAP");
   }
-  document.getElementById("manNotes").value = ""; curWk = dyn.week; showTab("TASKS"); render();
+  document.getElementById("manNotes").value = ""; document.getElementById("manCost").value = "";
+  curWk = dyn.week; showTab("TASKS"); render();
 }
 
 async function saveLeftover(id, v) { leftovers[id] = Math.max(0, Number(v) || 0); render(); await sb.from("shed_leftovers").upsert({ input_id: id, leftover_qty: leftovers[id] }); }
