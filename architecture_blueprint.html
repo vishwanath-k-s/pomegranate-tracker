@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agri-DSS — System Architecture & Engineering Blueprint</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print { .no-print { display: none !important; } }
+    .node-card { transition: all 0.2s ease; }
+    .node-card:hover { transform: translateY(-2px); }
+    .active-ring { outline: 3px solid #10b981; outline-offset: 2px; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans pb-20">
+
+  <!-- TOP HEADER -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-lg">
+    <div class="max-w-6xl mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-extrabold px-2.5 py-0.5 rounded-full">SYSTEM ARCHITECTURE v2.0</span>
+          <h1 class="font-extrabold text-lg sm:text-xl text-white">Dynamic Crop Management &amp; Decision-Support System (Agri-DSS)</h1>
+        </div>
+        <p class="text-xs text-slate-400 mt-0.5">Generic Engineering Blueprint: Subsystems, 6-Gate Rule Engine, Relational Schema &amp; Reliability Roadmap</p>
+      </div>
+      <div class="flex items-center gap-2 no-print">
+        <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold px-3 py-1.5 rounded-lg">
+          🖨️ Print / Save PDF
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 pt-6 space-y-8">
+
+    <!-- SECTION 1: 4-TIER ARCHITECTURE OVERVIEW -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div>
+          <h2 class="text-base sm:text-lg font-extrabold text-white">1. Four-Tier System Architecture &amp; Integration Topology</h2>
+          <p class="text-xs text-slate-400">Click any architectural tier below to inspect its internal modules, inputs, outputs, and integration contracts.</p>
+        </div>
+        <span class="text-[11px] bg-slate-800 text-emerald-400 px-3 py-1 rounded-full font-bold border border-slate-700">Interactive Component Map</span>
+      </div>
+
+      <!-- 4-TIER VISUAL GRID -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+        <div onclick="selectTier(0)" id="tierCard_0" class="node-card active-ring cursor-pointer bg-sky-950/50 border border-sky-700/60 rounded-xl p-3.5">
+          <div class="text-[11px] font-extrabold text-sky-400 uppercase">Tier 1 • Ingestion</div>
+          <div class="font-bold text-sm text-white mt-0.5">📡 Telemetry &amp; Field Inputs</div>
+          <ul class="text-xs text-slate-300 mt-2 space-y-1">
+            <li>• Weather API Poller (Temp, RH, Rain)</li>
+            <li>• Manual Field Rain Override</li>
+            <li>• Pest/Disease Scouting Triggers</li>
+            <li>• Store Stock &amp; Execution Logs</li>
+          </ul>
+        </div>
+
+        <div onclick="selectTier(1)" id="tierCard_1" class="node-card cursor-pointer bg-amber-950/40 border border-amber-700/60 rounded-xl p-3.5">
+          <div class="text-[11px] font-extrabold text-amber-400 uppercase">Tier 2 • Core Brain</div>
+          <div class="font-bold text-sm text-white mt-0.5">⚙️ 6-Gate Deterministic Engine</div>
+          <ul class="text-xs text-slate-300 mt-2 space-y-1">
+            <li>• P0: Weather &amp; Wash-Off Locks</li>
+            <li>• P1: Phenology &amp; PHI Cutoffs</li>
+            <li>• P2: Chemical Cooldowns &amp; Tank Locks</li>
+            <li>• P3–P5: Rotation, Cascade &amp; Store Swap</li>
+          </ul>
+        </div>
+
+        <div onclick="selectTier(2)" id="tierCard_2" class="node-card cursor-pointer bg-purple-950/40 border border-purple-700/60 rounded-xl p-3.5">
+          <div class="text-[11px] font-extrabold text-purple-400 uppercase">Tier 3 • State &amp; Storage</div>
+          <div class="font-bold text-sm text-white mt-0.5">🗄️ Cloud DB &amp; Env Isolation</div>
+          <ul class="text-xs text-slate-300 mt-2 space-y-1">
+            <li>• Relational PostgreSQL (8 Tables)</li>
+            <li>• PROD vs. DEV Sandboxing</li>
+            <li>• Network-First Local Cache</li>
+            <li>• Immutable Audit &amp; Cost Ledger</li>
+          </ul>
+        </div>
+
+        <div onclick="selectTier(3)" id="tierCard_3" class="node-card cursor-pointer bg-emerald-950/40 border border-emerald-700/60 rounded-xl p-3.5">
+          <div class="text-[11px] font-extrabold text-emerald-400 uppercase">Tier 4 • Client &amp; Feedback</div>
+          <div class="font-bold text-sm text-white mt-0.5">📱 Adaptive UI &amp; Feedback Loop</div>
+          <ul class="text-xs text-slate-300 mt-2 space-y-1">
+            <li>• Daily Action Cards (Drum/Acre Math)</li>
+            <li>• Per-Item Partial Done &amp; Split</li>
+            <li>• Dose-Delta Next-Task Compensator</li>
+            <li>• Store Counter Net-Buy Calculator</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- TIER DETAIL INSPECTOR -->
+      <div id="tierDetailBox" class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs space-y-2"></div>
+    </section>
+
+    <!-- SECTION 2: THE 6-GATE RULE ENGINE & CLOSED-LOOP SIMULATOR -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div class="mb-4">
+        <h2 class="text-base sm:text-lg font-extrabold text-white">2. Closed-Loop Rule Engine &amp; Event Cascade Simulator</h2>
+        <p class="text-xs text-slate-400">Select an operational event below to trace how data flows across the 6 priority gates and mutates the database state.</p>
+      </div>
+
+      <!-- EVENT SELECTOR BUTTONS -->
+      <div class="flex flex-wrap gap-2 mb-4 no-print">
+        <button onclick="simulateFlow(0)" id="simBtn_0" class="bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-lg">🌧️ Event 1: Heavy Local Rain Override</button>
+        <button onclick="simulateFlow(1)" id="simBtn_1" class="bg-slate-800 text-slate-300 text-xs font-bold px-3 py-2 rounded-lg">⏳ Event 2: Forward / Backward Cascade Shift</button>
+        <button onclick="simulateFlow(2)" id="simBtn_2" class="bg-slate-800 text-slate-300 text-xs font-bold px-3 py-2 rounded-lg">⚖️ Event 3: Partial Execution &amp; Dose Delta Loop</button>
+        <button onclick="simulateFlow(3)" id="simBtn_3" class="bg-slate-800 text-slate-300 text-xs font-bold px-3 py-2 rounded-lg">🔄 Event 4: Manual Entry &amp; IRAC/FRAC Auto-Rotation</button>
+        <button onclick="simulateFlow(4)" id="simBtn_4" class="bg-slate-800 text-slate-300 text-xs font-bold px-3 py-2 rounded-lg">🏪 Event 5: Store Counter Salt Substitution</button>
+      </div>
+
+      <!-- 6-GATE PIPELINE BAR -->
+      <div class="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-4 text-xs">
+        <div id="gateBox_0" class="p-2.5 rounded-lg border border-slate-800 bg-slate-950">
+          <div class="font-extrabold text-sky-400">Gate P0</div>
+          <div class="font-semibold text-white">Weather Locks</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Rain pause, wash-off hold, thermal boost</div>
+        </div>
+        <div id="gateBox_1" class="p-2.5 rounded-lg border border-slate-800 bg-slate-950">
+          <div class="font-extrabold text-purple-400">Gate P1</div>
+          <div class="font-semibold text-white">Phenology &amp; PHI</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Stage DAD sync, N-cutoff, residue lock</div>
+        </div>
+        <div id="gateBox_2" class="p-2.5 rounded-lg border border-slate-800 bg-slate-950">
+          <div class="font-extrabold text-rose-400">Gate P2</div>
+          <div class="font-semibold text-white">Chemical Locks</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Copper 5d cooldown, Ca-P/S tank separation</div>
+        </div>
+        <div id="gateBox_3" class="p-2.5 rounded-lg border border-slate-800 bg-slate-950">
+          <div class="font-extrabold text-amber-400">Gate P3</div>
+          <div class="font-semibold text-white">Resistance &amp; Scout</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Curative injection, IRAC/FRAC rotation</div>
+        </div>
+        <div id="gateBox_4" class="p-2.5 rounded-lg border border-slate-800 bg-slate-950">
+          <div class="font-extrabold text-indigo-400">Gate P4</div>
+          <div class="font-semibold text-white">Cascade &amp; Delta</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Sequence-locked shift, dose-delta rebalance</div>
+        </div>
+        <div id="gateBox_5" class="p-2.5 rounded-lg border border-slate-800 bg-slate-950">
+          <div class="font-extrabold text-emerald-400">Gate P5</div>
+          <div class="font-semibold text-white">Store &amp; Net-Buy</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Leftover deduction, salt-level swap</div>
+        </div>
+      </div>
+
+      <!-- SIMULATION TRACE OUTPUT -->
+      <div id="simOutputBox" class="bg-slate-950 border border-slate-800 rounded-xl p-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs"></div>
+    </section>
+
+    <!-- SECTION 3: RELATIONAL DATABASE SCHEMA & ENTITY INTEGRATION -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div class="mb-4">
+        <h2 class="text-base sm:text-lg font-extrabold text-white">3. Relational Database Schema (8 Core Entities)</h2>
+        <p class="text-xs text-slate-400">Normalized PostgreSQL schema separating static domain rules from mutable runtime state.</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3">
+          <div class="font-extrabold text-emerald-400">1. orchard_blocks</div>
+          <div class="text-[11px] text-slate-400 mb-1.5">Static Spatial &amp; Crop Anchor</div>
+          <div class="font-mono text-[11px] text-slate-300 space-y-0.5">
+            <div>🔑 id (UUID PK)</div>
+            <div>• gps_lat, gps_lon</div>
+            <div>• area_acres, plant_count</div>
+            <div>• cycle_start_date (Day 0)</div>
+            <div>• drums_per_spray</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3">
+          <div class="font-extrabold text-emerald-400">2. inputs_catalog</div>
+          <div class="text-[11px] text-slate-400 mb-1.5">Master Chemical &amp; Nutrient Registry</div>
+          <div class="font-mono text-[11px] text-slate-300 space-y-0.5">
+            <div>🔑 id (TEXT PK)</div>
+            <div>• name_en, name_local</div>
+            <div>• active_ingredient, irac_frac</div>
+            <div>• base_dose_liter / acre</div>
+            <div>• procurement_criticality</div>
+            <div>• is_copper, contains_nitrogen</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3">
+          <div class="font-extrabold text-emerald-400">3. substitution_rules</div>
+          <div class="text-[11px] text-slate-400 mb-1.5">Equivalency &amp; Rotation Graph</div>
+          <div class="font-mono text-[11px] text-slate-300 space-y-0.5">
+            <div>🔑 id (SERIAL PK)</div>
+            <div>🔗 primary_input_id (FK)</div>
+            <div>🔗 substitute_input_id (FK)</div>
+            <div>• target_purpose</div>
+            <div>• priority_rank</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3">
+          <div class="font-extrabold text-emerald-400">4. baseline_schedule_template</div>
+          <div class="text-[11px] text-slate-400 mb-1.5">Immutable Reference Blueprint</div>
+          <div class="font-mono text-[11px] text-slate-300 space-y-0.5">
+            <div>🔑 id (SERIAL PK)</div>
+            <div>• week_number, dad_start</div>
+            <div>• task_type, stage_name</div>
+            <div>• recipe_items (JSONB)</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 border border-amber-700/60 rounded-xl p-3">
+          <div class="font-extrabold text-amber-400">5. daily_task_queue</div>
+          <div class="text-[11px] text-slate-400 mb-1.5">Mutable Runtime State Queue</div>
+          <div class="font-mono text-[11px] text-slate-300 space-y-0.5">
+            <div>🔑 id (UUID PK) • env (PROD/DEV)</div>
+            <div>🔗 template_id (FK)</div>
+            <div>• originally_scheduled_date</div>
+            <div>• current_scheduled_date</div>
+            <div>• status, trigger_source</div>
+            <div>• resolved_recipe (JSONB)</div>
+            <div>• cost_rs, updated_by</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3">
+          <div class="font-extrabold text-sky-400">6. shed_leftovers</div>
+          <div class="text-[11px] text-slate-400 mb-1.5">On-Hand Inventory Balance</div>
+          <div class="font-mono text-[11px] text-slate-300 space-y-0.5">
+            <div>🔑 input_id (TEXT PK/FK)</div>
+            <div>• leftover_qty (NUMERIC)</div>
+            <div>• updated_at (TIMESTAMPTZ)</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3">
+          <div class="font-extrabold text-sky-400">7. farm_rain_logs</div>
+          <div class="text-[11px] text-slate-400 mb-1.5">Hyper-Local Weather Override</div>
+          <div class="font-mono text-[11px] text-slate-300 space-y-0.5">
+            <div>🔑 log_date (DATE PK)</div>
+            <div>• rain_mm (NUMERIC)</div>
+            <div>• rain_label, logged_by</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3">
+          <div class="font-extrabold text-purple-400">8. activity_audit_log &amp; users</div>
+          <div class="text-[11px] text-slate-400 mb-1.5">Accountability &amp; Change Ledger</div>
+          <div class="font-mono text-[11px] text-slate-300 space-y-0.5">
+            <div>🔑 id (UUID PK) • env (PROD/DEV)</div>
+            <div>• actor_name, action_type</div>
+            <div>• task_summary, details</div>
+            <div>• created_at (TIMESTAMPTZ)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: FUTURE ENGINEERING ROADMAP (ROBUSTNESS, ACCURACY, RELIABILITY) -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div class="mb-4">
+        <h2 class="text-base sm:text-lg font-extrabold text-white">4. Engineering Roadmap: Scaling Robustness, Accuracy &amp; Reliability</h2>
+        <p class="text-xs text-slate-400">Architectural upgrades to evolve the current single-page tracker into a fault-tolerant, sensor-driven platform.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <!-- PILLAR 1: RELIABILITY -->
+        <div class="bg-slate-950 border border-sky-800/60 rounded-xl p-4 space-y-2.5">
+          <div class="text-sky-400 font-extrabold text-sm">🛡️ Pillar 1: System Reliability &amp; Sync</div>
+          <div>
+            <div class="font-bold text-white">1. Offline Write Queue (Background Sync)</div>
+            <p class="text-slate-400">Current app caches reads offline but requires network for DB writes. Upgrade to an IndexedDB Outbox Queue that buffers offline mutations and replays them automatically when connectivity returns.</p>
+          </div>
+          <div>
+            <div class="font-bold text-white">2. Server-Side Cron Rule Evaluation</div>
+            <p class="text-slate-400">Move weather polling and Gate P0 evaluation into a daily 05:30 AM Supabase Edge Function (`pg_cron`) so schedule shifts happen automatically even before the app is opened.</p>
+          </div>
+          <div>
+            <div class="font-bold text-white">3. Optimistic Concurrency &amp; Row Versioning</div>
+            <p class="text-slate-400">Add a `version_int` column to `daily_task_queue` so two users updating the same card simultaneously on different phones never overwrite each other's item statuses.</p>
+          </div>
+        </div>
+
+        <!-- PILLAR 2: ACCURACY -->
+        <div class="bg-slate-950 border border-emerald-800/60 rounded-xl p-4 space-y-2.5">
+          <div class="text-emerald-400 font-extrabold text-sm">🎯 Pillar 2: Agronomic &amp; Microclimate Accuracy</div>
+          <div>
+            <div class="font-bold text-white">1. Growing Degree Days (GDD) vs. Calendar DAD</div>
+            <p class="text-slate-400">Replace static calendar Days After Defoliation with thermal time ($\text{GDD} = \sum (\frac{T_{\max} + T_{\min}}{2} - T_{\text{base}})$). Warm El Niño months accumulate heat faster, shifting stage transitions dynamically.</p>
+          </div>
+          <div>
+            <div class="font-bold text-white">2. Disease Infection Index (Temp × RH × Leaf Wetness)</div>
+            <p class="text-slate-400">Compute a daily Bacterial Blight &amp; Fungal Risk Score from rolling 72-hour humidity ($>80\%$) and night temperatures, automatically tightening spray intervals from 7 days to 4 days during high-risk windows.</p>
+          </div>
+          <div>
+            <div class="font-bold text-white">3. Cumulative Nutrient Ledger (NPK Target vs. Actual)</div>
+            <p class="text-slate-400">Track cumulative grams of Elemental N, P, K, Ca, and Mg delivered per plant across the season against target stage curves, rather than only compensating the single next task.</p>
+          </div>
+        </div>
+
+        <!-- PILLAR 3: ROBUSTNESS -->
+        <div class="bg-slate-950 border border-amber-800/60 rounded-xl p-4 space-y-2.5">
+          <div class="text-amber-400 font-extrabold text-sm">⚙️ Pillar 3: Operational Robustness</div>
+          <div>
+            <div class="font-bold text-white">1. Automated Shed Inventory Deduction</div>
+            <p class="text-slate-400">Link `shed_leftovers` directly to task completion: marking an item `COMPLETED` automatically deducts `actual_total_qty` from shed stock, and logging a store bill increments shed stock.</p>
+          </div>
+          <div>
+            <div class="font-bold text-white">2. Multi-Block / Multi-Crop Partitioning</div>
+            <p class="text-slate-400">Filter `daily_task_queue` by `block_id` in the UI header so the same architecture can manage multiple orchard plots or secondary crops with independent schedules.</p>
+          </div>
+          <div>
+            <div class="font-bold text-white">3. Automated Snapshot &amp; CSV/JSON Backup</div>
+            <p class="text-slate-400">Add a 1-click local export/import utility and weekly automated database snapshots so historical spray and expense records can never be lost.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+<script>
+const TIER_DETAILS = [
+  {
+    title: "Tier 1: Telemetry & Field Ingestion Layer — Technical Specification",
+    body: "Acts as the sensory boundary of the system. Pulls hourly/daily meteorological arrays (current temp, relative humidity, 24h precipitation sum, 4h precipitation probability) via REST APIs using GPS coordinates. Because gridded satellite forecasts (9km resolution) can miss localized convective showers, the ingestion layer merges automated API telemetry with a higher-priority Manual Field Rain Override table (`farm_rain_logs`).",
+    contract: "Output Contract → Emits a normalized `WeatherAndFieldState` JSON object to Tier 2 on page load, every 30 minutes, and immediately upon user input."
+  },
+  {
+    title: "Tier 2: Deterministic 6-Gate Agronomic Rule Engine — Technical Specification",
+    body: "A priority-ordered state machine that evaluates tasks through 6 sequential gates: Gate P0 (Weather/Wash-off/Thermal locks), Gate P1 (Phenological stage & Pre-Harvest Interval cutoffs), Gate P2 (5-day Copper cooldown & Calcium/Sulphate tank-mix separation), Gate P3 (Field scouting curative injection & 14-day IRAC/FRAC mode-of-action rotation), Gate P4 (Sequence-locked forward/backward date cascade using UTC-safe integer day math + dose-delta compensation), and Gate P5 (Store criticality validation & salt-level substitution).",
+    contract: "Output Contract → Mutates `current_scheduled_date`, `status`, and `resolved_recipe` JSONB arrays inside Tier 3."
+  },
+  {
+    title: "Tier 3: Persistence, Sync & Environment Isolation Layer — Technical Specification",
+    body: "Backed by PostgreSQL (Supabase) with Row-Level Security (RLS) policies. Implements logical multi-environment isolation (`env = 'PROD' | 'DEV'`) within the runtime tables so destructive testing, weather simulations, and schedule resets in `DEV` never touch live farm records in `PROD`. Uses a network-first fetch strategy backed by browser `localStorage` snapshots (`h_cache`) so field workers can still view schedules and drum math when cellular signal drops.",
+    contract: "Output Contract → Serves environment-filtered relational datasets to Tier 4 and appends every state transition to `activity_audit_log`."
+  },
+  {
+    title: "Tier 4: Client Presentation & Closed-Loop Feedback Layer — Technical Specification",
+    body: "A zero-build, mobile-first Progressive Web interface with a pure key-value internationalization (`I18N`) dictionary supporting instant language switching. Eliminates field arithmetic by converting per-liter/per-acre base doses into exact per-drum and total block quantities. Captures granular execution feedback: users can mark individual chemicals Done/Skipped within a multi-item task, split unfinished items into a next-day card, or record custom applied quantities that automatically rebalance the next scheduled application.",
+    contract: "Output Contract → Dispatches user mutations (`setItemStatus`, `applyScheduleShift`, `doSwap`, `saveManualActivity`) back to Tier 2 & Tier 3."
+  }
+];
+
+const SIM_FLOWS = [
+  {
+    gates: [0, 2, 4],
+    input: "📡 Trigger: User logs 'Heavy Downpour (20 mm)' in the Manual Farm Rain Logger (or satellite 24h rain exceeds 15 mm).",
+    processing: "⚙️ Gate P0 & P4 Evaluation:\n1. Gate P0 overrides satellite rain with the 20 mm field reading and flags root-zone saturation.\n2. Gate P4 locates the next pending Drip task and cascades the Drip track forward by +2 days.\n3. Gate P0 + P2 injects a standalone Bactericide (Copper + Bronopol) card for tomorrow.",
+    output: "🗄️ DB & UI Mutation:\n• Upserts `farm_rain_logs` (20 mm).\n• Shifts `daily_task_queue` drip dates (+2d).\n• Inserts a `SCOUTING_CURATIVE` Copper task card and logs the event in `activity_audit_log`."
+  },
+  {
+    gates: [4],
+    input: "📡 Trigger: User opens the Delay/Reschedule modal on a task and shifts it by +2 days (or -1 day / Reset to Original Date) in 'Shift ALL' mode.",
+    processing: "⚙️ Gate P4 Sequence-Locked Cascade:\n1. Computes exact integer day delta using timezone-safe UTC math (`diffDaysYMD`).\n2. Identifies all downstream pending tasks by comparing immutable `originally_scheduled_date` (preventing out-of-order bugs when tasks cross dates).\n3. Enforces a hard floor so no downstream task can ever be pulled earlier than its own baseline date or into the past.",
+    output: "🗄️ DB & UI Mutation:\n• Batch-updates `current_scheduled_date` and `effective_dad` across all affected rows in `daily_task_queue`.\n• Dynamically recomputes `week_number` and weekday headers."
+  },
+  {
+    gates: [4, 5],
+    input: "📡 Trigger: A card suggests two fertilizers (e.g., Input A at 6 kg + Input B at 7.5 kg). User applies 8 kg of Input A (marks Done) and leaves Input B unfinished.",
+    processing: "⚙️ Gate P4 Partial Split & Dose-Delta Loop:\n1. Card status transitions to `PARTIAL (1/2 Done)`.\n2. Engine detects a +2.0 kg surplus on Input A (+0.67 kg/acre) and automatically reduces Input A's dose in the next week's pending task.\n3. Tapping 'Move Remaining to Tomorrow' splits Input B into a new follow-up card.",
+    output: "🗄️ DB & UI Mutation:\n• Updates current card `resolved_recipe` with `item_status: COMPLETED` and `actual_total_3ac: 8`.\n• Updates next week's `resolved_recipe` dose.\n• Excludes completed item from the Store Shopping List."
+  },
+  {
+    gates: [2, 3, 4],
+    input: "📡 Trigger: User logs an unscheduled manual spray in 'Log Work' containing Boron or a specific IRAC/FRAC chemical group.",
+    processing: "⚙️ Gate P2, P3 & P4 Evaluation:\n1. Gate P2 checks if Copper was applied; if so, enforces a 5-day cooldown shift on upcoming foliar sprays.\n2. Gate P3 checks a 10-day window for Boron (stripping duplicate Boron to prevent toxicity) and a 14-day window for matching `irac_frac_group` molecules (auto-swapping to an alternative group).",
+    output: "🗄️ DB & UI Mutation:\n• Inserts `MANUAL_ENTRY` completed card.\n• Mutates upcoming `PENDING` cards in `daily_task_queue` to remove duplicate Boron or rotate chemical groups."
+  },
+  {
+    gates: [5],
+    input: "📡 Trigger: At the agro-store counter, a scheduled input is out of stock. User taps 'Swap' on the item row.",
+    processing: "⚙️ Gate P5 Store Counter Engine:\n1. Checks `procurement_criticality`: if `CRITICAL_MUST_SOURCE` with no approved equivalent, locks substitution and displays dealer caution.\n2. If `FLEXIBLE`, queries `substitution_rules` (plus same-category fallbacks), retrieves the substitute's base dose, and recalculates per-drum and net shopping quantities.",
+    output: "🗄️ DB & UI Mutation:\n• Replaces the item inside `daily_task_queue.resolved_recipe`.\n• Re-renders the Store Shopping List deducting any `shed_leftovers` for the new chemical."
+  }
+];
+
+function selectTier(idx) {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById(`tierCard_${i}`).classList.toggle("active-ring", i === idx);
+  }
+  const t = TIER_DETAILS[idx];
+  document.getElementById("tierDetailBox").innerHTML = `
+    <div class="font-extrabold text-sm text-emerald-400">${t.title}</div>
+    <p class="text-slate-300 leading-relaxed">${t.body}</p>
+    <div class="pt-1 font-mono text-[11px] text-amber-300">${t.contract}</div>
+  `;
+}
+
+function simulateFlow(idx) {
+  const f = SIM_FLOWS[idx];
+  for (let i = 0; i < 5; i++) {
+    const btn = document.getElementById(`simBtn_${i}`);
+    btn.className = i === idx
+      ? "bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-lg shadow"
+      : "bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold px-3 py-2 rounded-lg";
+  }
+  for (let g = 0; g < 6; g++) {
+    const box = document.getElementById(`gateBox_${g}`);
+    box.className = f.gates.includes(g)
+      ? "p-2.5 rounded-lg border-2 border-emerald-400 bg-emerald-950/40 shadow-md"
+      : "p-2.5 rounded-lg border border-slate-800 bg-slate-950 opacity-50";
+  }
+  document.getElementById("simOutputBox").innerHTML = `
+    <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+      <div class="font-extrabold text-sky-400 mb-1">1. Input Event</div>
+      <div class="text-slate-200 whitespace-pre-line leading-relaxed">${f.input}</div>
+    </div>
+    <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+      <div class="font-extrabold text-amber-400 mb-1">2. Rule Engine Processing</div>
+      <div class="text-slate-200 whitespace-pre-line leading-relaxed">${f.processing}</div>
+    </div>
+    <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+      <div class="font-extrabold text-emerald-400 mb-1">3. State Mutation &amp; Feedback</div>
+      <div class="text-slate-200 whitespace-pre-line leading-relaxed">${f.output}</div>
+    </div>
+  `;
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  selectTier(0);
+  simulateFlow(0);
+});
+</script>
+</body>
+</html>
+<!-- === END OF ARCHITECTURE BLUEPRINT === -->
