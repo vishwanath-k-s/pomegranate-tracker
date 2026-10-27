@@ -54,11 +54,11 @@
 
   <div id="simBox" class="hidden bg-slate-800 text-white px-3 py-2 text-xs">
     <div class="max-w-4xl mx-auto flex flex-wrap items-center gap-2">
-      <span class="font-bold text-amber-300">DEV Sim:</span>
+      <span class="font-bold text-amber-300">DEV Weather Sim:</span>
       <button onclick="setWeather('LIVE')" class="bg-slate-600 px-2 py-1 rounded">☀️ Live GPS</button>
       <button onclick="setWeather('RAIN')" class="bg-blue-600 px-2 py-1 rounded">🌧️ Heavy Rain (&gt;15mm)</button>
-      <button onclick="setWeather('HIGH_RISK')" class="bg-rose-600 px-2 py-1 rounded">🦠 High Blight Risk (RH 86%)</button>
-      <button onclick="setWeather('WARM')" class="bg-orange-600 px-2 py-1 rounded">🔥 Warm Nights (&gt;19°C)</button>
+      <button onclick="setWeather('HIGH_BLIGHT')" class="bg-rose-600 px-2 py-1 rounded">🦠 Humid Blight Weather (RH 86%)</button>
+      <button onclick="setWeather('DRY_PEST')" class="bg-amber-600 px-2 py-1 rounded">🦗 Hot Dry Thrips/Cracking (34°C, RH 42%)</button>
     </div>
   </div>
 
@@ -79,7 +79,7 @@
 
     <div class="grid grid-cols-5 gap-1 bg-slate-200 p-1 rounded-xl mb-3 text-[10px] sm:text-xs font-bold">
       <button onclick="showTab('TASKS')" id="tBtn_TASKS" class="py-2 rounded-lg bg-white text-emerald-900 shadow-sm">📋 <span id="ui_tabTasks">Tasks</span></button>
-      <button onclick="showTab('ANALYTICS')" id="tBtn_ANALYTICS" class="py-2 rounded-lg text-slate-600">📊 <span id="ui_tabAnalytics">GDD &amp; NPK</span></button>
+      <button onclick="showTab('ANALYTICS')" id="tBtn_ANALYTICS" class="py-2 rounded-lg text-slate-600">📊 <span id="ui_tabAnalytics">Risk &amp; NPK</span></button>
       <button onclick="showTab('MANUAL')" id="tBtn_MANUAL" class="py-2 rounded-lg text-slate-600">➕ <span id="ui_tabManual">Log Work</span></button>
       <button onclick="showTab('SHOP')" id="tBtn_SHOP" class="py-2 rounded-lg text-slate-600">🏪 <span id="ui_tabShop">Store &amp; ₹</span></button>
       <button onclick="showTab('SCOUT')" id="tBtn_SCOUT" class="py-2 rounded-lg text-slate-600">🔍 <span id="ui_tabScout">Scout/Log</span></button>
@@ -87,21 +87,26 @@
 
     <section id="panel_TASKS" class="space-y-3"></section>
 
+    <!-- TAB 2: 6-THREAT RISK RADAR, GDD TRACKER & CUMULATIVE NPK LEDGER -->
     <section id="panel_ANALYTICS" class="hidden space-y-3">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="bg-white rounded-xl p-4 shadow-sm border space-y-1.5">
-          <div class="text-xs font-extrabold text-amber-700 uppercase" id="ui_gddCardTitle">☀️ Thermal Growing Degree Days (GDD Base 10°C)</div>
-          <div class="text-2xl font-extrabold text-slate-900" id="gddTotalValue">... GDD</div>
-          <div class="text-xs text-slate-600" id="gddComparisonText">...</div>
-          <div class="text-[11px] text-emerald-800 font-semibold pt-1 border-t" id="gddHarvestForecast">...</div>
+      <!-- 6-THREAT PEST, DISEASE & CRACKING RADAR -->
+      <div class="bg-white rounded-xl p-4 shadow-sm border space-y-3">
+        <div>
+          <h2 class="font-extrabold text-sm sm:text-base text-slate-900" id="ui_riskCardTitle">🛡️ 6-Threat Orchard Risk Radar (72h Microclimate + Spray &amp; Nutrient State)</h2>
+          <p class="text-xs text-slate-500" id="ui_riskCardSub">Real-time probability (0–100%) for all 6 field problems based on temperature, humidity, rain, recent pyrethroid/copper sprays, and Calcium reserves:</p>
         </div>
-        <div class="bg-white rounded-xl p-4 shadow-sm border space-y-1.5">
-          <div class="text-xs font-extrabold text-rose-700 uppercase" id="ui_riskCardTitle">🦠 72-Hour Blight &amp; Fungal Infection Index</div>
-          <div class="text-2xl font-extrabold" id="diseaseScoreValue">... / 100</div>
-          <div class="text-xs text-slate-600" id="diseaseReasonText">...</div>
-          <div class="text-[11px] font-bold pt-1 border-t" id="diseaseActionText">...</div>
-        </div>
+        <div id="multiRiskGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs"></div>
       </div>
+
+      <!-- GDD THERMAL CARD -->
+      <div class="bg-white rounded-xl p-4 shadow-sm border space-y-1.5">
+        <div class="text-xs font-extrabold text-amber-700 uppercase" id="ui_gddCardTitle">☀️ Thermal Growing Degree Days (GDD Base 10°C)</div>
+        <div class="text-2xl font-extrabold text-slate-900" id="gddTotalValue">... GDD</div>
+        <div class="text-xs text-slate-600" id="gddComparisonText">...</div>
+        <div class="text-[11px] text-emerald-800 font-semibold pt-1 border-t" id="gddHarvestForecast">...</div>
+      </div>
+
+      <!-- ELEMENTAL NPK-CA-MG LEDGER -->
       <div class="bg-white rounded-xl p-4 shadow-sm border space-y-3">
         <div>
           <h2 class="font-extrabold text-sm sm:text-base text-slate-900" id="ui_npkLedgerTitle">⚖️ Cumulative Elemental Nutrient Ledger (Grams / Plant Delivered vs. Target)</h2>
@@ -201,9 +206,9 @@
 
     <section id="panel_SCOUT" class="hidden space-y-4">
       <div class="bg-white rounded-xl p-4 shadow-sm border">
-        <h2 id="ui_scoutTitle" class="font-bold text-sm mb-1">🔍 1-Tap Field Problem Reporter</h2>
-        <p id="ui_scoutSub" class="text-xs text-slate-500 mb-3">Confirms before adding a weather-smart spray card to your schedule (deletable anytime).</p>
-        <div id="scoutGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-bold"></div>
+        <h2 id="ui_scoutTitle" class="font-bold text-sm mb-1">🔍 1-Tap Field Problem Reporter (With Live Weather Risk %)</h2>
+        <p id="ui_scoutSub" class="text-xs text-slate-500 mb-3">Each button shows today's live microclimate risk score. Tap any issue to queue a curative spray card.</p>
+        <div id="scoutGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-xs font-bold"></div>
       </div>
       <div class="bg-white rounded-xl p-4 shadow-sm border">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -440,11 +445,134 @@ function formatDateWithWeekday(s) {
   return new Date(y, m - 1, d).toLocaleDateString(LANG === "KN" ? "kn-IN" : "en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
 }
 
-function computeDiseaseRiskScore(rh72Avg, tMax, tMin, rain72Sum, prob4) {
-  let score = rh72Avg >= 82 ? 45 : rh72Avg >= 72 ? 30 : rh72Avg >= 60 ? 15 : 5;
-  score += (tMax >= 25 && tMax <= 33 && tMin >= 18) ? 25 : 10;
-  score += rain72Sum >= 15 ? 30 : rain72Sum >= 3 ? 18 : prob4 >= 60 ? 12 : 0;
-  return Math.min(100, Math.max(5, Math.round(score)));
+// ============================================================================
+// 6-THREAT EPIDEMIOLOGICAL & PHYSIOLOGICAL RISK ENGINE
+// ============================================================================
+function getCumulativeNutrientsPerPlant() {
+  const del = { N: 0, P: 0, K: 0, Ca: 0, Mg: 0 };
+  tasks.filter(t => t.status === "COMPLETED" && t.current_scheduled_date >= "2026-08-15").forEach(tk => {
+    (tk.resolved_recipe || []).forEach(it => {
+      if (it.item_status === "SKIPPED") return;
+      const c = catalog[it.input_id]; if (!c) return;
+      const defTotal = it.dose_per_liter ? (it.dose_per_liter * CFG.drumL * CFG.drums) : ((it.dose_per_acre || 0) * CFG.acres);
+      const totalUsed = it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : defTotal;
+      const totalGrams3Ac = (c.unit === "kg" || c.unit === "L") ? totalUsed * 1000 : totalUsed;
+      const gPlant = totalGrams3Ac / CFG.plants;
+      del.N  += gPlant * ((Number(c.n_pct) || 0) / 100);
+      del.P  += gPlant * ((Number(c.p_pct) || 0) / 100);
+      del.K  += gPlant * ((Number(c.k_pct) || 0) / 100);
+      del.Ca += gPlant * ((Number(c.ca_pct) || 0) / 100);
+      del.Mg += gPlant * ((Number(c.mg_pct) || 0) / 100);
+    });
+  });
+  return del;
+}
+
+function computeAllSixRisks() {
+  const tStr = todayYMD();
+  const todayDad = Math.max(1, diffDaysYMD("2026-08-15", tStr));
+  const { rh72Avg, tMax, tMin, rain24, rain72Sum, prob4 } = wState;
+  const tempSwing = Number((tMax - tMin).toFixed(1));
+
+  // Inspect recent completed sprays for protection or resurgence effects
+  const doneTasks = tasks.filter(t => t.status === "COMPLETED");
+  const hadCopper6d = doneTasks.some(t => {
+    const d = diffDaysYMD(t.current_scheduled_date, tStr);
+    return d >= 0 && d <= 6 && (t.resolved_recipe || []).some(r => catalog[r.input_id]?.is_copper_compound);
+  });
+  const hadFungicide7d = doneTasks.some(t => {
+    const d = diffDaysYMD(t.current_scheduled_date, tStr);
+    return d >= 0 && d <= 7 && (t.resolved_recipe || []).some(r => catalog[r.input_id]?.category === "FUNGICIDE");
+  });
+  const hadInsecticide7d = doneTasks.some(t => {
+    const d = diffDaysYMD(t.current_scheduled_date, tStr);
+    return d >= 0 && d <= 7 && (t.resolved_recipe || []).some(r => catalog[r.input_id]?.category === "INSECTICIDE");
+  });
+  const hadPyrethroidOrOP25d = doneTasks.some(t => {
+    const d = diffDaysYMD(t.current_scheduled_date, tStr);
+    return d >= 0 && d <= 25 && (t.resolved_recipe || []).some(r => ["INS_REEVA5", "INS_ASATAF", "INS_THIA_LAMBDA", "INS_BETA_IMIDA"].includes(r.input_id));
+  });
+
+  // 1. Bacterial Blight (Xanthomonas)
+  let blight = rh72Avg >= 80 ? 45 : rh72Avg >= 70 ? 30 : rh72Avg >= 60 ? 18 : 8;
+  blight += (tMax >= 25 && tMax <= 33 && tMin >= 18) ? 25 : 12;
+  blight += rain72Sum >= 15 ? 30 : rain72Sum >= 3 ? 18 : prob4 >= 60 ? 12 : 0;
+  if (hadCopper6d) blight -= 20;
+  blight = Math.min(100, Math.max(5, Math.round(blight)));
+
+  // 2. Fungal Fruit Rot (Colletotrichum / Scab)
+  let rot = rh72Avg >= 82 ? 45 : rh72Avg >= 72 ? 30 : rh72Avg >= 62 ? 16 : 6;
+  rot += (tMax >= 22 && tMax <= 30) ? 20 : 10;
+  rot += rain72Sum >= 10 ? 25 : rain72Sum >= 2 ? 14 : prob4 >= 60 ? 10 : 0;
+  if (todayDad >= 90) rot += 10;
+  if (hadFungicide7d) rot -= 20;
+  rot = Math.min(100, Math.max(5, Math.round(rot)));
+
+  // 3. Thrips Rind Scarring (Peaks in hot, dry weather!)
+  let thrips = rh72Avg <= 50 ? 42 : rh72Avg <= 62 ? 30 : rh72Avg <= 72 ? 18 : 8;
+  thrips += tMax >= 31 ? 25 : tMax >= 28 ? 16 : 8;
+  thrips += rain72Sum === 0 ? 15 : rain72Sum >= 10 ? -15 : 0;
+  thrips += todayDad <= 115 ? 15 : 5;
+  if (hadInsecticide7d) thrips -= 20;
+  thrips = Math.min(100, Math.max(5, Math.round(thrips)));
+
+  // 4. Fruit Borer (Deudorix isocrates — Peaks 30-125 DAD)
+  let borer = (todayDad >= 30 && todayDad <= 125) ? 35 : 12;
+  borer += (tMax >= 27 && tMax <= 33) ? 22 : 10;
+  borer += (rh72Avg >= 55 && rh72Avg <= 78) ? 15 : 8;
+  borer += hadInsecticide7d ? -20 : 18;
+  borer = Math.min(100, Math.max(5, Math.round(borer)));
+
+  // 5. Mealybug / Scale & Red Mite Resurgence
+  let mealy = tMax >= 31 ? 25 : tMax >= 28 ? 16 : 8;
+  mealy += tMin >= 18.5 ? 15 : 6;
+  mealy += rain72Sum < 5 ? 15 : 0;
+  if (hadPyrethroidOrOP25d) mealy += 25; // Predator knockdown flare-up factor!
+  mealy = Math.min(100, Math.max(5, Math.round(mealy)));
+
+  // 6. Sunburn & Fruit Cracking (Temp swing + Moisture surge + Low Calcium)
+  const delNpk = getCumulativeNutrientsPerPlant();
+  const targetCaToDate = Math.max(1, Math.round(45 * Math.min(1, Math.max(0.1, todayDad / 200))));
+  const caDeficit = (delNpk.Ca / targetCaToDate) < 0.70;
+
+  let crack = tempSwing >= 13.0 ? 30 : tempSwing >= 11.0 ? 20 : 10;
+  crack += tMax >= 33 ? 25 : tMax >= 30.5 ? 15 : 8;
+  crack += rain24 >= 10 ? 25 : 0;
+  if (caDeficit) crack += 22;
+  crack = Math.min(100, Math.max(5, Math.round(crack)));
+
+  return {
+    BLIGHT_SPOT: {
+      score: blight,
+      whyEn: `72h RH: ${rh72Avg}% • Rain: ${rain72Sum}mm ${hadCopper6d ? "• 🛡️ Copper shield active (-20%)" : ""}`,
+      whyKn: `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಮಳೆ: ${rain72Sum}mm ${hadCopper6d ? "• 🛡️ ಕಾಪರ್ ರಕ್ಷಣೆ ಇದೆ (-20%)" : ""}`
+    },
+    FRUIT_ROT: {
+      score: rot,
+      whyEn: `72h RH: ${rh72Avg}% • Temp: ${tMax}°C ${hadFungicide7d ? "• 🛡️ Fungicide active (-20%)" : ""}`,
+      whyKn: `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಉಷ್ಣಾಂಶ: ${tMax}°C ${hadFungicide7d ? "• 🛡️ ಶಿಲೀಂಧ್ರನಾಶಕ ರಕ್ಷಣೆ ಇದೆ (-20%)" : ""}`
+    },
+    THRIPS_SCAR: {
+      score: thrips,
+      whyEn: `${rh72Avg <= 60 ? "Dry air speeds thrips breeding" : "Moderate RH"} (${rh72Avg}%) • ${rain72Sum === 0 ? "No rain wash-off" : "Rain suppresses thrips"}`,
+      whyKn: `ತೇವಾಂಶ: ${rh72Avg}% • ${rain72Sum === 0 ? "ಮಳೆ ಇಲ್ಲದ ಒಣ ಹವೆಯಲ್ಲಿ ಥ್ರಿಪ್ಸ್ ಹೆಚ್ಚುತ್ತದೆ" : "ಮಳೆಯಿಂದ ಕಡಿಮೆ"}`
+    },
+    FRUIT_BORER: {
+      score: borer,
+      whyEn: `Fruit sizing stage (${todayDad} DAD) • ${hadInsecticide7d ? "🛡️ Recent spray active (-20%)" : "Monitor calyx crowns"}`,
+      whyKn: `ಕಾಯಿ ಬೆಳವಣಿಗೆ ಹಂತ (${todayDad} DAD) • ${hadInsecticide7d ? "🛡️ ಇತ್ತೀಚಿನ ಸಿಂಪಡಣೆ ರಕ್ಷಣೆ ಇದೆ" : "ಕಾಯಿ ತೊಟ್ಟು ಗಮನಿಸಿ"}`
+    },
+    MEALYBUG: {
+      score: mealy,
+      whyEn: `Max ${tMax}°C / Night ${tMin}°C ${hadPyrethroidOrOP25d ? "• ⚠️ +25% Pyrethroid/Asataf resurgence watch" : ""}`,
+      whyKn: `ಗರಿಷ್ಠ ${tMax}°C ${hadPyrethroidOrOP25d ? "• ⚠️ ರೀವಾ-5/ಅಸಟಾಫ್ ನಂತರ ನುಸಿ/ತಿಗಣೆ ಎಚ್ಚರಿಕೆ (+25%)" : ""}`
+    },
+    CRACKING: {
+      score: crack,
+      whyEn: `Day-Night Swing: ${tempSwing}°C ${caDeficit ? "• ⚠️ Low Rind Calcium reserve (+22%)" : "• ✅ Good Ca reserve"}`,
+      whyKn: `ಹಗಲು-ರಾತ್ರಿ ಉಷ್ಣಾಂಶ ವ್ಯತ್ಯಾಸ: ${tempSwing}°C ${caDeficit ? "• ⚠️ ಕ್ಯಾಲ್ಸಿಯಂ ಕೊರತೆ (+22%)" : ""}`
+    }
+  };
 }
 
 const WALES_ORDER = { WSF: 1, DF: 1, WG: 1, WP: 1, SP: 2, SC: 3, OD: 3, SL: 3, EC: 4 };
@@ -486,8 +614,10 @@ function getWalesMixingGuide(recipeItems) {
 const I18N = {
   EN: {
     appTitle: "🍎 Hosahalli Pomegranate Tracker", appSub: "3 Acres • 1,500 Plants (10×8) • Wk 1 (Ethrel): 15 Aug 2026",
-    btnLogRain: "🌧️ Log Farm Rain", tabTasks: "Tasks", tabAnalytics: "GDD & NPK", tabManual: "Log Work", tabShop: "Store & ₹", tabScout: "Scout/Log",
-    gddCardTitle: "☀️ Thermal Growing Degree Days (GDD Base 10°C)", riskCardTitle: "🦠 72-Hour Blight & Fungal Infection Index",
+    btnLogRain: "🌧️ Log Farm Rain", tabTasks: "Tasks", tabAnalytics: "Risk & NPK", tabManual: "Log Work", tabShop: "Store & ₹", tabScout: "Scout/Log",
+    gddCardTitle: "☀️ Thermal Growing Degree Days (GDD Base 10°C)",
+    riskCardTitle: "🛡️ 6-Threat Orchard Risk Radar (72h Weather + Spray & Nutrient State)",
+    riskCardSub: "Live probability (0–100%) for all 6 field problems based on temperature, humidity, rain, recent sprays, and Calcium reserves:",
     npkLedgerTitle: "⚖️ Cumulative Elemental Nutrient Ledger (Grams / Plant Delivered vs. Target)",
     npkLedgerSub: "Calculated across 1,500 plants from all COMPLETED applications so far vs. ICAR-NRCP target curve for today's DAD.",
     manTitle: "➕ Record Manual or Past Spray / Drip", lblManDate: "Date Applied:", lblManType: "Activity Type:", lblManCost: "Total Cost Paid (₹):",
@@ -496,7 +626,7 @@ const I18N = {
     lblManShift: "Auto-adjust future schedule (+3d shift, 5d Copper cooldown, 10d Boron lock & IRAC/FRAC rotation)", btnSaveMan: "💾 Save Activity & Update Schedule",
     expTitle: "💰 Total Recorded Orchard Spend (3 Acres)", shopTitle: "Agro-Store Shopping List (3 Acres)", shopSub: "Skipped and completed items are excluded. Enter shed leftovers below.", btnCopy: "📲 Copy List",
     brandCheckerTitle: "🧪 Agro-Store Brand & Tank-Mix Compatibility Checker", brandCheckerSub: "Select 1 or 2 store brands below to verify active salt, 21-day repeat-spray resistance, and drum mixing order:",
-    scoutTitle: "🔍 1-Tap Field Problem Reporter", scoutSub: "Confirms before adding a weather-smart spray card to your schedule (deletable anytime).",
+    scoutTitle: "🔍 1-Tap Field Problem Reporter (With Live Weather Risk %)", scoutSub: "Each button shows today's live microclimate risk score. Tap any issue to queue a curative spray card.",
     auditTitle: "👤 Recent Activity & User Tracking Log", masterTitle: "📅 Complete Orchard Schedule (Week 0 to Week 30)",
     modalTitle: "🏪 4-Check Agro-Store Brand Validator", lblBrandSearch: "🔍 What brand did the store dealer offer you?", userModalTitle: "👤 Manage App Users",
     delayModalTitle: "⏳ Delay / Reschedule Task", lblQuickDelay: "1. Shift Earlier (-), Later (+) or Pick Date:", btnOrigDate: "↺ Original Date", lblNewDate: "New Date:",
@@ -516,8 +646,10 @@ const I18N = {
   },
   KN: {
     appTitle: "🍎 ಹೊಸಹಳ್ಳಿ ದಾಳಿಂಬೆ ನಿರ್ವಹಣಾ ಟ್ರ್ಯಾಕರ್", appSub: "3 ಎಕರೆ • 1,500 ಗಿಡ (10×8) • ವಾರ 1 (ಎಥ್ರೆಲ್): 15 ಆಗಸ್ಟ್ 2026",
-    btnLogRain: "🌧️ ಮಳೆ ದಾಖಲಿಸಿ", tabTasks: "ಕೆಲಸಗಳು", tabAnalytics: "GDD & ಪೋಷಕಾಂಶ", tabManual: "ಕೆಲಸ ಸೇರಿಸಿ", tabShop: "ಅಂಗಡಿ & ₹", tabScout: "ರೋಗ/ದಾಖಲೆ",
-    gddCardTitle: "☀️ ಉಷ್ಣಾಂಶ ಬೆಳವಣಿಗೆ ದಿನಗಳು (Thermal GDD - Base 10°C)", riskCardTitle: "🦠 72-ಗಂಟೆಗಳ ಅಂಗಮಾರಿ ಮತ್ತು ಕೊಳೆ ರೋಗದ ಅಪಾಯ ಸೂಚ್ಯಂಕ",
+    btnLogRain: "🌧️ ಮಳೆ ದಾಖಲಿಸಿ", tabTasks: "ಕೆಲಸಗಳು", tabAnalytics: "ರೋಗ ಅಪಾಯ & NPK", tabManual: "ಕೆಲಸ ಸೇರಿಸಿ", tabShop: "ಅಂಗಡಿ & ₹", tabScout: "ರೋಗ/ದಾಖಲೆ",
+    gddCardTitle: "☀️ ಉಷ್ಣಾಂಶ ಬೆಳವಣಿಗೆ ದಿನಗಳು (Thermal GDD - Base 10°C)",
+    riskCardTitle: "🛡️ 6-ರೋಗ/ಕೀಟಗಳ ಅಪಾಯ ರೇಡಾರ್ (72ಗಂ ಹವಾಮಾನ + ಸಿಂಪಡಣೆ ಮತ್ತು ಪೋಷಕಾಂಶ ಸ್ಥಿತಿ)",
+    riskCardSub: "ಪ್ರಸ್ತುತ ಉಷ್ಣಾಂಶ, ತೇವಾಂಶ, ಮಳೆ ಮತ್ತು ಕ್ಯಾಲ್ಸಿಯಂ ಆಧರಿಸಿ ಎಲ್ಲಾ 6 ಸಮಸ್ಯೆಗಳ ಸಾಧ್ಯತೆ (0–100%):",
     npkLedgerTitle: "⚖️ ಪ್ರತಿ ಗಿಡಕ್ಕೆ ನೀಡಲಾದ ಒಟ್ಟು ಪೋಷಕಾಂಶಗಳ ಲೆಕ್ಕ (ಗ್ರಾಂ/ಗಿಡ - ಗುರಿ vs ನೀಡಿದ್ದು)",
     npkLedgerSub: "ಇಲ್ಲಿಯವರೆಗೆ ಪೂರ್ಣಗೊಂಡ ಡ್ರಿಪ್ ಮತ್ತು ಸಿಂಪಡಣೆಗಳಿಂದ 1,500 ಗಿಡಗಳಿಗೆ ತಲುಪಿದ ನಿಖರ N, P, K, Ca, Mg ಪ್ರಮಾಣ.",
     manTitle: "➕ ಮಾಡಿದ ಸಿಂಪಡಣೆ / ಡ್ರಿಪ್ ಗೊಬ್ಬರ ದಾಖಲಿಸಿ", lblManDate: "ಮಾಡಿದ ದಿನಾಂಕ:", lblManType: "ಕೆಲಸದ ವಿಧ:", lblManCost: "ಒಟ್ಟು ಖರ್ಚು (₹):",
@@ -526,7 +658,7 @@ const I18N = {
     lblManShift: "ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸಿ (+3 ದಿನ ಮುಂದೂಡಿಕೆ, 5 ದಿನ ಕಾಪರ್ ಅಂತರ, ಬೋರಾನ್ ಮಿತಿ)", btnSaveMan: "💾 ದಾಖಲಿಸಿ ಮತ್ತು ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ",
     expTitle: "💰 ಒಟ್ಟು ದಾಖಲಾದ ತೋಟದ ಖರ್ಚು (3 ಎಕರೆ)", shopTitle: "ಅಗ್ರೋ ಅಂಗಡಿ ಖರೀದಿ ಪಟ್ಟಿ (3 ಎಕರೆ)", shopSub: "ಪೂರ್ಣಗೊಂಡ ಮತ್ತು ಬಿಟ್ಟುಬಿಟ್ಟ ಔಷಧಿಗಳನ್ನು ಕೈಬಿಡಲಾಗಿದೆ. ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣ ನಮೂದಿಸಿ.", btnCopy: "📲 ಪಟ್ಟಿ ಕಾಪಿ ಮಾಡಿ",
     brandCheckerTitle: "🧪 ಅಗ್ರೋ ಅಂಗಡಿ ಕಂಪನಿ ಹೆಸರು & ಮಿಶ್ರಣ ಪರೀಕ್ಷಕ", brandCheckerSub: "ಅಂಗಡಿಯವರು ಕೊಡುವ ಕಂಪನಿ ಹೆಸರನ್ನು ಕೆಳಗೆ ಆರಿಸಿ — ಲವಣಾಂಶ, 21 ದಿನದ ಪುನರಾವರ್ತನೆ ಮತ್ತು ಡ್ರಮ್ ಮಿಶ್ರಣ ಕ್ರಮ ತಿಳಿಯಿರಿ:",
-    scoutTitle: "🔍 ತೋಟದ ರೋಗ / ಕೀಟ ವರದಿ ಮಾಡಿ", scoutSub: "ಕೆಳಗಿನ ಸಮಸ್ಯೆ ಒತ್ತಿರಿ. ದೃಢೀಕರಿಸಿದ ನಂತರ ಹವಾಮಾನ ಪರಿಶೀಲಿಸಿ ನಿಮ್ಮ ವೇಳಾಪಟ್ಟಿಗೆ ಸಿಂಪಡಣೆ ಸೇರಿಸುತ್ತದೆ.",
+    scoutTitle: "🔍 ತೋಟದ ರೋಗ / ಕೀಟ ವರದಿ ಮಾಡಿ (ಪ್ರಸ್ತುತ ಹವಾಮಾನ ಅಪಾಯ % ಸಹಿತ)", scoutSub: "ಪ್ರತಿ ಬಟನ್ ಪ್ರಸ್ತುತ ಹವಾಮಾನದ ಅಪಾಯ % ತೋರಿಸುತ್ತದೆ. ತುರ್ತು ಸಿಂಪಡಣೆ ಸೇರಿಸಲು ಒತ್ತಿರಿ.",
     auditTitle: "👤 ಯಾರು, ಯಾವಾಗ ಬದಲಾವಣೆ ಮಾಡಿದರು (ದಾಖಲೆ ಪಟ್ಟಿ)", masterTitle: "📅 ಪೂರ್ಣ ವೇಳಾಪಟ್ಟಿ (ವಾರ 0 ರಿಂದ ವಾರ 30 ರವರೆಗೆ)",
     modalTitle: "🏪 ಅಗ್ರೋ ಅಂಗಡಿ ಕಂಪನಿ ಹೆಸರು & ಪರ್ಯಾಯ ಪರೀಕ್ಷಕ", lblBrandSearch: "🔍 ಅಂಗಡಿಯವರು ಯಾವ ಕಂಪನಿಯ ಔಷಧಿ ಕೊಡುತ್ತಿದ್ದಾರೆ?", userModalTitle: "👤 ಬಳಕೆದಾರರ ಹೆಸರು ನಿರ್ವಹಿಸಿ",
     delayModalTitle: "⏳ ದಿನಾಂಕ ಬದಲಿಸಿ / ಮುಂದೂಡಿ", lblQuickDelay: "1. ದಿನಗಳನ್ನು ಹಿಂದೆ (-) / ಮುಂದೆ (+) ಮಾಡಿ ಅಥವಾ ದಿನಾಂಕ ಆರಿಸಿ:", btnOrigDate: "↺ ಮೂಲ ದಿನಾಂಕಕ್ಕೆ ತನ್ನಿ", lblNewDate: "ಹೊಸ ದಿನಾಂಕ:",
@@ -589,12 +721,12 @@ function translateDescToKn(desc) {
 }
 
 const SCOUT_ISSUES = [
-  { code: "BLIGHT_SPOT", taskType: "STANDALONE_COPPER", enTitle: "🦠 Bacterial Blight Oily Spot", knTitle: "🦠 ಬ್ಯಾಕ್ಟೀರಿಯಾ ಅಂಗಮಾರಿ ಮಚ್ಚೆ", enDesc: "Curative Blight Spray: Copper Hydroxide + Bronopol", knDesc: "ತುರ್ತು ಅಂಗಮಾರಿ ಸಿಂಪಡಣೆ: ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ + ಬ್ರೊನೊಪಾಲ್", recipe: [{ input_id: "BAC_COPPER_HYDROXIDE", dose_per_liter: 1.5 }, { input_id: "BAC_BRONOPOL", dose_per_liter: 0.5 }] },
-  { code: "THRIPS_SCAR", taskType: "FOLIAR_SPRAY", enTitle: "🦗 Thrips Rind Scarring", knTitle: "🦗 ಥ್ರಿಪ್ಸ್ ಕಜ್ಜಿ / ಗೀರು", enDesc: "Curative Thrips Knockdown: Spinetoram 11.7% SC", knDesc: "ತುರ್ತು ಥ್ರಿಪ್ಸ್ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ: ಸ್ಪೈನೆಟೊರಾಮ್", recipe: [{ input_id: "INS_SPINETORAM", dose_per_liter: 0.8 }] },
-  { code: "FRUIT_BORER", taskType: "FOLIAR_SPRAY", enTitle: "🐛 Fruit Borer Hole", knTitle: "🐛 ಹಣ್ಣು ಕೊರೆಯುವ ಹುಳು", enDesc: "Curative Borer Knockdown: Chlorantraniliprole", knDesc: "ತುರ್ತು ಹುಳು ನಿಯಂತ್ರಣ: ಕ್ಲೋರಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ ಸಿಂಪಡಣೆ", recipe: [{ input_id: "INS_CHLORANTRANILIPROLE", dose_per_liter: 0.3 }] },
-  { code: "MEALYBUG", taskType: "FOLIAR_SPRAY", enTitle: "🐜 Mealybug / Scale", knTitle: "🐜 ಹಿಟ್ಟು ತಿಗಣೆ ಬಾಧೆ", enDesc: "Curative Mealybug Spray: Spirotetramat + Buprofezin", knDesc: "ತುರ್ತು ಹಿಟ್ಟು ತಿಗಣೆ ಸಿಂಪಡಣೆ: ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ + ಬುಪ್ರೊಫೆಜಿನ್", recipe: [{ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 }, { input_id: "INS_BUPROFEZIN", dose_per_liter: 1.5 }] },
-  { code: "FRUIT_ROT", taskType: "FOLIAR_SPRAY", enTitle: "🍄 Fungal Fruit Rot", knTitle: "🍄 ಹಣ್ಣು ಕೊಳೆ ರೋಗ", enDesc: "Curative Rot Spray: Fluxapyroxad + Pyraclostrobin", knDesc: "ತುರ್ತು ಹಣ್ಣು ಕೊಳೆ ರೋಗ ಸಿಂಪಡಣೆ: ಮೆರಿವಾನ್ / ಪ್ರಿಯಾಕ್ಸರ್", recipe: [{ input_id: "FUN_FLUXA_PYRA", dose_per_liter: 0.6 }] },
-  { code: "CRACKING", taskType: "FOLIAR_SPRAY", enTitle: "⚡ Sunburn / Fruit Cracking", knTitle: "⚡ ಬಿಸಿಲು ಕಲೆ / ಹಣ್ಣು ಸೀಳುವಿಕೆ", enDesc: "Anti-Cracking Shield: Chelated Ca-B + Orthosilicic Acid", knDesc: "ಹಣ್ಣು ಸೀಳುವಿಕೆ ತಡೆಗೆ: ಕ್ಯಾಲ್ಸಿಯಂ-ಬೋರಾನ್ + ಸಿಲಿಕಾನ್ ಸಿಂಪಡಣೆ", recipe: [{ input_id: "MIC_CA_B_LIQUID", dose_per_liter: 1.5 }, { input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 }] }
+  { code: "BLIGHT_SPOT", shortEn: "Blight", shortKn: "ಅಂಗಮಾರಿ", taskType: "STANDALONE_COPPER", enTitle: "🦠 Bacterial Blight Oily Spot", knTitle: "🦠 ಬ್ಯಾಕ್ಟೀರಿಯಾ ಅಂಗಮಾರಿ ಮಚ್ಚೆ", enDesc: "Curative Blight Spray: Copper Hydroxide + Bronopol", knDesc: "ತುರ್ತು ಅಂಗಮಾರಿ ಸಿಂಪಡಣೆ: ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ + ಬ್ರೊನೊಪಾಲ್", recipe: [{ input_id: "BAC_COPPER_HYDROXIDE", dose_per_liter: 1.5 }, { input_id: "BAC_BRONOPOL", dose_per_liter: 0.5 }] },
+  { code: "THRIPS_SCAR", shortEn: "Thrips", shortKn: "ಥ್ರಿಪ್ಸ್", taskType: "FOLIAR_SPRAY", enTitle: "🦗 Thrips Rind Scarring", knTitle: "🦗 ಥ್ರಿಪ್ಸ್ ಕಜ್ಜಿ / ಗೀರು", enDesc: "Curative Thrips Knockdown: Spinetoram 11.7% SC", knDesc: "ತುರ್ತು ಥ್ರಿಪ್ಸ್ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ: ಸ್ಪೈನೆಟೊರಾಮ್", recipe: [{ input_id: "INS_SPINETORAM", dose_per_liter: 0.8 }] },
+  { code: "FRUIT_BORER", shortEn: "Borer", shortKn: "ಕೊರಕ ಹುಳು", taskType: "FOLIAR_SPRAY", enTitle: "🐛 Fruit Borer Hole", knTitle: "🐛 ಹಣ್ಣು ಕೊರೆಯುವ ಹುಳು", enDesc: "Curative Borer Knockdown: Chlorantraniliprole", knDesc: "ತುರ್ತು ಹುಳು ನಿಯಂತ್ರಣ: ಕ್ಲೋರಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ ಸಿಂಪಡಣೆ", recipe: [{ input_id: "INS_CHLORANTRANILIPROLE", dose_per_liter: 0.3 }] },
+  { code: "MEALYBUG", shortEn: "Mealy/Mite", shortKn: "ತಿಗಣೆ/ನುಸಿ", taskType: "FOLIAR_SPRAY", enTitle: "🐜 Mealybug / Scale & Mites", knTitle: "🐜 ಹಿಟ್ಟು ತಿಗಣೆ ಮತ್ತು ಕೆಂಪು ನುಸಿ", enDesc: "Curative Mealybug Spray: Spirotetramat + Buprofezin", knDesc: "ತುರ್ತು ಹಿಟ್ಟು ತಿಗಣೆ ಸಿಂಪಡಣೆ: ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ + ಬುಪ್ರೊಫೆಜಿನ್", recipe: [{ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 }, { input_id: "INS_BUPROFEZIN", dose_per_liter: 1.5 }] },
+  { code: "FRUIT_ROT", shortEn: "Fruit Rot", shortKn: "ಕೊಳೆ ರೋಗ", taskType: "FOLIAR_SPRAY", enTitle: "🍄 Fungal Fruit Rot", knTitle: "🍄 ಹಣ್ಣು ಕೊಳೆ ರೋಗ", enDesc: "Curative Rot Spray: Fluxapyroxad + Pyraclostrobin", knDesc: "ತುರ್ತು ಹಣ್ಣು ಕೊಳೆ ರೋಗ ಸಿಂಪಡಣೆ: ಮೆರಿವಾನ್ / ಪ್ರಿಯಾಕ್ಸರ್", recipe: [{ input_id: "FUN_FLUXA_PYRA", dose_per_liter: 0.6 }] },
+  { code: "CRACKING", shortEn: "Cracking", shortKn: "ಸೀಳುವಿಕೆ", taskType: "FOLIAR_SPRAY", enTitle: "⚡ Sunburn / Fruit Cracking", knTitle: "⚡ ಬಿಸಿಲು ಕಲೆ / ಹಣ್ಣು ಸೀಳುವಿಕೆ", enDesc: "Anti-Cracking Shield: Chelated Ca-B + Orthosilicic Acid", knDesc: "ಹಣ್ಣು ಸೀಳುವಿಕೆ ತಡೆಗೆ: ಕ್ಯಾಲ್ಸಿಯಂ-ಬೋರಾನ್ + ಸಿಲಿಕಾನ್ ಸಿಂಪಡಣೆ", recipe: [{ input_id: "MIC_CA_B_LIQUID", dose_per_liter: 1.5 }, { input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 }] }
 ];
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -644,13 +776,23 @@ async function loadWeather() {
     const tMax = d.daily.temperature_2m_max[3] || 30.5;
     const tMin = d.daily.temperature_2m_min[3] || 18.2;
     const prob4 = Math.max(...(d.hourly.precipitation_probability || []).slice(72 + hr, 76 + hr), 0);
-    const riskScore = computeDiseaseRiskScore(rh72Avg, tMax, tMin, rain72Sum, prob4);
     const dailyGdd = Math.max(0, Number((((tMax + tMin) / 2) - 10.0).toFixed(2)));
+
+    wState = {
+      ...wState,
+      tempNow: d.current?.temperature_2m ?? 29.5, humidity: d.current?.relative_humidity_2m ?? 55,
+      rain24, prob4, tMax, tMin, rh72Avg, rain72Sum,
+      updatedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      mode: farmRainToday ? "FARM_LOGGED" : "LIVE"
+    };
+
+    const allRisks = computeAllSixRisks();
+    wState.riskScore = allRisks.BLIGHT_SPOT.score;
 
     if (navigator.onLine) {
       await sb.from("weather_telemetry_history").upsert([{
         log_date: todayYMD(), temp_max_c: tMax, temp_min_c: tMin, humidity_mean_pct: rh72Avg,
-        rain_mm: rain24, daily_gdd: dailyGdd, disease_risk_score: riskScore
+        rain_mm: rain24, daily_gdd: dailyGdd, disease_risk_score: wState.riskScore
       }]);
       await sb.rpc("run_daily_orchard_engine");
       const { data: gddRows } = await sb.from("weather_telemetry_history").select("daily_gdd");
@@ -658,14 +800,6 @@ async function loadWeather() {
         wState.cumulativeGdd = Math.round(gddRows.reduce((s, x) => s + Number(x.daily_gdd || 15), 0));
       }
     }
-
-    wState = {
-      ...wState,
-      tempNow: d.current?.temperature_2m ?? 29.5, humidity: d.current?.relative_humidity_2m ?? 55,
-      rain24, prob4, tMax, tMin, rh72Avg, rain72Sum, riskScore,
-      updatedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      mode: farmRainToday ? "FARM_LOGGED" : "LIVE"
-    };
   } catch (e) {}
   updateWBar();
 }
@@ -676,15 +810,24 @@ function updateWBar() {
   document.getElementById("wHum").textContent = LANG === "KN" ? `💧 ತೇವಾಂಶ: ${wState.humidity}%` : `💧 RH: ${wState.humidity}%`;
   document.getElementById("wRain").textContent = LANG === "KN" ? `🌧️ ಮಳೆ: ${wState.rain24}mm${srcTag}` : `🌧️ Rain: ${wState.rain24}mm${srcTag}`;
 
+  // Find #1 highest threat across all 6 models for the top badge
+  const risks = computeAllSixRisks();
+  let topIss = SCOUT_ISSUES[0], topScore = 0;
+  SCOUT_ISSUES.forEach(iss => {
+    const sc = risks[iss.code]?.score || 0;
+    if (sc > topScore) { topScore = sc; topIss = iss; }
+  });
+
   const rb = document.getElementById("wRiskBadge");
-  if (wState.riskScore >= 65) {
-    rb.textContent = LANG === "KN" ? `🦠 ರೋಗ ಅಪಾಯ: ಗರಿಷ್ಠ (${wState.riskScore}%)` : `🦠 Blight Risk: HIGH (${wState.riskScore}%)`;
+  const topName = LANG === "KN" ? topIss.shortKn : topIss.shortEn;
+  if (topScore >= 65) {
+    rb.textContent = LANG === "KN" ? `🚨 ಗರಿಷ್ಠ ಅಪಾಯ: ${topName} (${topScore}%)` : `🚨 Top Risk: ${topName} (${topScore}%)`;
     rb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-600 text-white animate-pulse";
-  } else if (wState.riskScore >= 38) {
-    rb.textContent = LANG === "KN" ? `🦠 ರೋಗ ಅಪಾಯ: ಮಧ್ಯಮ (${wState.riskScore}%)` : `🦠 Blight Risk: MOD (${wState.riskScore}%)`;
+  } else if (topScore >= 40) {
+    rb.textContent = LANG === "KN" ? `⚠️ ಮಧ್ಯಮ ಅಪಾಯ: ${topName} (${topScore}%)` : `⚠️ Top Risk: ${topName} (${topScore}%)`;
     rb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950";
   } else {
-    rb.textContent = LANG === "KN" ? `🦠 ರೋಗ ಅಪಾಯ: ಕಡಿಮೆ (${wState.riskScore}%)` : `🦠 Blight Risk: LOW (${wState.riskScore}%)`;
+    rb.textContent = LANG === "KN" ? `🟢 ಅಪಾಯ ಕಡಿಮೆ (${topName} ${topScore}%)` : `🟢 Low Risk (${topName} ${topScore}%)`;
     rb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-700 text-white";
   }
   document.getElementById("wUpdatedTime").textContent = `🔄 ${wState.updatedAt || ""}`;
@@ -692,9 +835,9 @@ function updateWBar() {
 
 function setWeather(m) {
   if (m === "LIVE") { loadWeather().then(render); return; }
-  if (m === "RAIN") wState = { ...wState, rain24: 24.0, prob4: 25, riskScore: 78, mode: "SIM" };
-  if (m === "HIGH_RISK") wState = { ...wState, humidity: 86, rh72Avg: 85, rain72Sum: 12, riskScore: 84, mode: "SIM" };
-  if (m === "WARM") wState = { ...wState, tMax: 35.0, tMin: 19.6, mode: "SIM" };
+  if (m === "RAIN") wState = { ...wState, rain24: 24.0, rain72Sum: 28.0, rh72Avg: 84, prob4: 25, mode: "SIM" };
+  if (m === "HIGH_BLIGHT") wState = { ...wState, humidity: 86, rh72Avg: 86, rain72Sum: 12, tMax: 29.5, tMin: 20.0, mode: "SIM" };
+  if (m === "DRY_PEST") wState = { ...wState, tempNow: 34.0, humidity: 40, rh72Avg: 42, rain24: 0, rain72Sum: 0, tMax: 34.5, tMin: 19.0, mode: "SIM" };
   updateWBar(); render();
 }
 
@@ -713,33 +856,39 @@ function renderAnalyticsTab() {
     ? (daysAhead > 0 ? `🔥 ಎಲ್ ನಿನೊ ಬಿಸಿಯಿಂದಾಗಿ ಕಾಯಿಗಳು ಕ್ಯಾಲೆಂಡರ್‌ಗಿಂತ ~${daysAhead} ದಿನ ಮುಂಚಿತವಾಗಿ ಮಾಗುತ್ತಿವೆ.` : `✅ ಕಾಯಿ ಬೆಳವಣಿಗೆ ಸಾಮಾನ್ಯ ವೇಳಾಪಟ್ಟಿಯಂತೆಯೇ ಇದೆ.`)
     : (daysAhead > 0 ? `🔥 El Niño warmth is accelerating fruit maturity by ~${daysAhead} days ahead of calendar DAD.` : `✅ Crop thermal accumulation is tracking right on baseline schedule.`);
 
-  const scEl = document.getElementById("diseaseScoreValue");
-  scEl.textContent = `${wState.riskScore} / 100`;
-  scEl.className = wState.riskScore >= 65 ? "text-2xl font-extrabold text-red-600" : wState.riskScore >= 38 ? "text-2xl font-extrabold text-amber-600" : "text-2xl font-extrabold text-emerald-700";
-  document.getElementById("diseaseReasonText").innerHTML = LANG === "KN"
-    ? `72-ಗಂಟೆಗಳ ಸರಾಸರಿ ತೇವಾಂಶ: <b>${wState.rh72Avg}%</b> • 72ಗಂ ಮಳೆ: <b>${wState.rain72Sum} mm</b> • ತಾಪಮಾನ: <b>${wState.tMax}°C / ${wState.tMin}°C</b>`
-    : `72h Rolling Humidity: <b>${wState.rh72Avg}%</b> • 72h Rain: <b>${wState.rain72Sum} mm</b> • Temp Window: <b>${wState.tMax}°C / ${wState.tMin}°C</b>`;
-  document.getElementById("diseaseActionText").textContent = wState.riskScore >= 65
-    ? (LANG === "KN" ? "🚨 ಎಚ್ಚರಿಕೆ: ಅಂಗಮಾರಿ ಹರಡುವ ಸಾಧ್ಯತೆ ಹೆಚ್ಚು! ಸಿಂಪಡಣೆ ಅಂತರವನ್ನು 7 ದಿನದಿಂದ 4–5 ದಿನಕ್ಕೆ ಇಳಿಸಿ." : "🚨 HIGH RISK: Tighten bactericide/fungicide spray interval from 7 days to 4–5 days!")
-    : (LANG === "KN" ? "✅ ಪ್ರಸ್ತುತ ಹವಾಮಾನದಲ್ಲಿ 7 ದಿನಗಳ ಸಾಮಾನ್ಯ ಸಿಂಪಡಣೆ ವೇಳಾಪಟ್ಟಿ ಸಾಕು." : "✅ Standard 7-day prophylactic spray interval is sufficient.");
+  // Render 6-Threat Multi-Hazard Radar
+  const risks = computeAllSixRisks();
+  document.getElementById("multiRiskGrid").innerHTML = SCOUT_ISSUES.map(iss => {
+    const rObj = risks[iss.code] || { score: 20, whyEn: "", whyKn: "" };
+    const sc = rObj.score;
+    const isHigh = sc >= 65, isMod = sc >= 40 && sc < 65;
+    const badgeCls = isHigh ? "bg-red-600 text-white" : isMod ? "bg-amber-400 text-slate-950" : "bg-emerald-600 text-white";
+    const barCls = isHigh ? "bg-red-600" : isMod ? "bg-amber-500" : "bg-emerald-600";
+    const cardBorder = isHigh ? "border-red-300 bg-red-50/40" : isMod ? "border-amber-200 bg-amber-50/30" : "border-slate-200 bg-slate-50";
+    const levelWord = isHigh ? (LANG === "KN" ? "ಗರಿಷ್ಠ" : "HIGH") : isMod ? (LANG === "KN" ? "ಮಧ್ಯಮ" : "MOD") : (LANG === "KN" ? "ಕಡಿಮೆ" : "LOW");
 
-  const deliveredGramsPerPlant = { N: 0, P: 0, K: 0, Ca: 0, Mg: 0 };
-  tasks.filter(t => t.status === "COMPLETED" && t.current_scheduled_date >= "2026-08-15").forEach(tk => {
-    (tk.resolved_recipe || []).forEach(it => {
-      if (it.item_status === "SKIPPED") return;
-      const c = catalog[it.input_id]; if (!c) return;
-      const defTotal = it.dose_per_liter ? (it.dose_per_liter * CFG.drumL * CFG.drums) : ((it.dose_per_acre || 0) * CFG.acres);
-      const totalUsed = it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : defTotal;
-      const totalGrams3Ac = (c.unit === "kg" || c.unit === "L") ? totalUsed * 1000 : totalUsed;
-      const gramsPerPlant = totalGrams3Ac / CFG.plants;
-      deliveredGramsPerPlant.N  += gramsPerPlant * ((Number(c.n_pct) || 0) / 100);
-      deliveredGramsPerPlant.P  += gramsPerPlant * ((Number(c.p_pct) || 0) / 100);
-      deliveredGramsPerPlant.K  += gramsPerPlant * ((Number(c.k_pct) || 0) / 100);
-      deliveredGramsPerPlant.Ca += gramsPerPlant * ((Number(c.ca_pct) || 0) / 100);
-      deliveredGramsPerPlant.Mg += gramsPerPlant * ((Number(c.mg_pct) || 0) / 100);
-    });
-  });
+    return `<div class="p-3 rounded-xl border ${cardBorder} space-y-1.5 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between gap-1">
+          <span class="font-extrabold text-slate-900">${LANG === "KN" ? iss.knTitle : iss.enTitle}</span>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${badgeCls}">${levelWord} • ${sc}%</span>
+        </div>
+        <div class="w-full bg-slate-200 rounded-full h-2 my-1.5 overflow-hidden">
+          <div class="${barCls} h-2 rounded-full" style="width:${sc}%"></div>
+        </div>
+        <div class="text-[11px] text-slate-600">${LANG === "KN" ? rObj.whyKn : rObj.whyEn}</div>
+      </div>
+      <div class="pt-1.5 border-t border-slate-200/80 flex items-center justify-between gap-2">
+        <span class="text-[10px] text-slate-500 truncate">${LANG === "KN" ? iss.knDesc : iss.enDesc}</span>
+        <button onclick="addScoutingTask('${iss.code}')" class="shrink-0 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 font-bold px-2 py-1 rounded text-[10px] shadow-sm">
+          ➕ ${LANG === "KN" ? "ಸಿಂಪಡಣೆ ಸೇರಿಸಿ" : "Queue Spray"}
+        </button>
+      </div>
+    </div>`;
+  }).join("");
 
+  // Cumulative Elemental NPK-Ca-Mg Ledger
+  const deliveredGramsPerPlant = getCumulativeNutrientsPerPlant();
   const progressRatio = Math.min(1, Math.max(0.1, todayDad / 200));
   const seasonTargets = [
     { key: "N",  labelEn: "Nitrogen (N) — Vegetative & Early Sizing", labelKn: "ಸಾರಜನಕ (N) — ಆರಂಭಿಕ ಬೆಳವಣಿಗೆ", targetToDate: Math.round(65 * Math.min(1, todayDad / 140)), color: "bg-sky-600" },
@@ -788,8 +937,7 @@ function openRainModal() {
 async function saveFarmRain(mm, label) {
   const val = Math.max(0, Number(mm) || 0), tStr = todayYMD();
   farmRainToday = { log_date: tStr, rain_mm: val, rain_label: label, logged_by: activeUser };
-  wState.rain24 = val; wState.mode = "FARM_LOGGED";
-  wState.riskScore = computeDiseaseRiskScore(wState.rh72Avg, wState.tMax, wState.tMin, val, wState.prob4);
+  wState.rain24 = val; wState.rain72Sum = Math.max(val, wState.rain72Sum); wState.mode = "FARM_LOGGED";
   document.getElementById("rainModal").classList.add("hidden");
   updateWBar(); render();
   await dbMutate({ table: "farm_rain_logs", type: "upsert", payload: [farmRainToday] });
@@ -923,9 +1071,9 @@ async function loadDB() {
         target_description_kn: q.custom_title_kn || ""
       };
     });
-    localStorage.setItem(`h_cache_v10_${APP_ENV}`, JSON.stringify({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList }));
+    localStorage.setItem(`h_cache_v11_${APP_ENV}`, JSON.stringify({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList }));
   } catch (e) {
-    const c = localStorage.getItem(`h_cache_v10_${APP_ENV}`);
+    const c = localStorage.getItem(`h_cache_v11_${APP_ENV}`);
     if (c) ({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList } = JSON.parse(c));
   }
   updateSyncBadge(); renderUserDropdown(); populateManualSelects(); populateBrandCheckerDropdowns();
@@ -1038,7 +1186,7 @@ function render() {
   const L = I18N[LANG];
   document.getElementById("langBtn").textContent = LANG === "EN" ? "ಕನ್ನಡ" : "English";
   [
-    "appTitle","appSub","btnLogRain","tabTasks","tabAnalytics","tabManual","tabShop","tabScout","gddCardTitle","riskCardTitle","npkLedgerTitle","npkLedgerSub",
+    "appTitle","appSub","btnLogRain","tabTasks","tabAnalytics","tabManual","tabShop","tabScout","gddCardTitle","riskCardTitle","riskCardSub","npkLedgerTitle","npkLedgerSub",
     "manTitle","lblManDate","lblManType","lblManCost","optFoliar","optCopper","optDrip","lblManChem1","lblManChem2","lblManNotes","lblManShift","btnSaveMan",
     "expTitle","shopTitle","shopSub","btnCopy","brandCheckerTitle","brandCheckerSub","scoutTitle","scoutSub","auditTitle","masterTitle","modalTitle","lblBrandSearch",
     "userModalTitle","delayModalTitle","lblQuickDelay","btnOrigDate","lblNewDate","lblCascadeMode","casAllTitle","casAllSub","casTrackTitle","casSingleTitle",
@@ -1069,8 +1217,19 @@ function render() {
     document.getElementById("dadTitle").textContent = `${dadStart}–${dadEnd} ${L.dadWord} • ${LANG === "KN" ? (STAGE_KN[rawStage] || rawStage) : rawStage}`;
   }
 
+  // Dynamic Alerts from all 6 risk models
+  const risks = computeAllSixRisks();
   const dad1 = curWk === 0 ? -10 : (curWk - 1) * 7, al = [];
-  if (wState.riskScore >= 65) al.push({ c: "bg-rose-50 border-rose-300 text-rose-950", t: LANG === "KN" ? `🦠 72ಗಂ ರೋಗ ಅಪಾಯ ಸೂಚ್ಯಂಕ ಗರಿಷ್ಠವಾಗಿದೆ (${wState.riskScore}/100)` : `🦠 72-Hour Disease Infection Index is HIGH (${wState.riskScore}/100)`, d: LANG === "KN" ? "ಹೆಚ್ಚಿನ ತೇವಾಂಶ ಮತ್ತು ಉಷ್ಣಾಂಶದಿಂದಾಗಿ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಅಂಗಮಾರಿ ಹರಡುವ ಸಾಧ್ಯತೆ ಇದೆ. ಸಿಂಪಡಣೆ ಅಂತರವನ್ನು 4–5 ದಿನಕ್ಕೆ ಇಳಿಸಿ." : "High rolling humidity & warm temps favor Bacterial Blight spread. Tighten bactericide/fungicide intervals to 4–5 days." });
+  SCOUT_ISSUES.forEach(iss => {
+    const rObj = risks[iss.code];
+    if (rObj && rObj.score >= 65) {
+      al.push({
+        c: "bg-rose-50 border-rose-300 text-rose-950",
+        t: LANG === "KN" ? `🚨 ಹೆಚ್ಚಿನ ಅಪಾಯ ಎಚ್ಚರಿಕೆ: ${iss.knTitle} (${rObj.score}%)` : `🚨 High Risk Alert: ${iss.enTitle} (${rObj.score}%)`,
+        d: LANG === "KN" ? `${rObj.whyKn} — ಶಿಫಾರಸು: ${iss.knDesc}` : `${rObj.whyEn} — Recommended: ${iss.enDesc}`
+      });
+    }
+  });
   if (wState.rain24 > 15) al.push({ c: "bg-red-50 border-red-300 text-red-900", t: LANG === "KN" ? `🌧️ ತುರ್ತು ಮಳೆ ಎಚ್ಚರಿಕೆ (${wState.rain24} ಮಿ.ಮೀ ಮಳೆ)` : `🌧️ Heavy Rain Override (${wState.rain24}mm in 24h)`, d: LANG === "KN" ? "ಮುಂದಿನ 48 ಗಂಟೆ ಡ್ರಿಪ್ ಗೊಬ್ಬರ ನಿಲ್ಲಿಸಿ. ಎಲೆ ಒಣಗಿದ ತಕ್ಷಣ ಪ್ರತ್ಯೇಕ ಕಾಪರ್ + ಬ್ರೊನೊಪಾಲ್ ಸಿಂಪಡಿಸಿ." : "Pause drip fertigation for 48 hrs. Spray Standalone Copper (300g/drum) + Bronopol (100g/drum) once foliage dries." });
   if (wState.prob4 > 60) al.push({ c: "bg-amber-50 border-amber-300 text-amber-900", t: LANG === "KN" ? "⛈️ ಸಿಂಪಡಣೆ ತಡೆಹಿಡಿಯಿರಿ (4 ಗಂಟೆಯಲ್ಲಿ ಮಳೆ ಸಾಧ್ಯತೆ >60%)" : "⛈️ Spray Hold (>60% Rain Prob in next 4h)", d: LANG === "KN" ? "ಈಗ ಎಲೆ ಸಿಂಪಡಣೆ ಮಾಡಬೇಡಿ. ಮುಂದಿನ ಶುಭ್ರ ಬೆಳಿಗ್ಗೆ ಸಿಂಪಡಿಸಿ." : "Hold foliar spray now to prevent wash-off; shift to next clear morning." });
   document.getElementById("alertsBox").innerHTML = al.map(a => `<div class="p-3 rounded-xl border ${a.c} text-xs"><div class="font-bold">${a.t}</div><div>${a.d}</div></div>`).join("");
@@ -1188,11 +1347,20 @@ function render() {
     </div>`;
   }).join("") || `<div class="py-3 text-xs text-slate-500">${LANG === "KN" ? "ಈ ವಾರ ಯಾವುದೇ ಖರೀದಿ ಅಗತ್ಯವಿಲ್ಲ." : "No pending inputs needed for this week."}</div>`;
 
-  document.getElementById("scoutGrid").innerHTML = SCOUT_ISSUES.map(iss => `
-    <button onclick="addScoutingTask('${iss.code}')" class="p-3 rounded-xl border bg-rose-50/70 border-rose-200 text-rose-950 text-left shadow-sm">
-      <div class="font-extrabold">${LANG === "KN" ? iss.knTitle : iss.enTitle}</div>
-      <div class="font-normal text-[11px] text-rose-800 mt-0.5">${LANG === "KN" ? iss.knDesc : iss.enDesc}</div>
-    </button>`).join("");
+  // Render Scouting Grid with Live Risk % Badges on all 6 buttons!
+  document.getElementById("scoutGrid").innerHTML = SCOUT_ISSUES.map(iss => {
+    const rObj = risks[iss.code] || { score: 20, whyEn: "", whyKn: "" };
+    const sc = rObj.score;
+    const badgeCls = sc >= 65 ? "bg-red-600 text-white" : sc >= 40 ? "bg-amber-400 text-slate-950" : "bg-emerald-600 text-white";
+    return `<button onclick="addScoutingTask('${iss.code}')" class="p-3 rounded-xl border bg-rose-50/70 hover:bg-rose-100 border-rose-200 text-rose-950 text-left shadow-sm flex flex-col justify-between gap-1">
+      <div class="w-full flex items-center justify-between gap-1">
+        <span class="font-extrabold">${LANG === "KN" ? iss.knTitle : iss.enTitle}</span>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${badgeCls}">Risk: ${sc}%</span>
+      </div>
+      <div class="font-normal text-[11px] text-rose-800">${LANG === "KN" ? iss.knDesc : iss.enDesc}</div>
+      <div class="font-normal text-[10px] text-slate-500 border-t border-rose-200/60 pt-1 w-full">${LANG === "KN" ? rObj.whyKn : rObj.whyEn}</div>
+    </button>`;
+  }).join("");
 
   document.getElementById("auditLogBox").innerHTML = auditLogs.map(a => {
     const dt = new Date(a.created_at).toLocaleString(loc, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
