@@ -65,8 +65,8 @@
   <main class="max-w-4xl mx-auto px-3 pt-3">
     <div class="bg-white rounded-xl p-3 mb-3 shadow-sm border flex flex-wrap items-center justify-between gap-2">
       <div>
-        <div id="wkTitle" class="font-extrabold text-base">Week 10</div>
-        <div id="dadTitle" class="text-xs text-emerald-700 font-semibold">63–69 DAD</div>
+        <div id="wkTitle" class="font-extrabold text-base">Week 11</div>
+        <div id="dadTitle" class="text-xs text-emerald-700 font-semibold">70–76 DAD</div>
       </div>
       <div class="flex items-center gap-1.5">
         <button onclick="stepWeek(-1)" class="bg-slate-100 px-3 py-1.5 rounded-lg font-bold text-sm">◀</button>
@@ -151,6 +151,18 @@
           <button onclick="openNewChemModal()" class="mt-1 bg-amber-400 text-slate-950 font-extrabold px-3 py-1 rounded-lg">➕ Add New Store Chemical</button>
         </div>
       </div>
+
+      <!-- STANDALONE STORE BRAND & TANK-MIX CHECKER -->
+      <div class="bg-white rounded-xl p-4 shadow-sm border space-y-2.5">
+        <h2 class="font-extrabold text-sm text-slate-900" id="ui_brandCheckerTitle">🧪 Agro-Store Brand &amp; Tank-Mix Compatibility Checker</h2>
+        <p class="text-xs text-slate-500" id="ui_brandCheckerSub">Dealer offering a brand at the counter? Select up to 2 brands below to check salt identity, 21-day repeat-spray resistance, and drum compatibility:</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <select id="checkerBrand1" onchange="runStandaloneBrandChecker()" class="border rounded-lg px-2.5 py-2 font-bold bg-slate-50"></select>
+          <select id="checkerBrand2" onchange="runStandaloneBrandChecker()" class="border rounded-lg px-2.5 py-2 font-bold bg-slate-50"></select>
+        </div>
+        <div id="standaloneCheckerResult" class="text-xs space-y-2"></div>
+      </div>
+
       <div class="bg-white rounded-xl p-4 shadow-sm border">
         <div class="flex items-center justify-between mb-3">
           <div>
@@ -194,18 +206,10 @@
         <button onclick="document.getElementById('rainModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
       </div>
       <p id="ui_rainModalSub" class="text-slate-600">Select how the orchard looked after rain, or enter exact mm:</p>
-      <button onclick="saveFarmRain(3,'Light Drizzle')" class="w-full p-2.5 rounded-xl border bg-sky-50 border-sky-200 text-left">
-        <div class="font-extrabold text-sky-950" id="ui_rn1">🌦️ Light Drizzle (~3 mm) — Top 1 cm damp, no drip pause</div>
-      </button>
-      <button onclick="saveFarmRain(10,'Moderate Rain')" class="w-full p-2.5 rounded-xl border bg-blue-50 border-blue-200 text-left">
-        <div class="font-extrabold text-blue-950" id="ui_rn2">🌧️ Moderate Rain (~10 mm) — Soil wet 3–4 inches deep</div>
-      </button>
-      <button onclick="saveFarmRain(20,'Heavy Downpour')" class="w-full p-2.5 rounded-xl border-2 bg-indigo-50 border-indigo-300 text-left">
-        <div class="font-extrabold text-indigo-950" id="ui_rn3">⛈️ Heavy Downpour (~20 mm) — Water in furrows (Pause drip 48h + Copper)</div>
-      </button>
-      <button onclick="saveFarmRain(35,'Very Heavy Storm')" class="w-full p-2.5 rounded-xl border-2 bg-rose-50 border-rose-300 text-left">
-        <div class="font-extrabold text-rose-950" id="ui_rn4">🌊 Very Heavy Storm (~35 mm) — Standing water near bunds/trunks</div>
-      </button>
+      <button onclick="saveFarmRain(3,'Light Drizzle')" class="w-full p-2.5 rounded-xl border bg-sky-50 border-sky-200 text-left"><div class="font-extrabold text-sky-950" id="ui_rn1">🌦️ Light Drizzle (~3 mm) — Top 1 cm damp, no drip pause</div></button>
+      <button onclick="saveFarmRain(10,'Moderate Rain')" class="w-full p-2.5 rounded-xl border bg-blue-50 border-blue-200 text-left"><div class="font-extrabold text-blue-950" id="ui_rn2">🌧️ Moderate Rain (~10 mm) — Soil wet 3–4 inches deep</div></button>
+      <button onclick="saveFarmRain(20,'Heavy Downpour')" class="w-full p-2.5 rounded-xl border-2 bg-indigo-50 border-indigo-300 text-left"><div class="font-extrabold text-indigo-950" id="ui_rn3">⛈️ Heavy Downpour (~20 mm) — Water in furrows (Pause drip 48h + Copper)</div></button>
+      <button onclick="saveFarmRain(35,'Very Heavy Storm')" class="w-full p-2.5 rounded-xl border-2 bg-rose-50 border-rose-300 text-left"><div class="font-extrabold text-rose-950" id="ui_rn4">🌊 Very Heavy Storm (~35 mm) — Standing water near bunds/trunks</div></button>
       <div class="pt-2 border-t flex items-center gap-2">
         <span class="font-bold text-slate-700">Exact (mm):</span>
         <input type="number" step="0.5" min="0" id="customRainMm" placeholder="e.g., 18" class="w-20 border rounded-lg px-2 py-1.5 font-bold" />
@@ -222,20 +226,17 @@
         <h3 class="font-extrabold text-base text-slate-900">➕ Add New Store Chemical / Fertilizer</h3>
         <button onclick="document.getElementById('newChemModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
       </div>
-      <input type="text" id="ncNameEn" placeholder="Brand / Chemical Name in English (e.g., Solomon)" class="w-full border rounded-lg px-2.5 py-2 font-semibold" />
-      <input type="text" id="ncNameKn" placeholder="Name in Kannada (ಉದಾ: ಸೊಲೊಮನ್ - ಐಚ್ಛಿಕ)" class="w-full border rounded-lg px-2.5 py-2" />
+      <input type="text" id="ncNameEn" placeholder="Brand / Chemical Name in English" class="w-full border rounded-lg px-2.5 py-2 font-semibold" />
+      <input type="text" id="ncNameKn" placeholder="Name in Kannada (ಐಚ್ಛಿಕ)" class="w-full border rounded-lg px-2.5 py-2" />
       <input type="text" id="ncSalt" placeholder="Active Ingredient / Salt Name" class="w-full border rounded-lg px-2.5 py-2" />
       <div class="grid grid-cols-2 gap-2">
         <select id="ncCat" class="border rounded-lg px-2 py-2 font-semibold">
-          <option value="INSECTICIDE">Insecticide (ಕೀಟನಾಶಕ)</option>
-          <option value="FUNGICIDE">Fungicide (ಶಿಲೀಂಧ್ರನಾಶಕ)</option>
-          <option value="BACTERICIDE">Bactericide (ಬ್ಯಾಕ್ಟೀರಿಯಾ)</option>
-          <option value="FERTIGATION">Drip Fertilizer (ಗೊಬ್ಬರ)</option>
+          <option value="INSECTICIDE">Insecticide (ಕೀಟನಾಶಕ)</option><option value="FUNGICIDE">Fungicide (ಶಿಲೀಂಧ್ರನಾಶಕ)</option>
+          <option value="BACTERICIDE">Bactericide (ಬ್ಯಾಕ್ಟೀರಿಯಾ)</option><option value="FERTIGATION">Drip Fertilizer (ಗೊಬ್ಬರ)</option>
           <option value="BIOSTIMULANT">Micronutrient / Bio</option>
         </select>
         <select id="ncMethod" class="border rounded-lg px-2 py-2 font-semibold">
-          <option value="FOLIAR">🌿 Foliar (per Liter)</option>
-          <option value="DRIP">💧 Drip (per Acre)</option>
+          <option value="FOLIAR">🌿 Foliar (per Liter)</option><option value="DRIP">💧 Drip (per Acre)</option>
         </select>
       </div>
       <div class="grid grid-cols-2 gap-2">
@@ -305,15 +306,23 @@
     </div>
   </div>
 
-  <!-- STORE COUNTER MODAL -->
+  <!-- 4-CHECK STORE COUNTER BRAND VALIDATOR & SWAP MODAL -->
   <div id="swapModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-4 max-h-[85vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b pb-2 mb-3">
-        <h3 id="ui_modalTitle" class="font-bold text-base">🏪 Agro-Store Counter Helper</h3>
+    <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-3 text-xs">
+      <div class="flex items-center justify-between border-b pb-2">
+        <h3 id="ui_modalTitle" class="font-extrabold text-base text-slate-900">🏪 4-Check Agro-Store Brand Validator</h3>
         <button onclick="document.getElementById('swapModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
       </div>
-      <div id="swapModalContent" class="space-y-2.5 text-xs"></div>
-      <button onclick="document.getElementById('swapModal').classList.add('hidden');openNewChemModal();" class="mt-3 w-full bg-indigo-50 border border-indigo-200 text-indigo-900 font-bold py-2 rounded-lg text-xs">➕ Add New Store Chemical</button>
+
+      <!-- SEARCH ANY STORE BRAND TO VALIDATE -->
+      <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2">
+        <label class="font-extrabold text-indigo-950 block" id="ui_lblBrandSearch">🔍 What brand did the store dealer offer you?</label>
+        <select id="modalBrandSelect" onchange="evaluateDealerBrandInModal()" class="w-full border border-indigo-300 rounded-lg px-2.5 py-2 font-bold text-slate-900 bg-white"></select>
+        <div id="modalBrandAuditResult" class="space-y-1.5"></div>
+      </div>
+
+      <div id="swapModalContent" class="space-y-2"></div>
+      <button onclick="document.getElementById('swapModal').classList.add('hidden');openNewChemModal();" class="w-full bg-slate-100 border border-slate-300 text-slate-800 font-bold py-2 rounded-lg text-xs">➕ Brand not in list? Add New Store Chemical</button>
     </div>
   </div>
 
@@ -340,10 +349,11 @@ let APP_ENV = localStorage.getItem("h_env") || "PROD";
 let LANG = localStorage.getItem("h_lang") || "EN";
 let activeUser = localStorage.getItem("h_user") || "Vishwanath";
 let usersList = [{ id: 1, name: "Vishwanath" }];
-let curWk = 10, catalog = {}, subs = [], leftovers = {}, tasks = [], templates = [], auditLogs = [];
+let curWk = 11, catalog = {}, subs = [], brandsDir = [], leftovers = {}, tasks = [], templates = [], auditLogs = [];
 let farmRainToday = null;
 let wState = { tempNow: 29.0, humidity: 58, rain24: 0, prob4: 0, tMax: 30.5, tMin: 18.2, updatedAt: "", mode: "LIVE" };
 let activeDelayTaskId = null;
+let activeSwapContext = { taskId: null, itemIdx: null, primaryInputId: null };
 
 function parseYMD(s) { const [y, m, d] = (s || "2026-10-18").split("-").map(Number); return Date.UTC(y, m - 1, d); }
 function addDaysYMD(s, days) { return new Date(parseYMD(s) + Math.round(days) * 86400000).toISOString().split("T")[0]; }
@@ -360,6 +370,67 @@ function formatDateWithWeekday(s) {
   return new Date(y, m - 1, d).toLocaleDateString(LANG === "KN" ? "kn-IN" : "en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
 }
 
+// ============================================================================
+// ICAR-NRCP / HAIFA TANK-MIX COMPATIBILITY & W-A-L-E-S MIXING ORDER ENGINE
+// ============================================================================
+const WALES_ORDER = {
+  WSF: { step: 1, tagEn: "1st (Dissolve Water-Soluble Powder)", tagKn: "1ನೇ (ನೀರಿನಲ್ಲಿ ಕರಗುವ ಪೌಡರ್)" },
+  DF:  { step: 1, tagEn: "1st (Dry Flowable Granules)", tagKn: "1ನೇ (ಹರಳು/ಪೌಡರ್ - DF)" },
+  WG:  { step: 1, tagEn: "1st (Wettable Granules - WG)", tagKn: "1ನೇ (ನೀರಿನಲ್ಲಿ ಕರಗುವ ಹರಳು - WG)" },
+  WP:  { step: 1, tagEn: "1st (Wettable Powder - WP)", tagKn: "1ನೇ (ಪೌಡರ್ - WP)" },
+  SP:  { step: 2, tagEn: "2nd (Soluble Powder - SP)", tagKn: "2ನೇ (ಕರಗುವ ಪೌಡರ್ - SP)" },
+  SC:  { step: 3, tagEn: "3rd (Suspension Concentrate - SC)", tagKn: "3ನೇ (ದ್ರಾವಣ - SC)" },
+  OD:  { step: 3, tagEn: "3rd (Oil Dispersion - OD)", tagKn: "3ನೇ (ಎಣ್ಣೆ ಆಧಾರಿತ ದ್ರಾವಣ - OD)" },
+  SL:  { step: 3, tagEn: "3rd (Soluble Liquid - SL)", tagKn: "3ನೇ (ದ್ರಾವಣ - SL)" },
+  EC:  { step: 4, tagEn: "4th / Last (Emulsifiable Concentrate - EC)", tagKn: "4ನೇ / ಕೊನೆಯಲ್ಲಿ (EC ದ್ರಾವಣ)" }
+};
+
+function checkPairCompatibility(catA, catB) {
+  if (!catA || !catB || catA.id === catB.id) return { ok: true };
+  // Rule 1 & 2: Copper incompatibility
+  if ((catA.is_copper_compound && catB.incompatible_with_copper) || (catB.is_copper_compound && catA.incompatible_with_copper)) {
+    return {
+      ok: false,
+      reasonEn: `❌ INCOMPATIBLE MIX: ${catA.name_en} and ${catB.name_en} cannot be mixed in the same drum! Copper reacts with Captan, insecticides, chelates, and bio-sprays causing fruit scorching or chemical breakdown.`,
+      reasonKn: `❌ ಬೆರೆಸಬೇಡಿ (Incompatible): ${catA.name_kn || catA.name_en} ಮತ್ತು ${catB.name_kn || catB.name_en} ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ಬೆರೆಸಬಾರದು! ಕಾಪರ್ ಜೊತೆ ಇದನ್ನು ಬೆರೆಸಿದರೆ ಹಣ್ಣಿನ ಸಿಪ್ಪೆ ಸುಡುತ್ತದೆ.`
+    };
+  }
+  // Rule 3 & 4: Calcium Nitrate + Sulphates or Phosphates
+  const isCaNitrateA = catA.id === "WSF_CALCIUM_NITRATE", isCaNitrateB = catB.id === "WSF_CALCIUM_NITRATE";
+  if ((isCaNitrateA && catB.incompatible_with_calcium) || (isCaNitrateB && catA.incompatible_with_calcium)) {
+    return {
+      ok: false,
+      reasonEn: `❌ DRIP PRECIPITATION LOCK: Calcium Nitrate cannot be mixed with ${isCaNitrateA ? catB.name_en : catA.name_en} (forms insoluble gypsum/phosphate sludge that blocks drip emitters).`,
+      reasonKn: `❌ ಡ್ರಿಪ್ ಎಚ್ಚರಿಕೆ: ಕ್ಯಾಲ್ಸಿಯಂ ನೈಟ್ರೇಟ್ ಜೊತೆ ${isCaNitrateA ? (catB.name_kn || catB.name_en) : (catA.name_kn || catA.name_en)} ಬೆರೆಸಬೇಡಿ (ಡ್ರಿಪ್ ಪೈಪ್ ಕಟ್ಟಿಕೊಳ್ಳುತ್ತದೆ).`
+    };
+  }
+  // Rule 5: Chlorothalonil (Kavach) or Captan + EC Insecticide caution
+  if (((catA.id === "FUN_CHLOROTHALONIL" || catA.id === "FUN_CAPTAF") && catB.formulation_type === "EC") ||
+      ((catB.id === "FUN_CHLOROTHALONIL" || catB.id === "FUN_CAPTAF") && catA.formulation_type === "EC")) {
+    return {
+      ok: true,
+      cautionEn: `⚠️ EC + WP Caution: Mixing ${catA.name_en} with an EC liquid (${catB.name_en}) in hot weather (>31°C) can burn fruit skin. Dissolve WP powder first, add EC last, do NOT add silicone spreader, and spray before 9:30 AM.`,
+      cautionKn: `⚠️ ಎಚ್ಚರಿಕೆ: ಪೌಡರ್ ಮತ್ತು EC ದ್ರಾವಣ ಬೆರೆಸುವಾಗ ಬಿಸಿಲಿನಲ್ಲಿ (>31°C) ಸಿಂಪಡಿಸಬೇಡಿ. ಮೊದಲು ಪೌಡರ್ ಕರಗಿಸಿ, ಕೊನೆಯಲ್ಲಿ EC ಹಾಕಿ, ಬೆಳಿಗ್ಗೆ 9:30 ರೊಳಗೆ ಸಿಂಪಡಿಸಿ.`
+    };
+  }
+  return { ok: true };
+}
+
+function getWalesMixingGuide(recipeItems) {
+  if (!recipeItems || recipeItems.length < 2) return "";
+  const sorted = [...recipeItems].map(r => catalog[r.input_id]).filter(Boolean).sort((a, b) => {
+    const sA = WALES_ORDER[a.formulation_type || "SC"]?.step || 3;
+    const sB = WALES_ORDER[b.formulation_type || "SC"]?.step || 3;
+    return sA - sB;
+  });
+  const steps = sorted.map((c, i) => {
+    const nm = LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en;
+    const fType = c.formulation_type || "SC";
+    return `<b>${i + 1}.</b> ${nm} <span class="text-slate-500">[${fType}]</span>`;
+  }).join(" → ");
+  return LANG === "KN" ? `🪣 <b>ಡ್ರಮ್ ಬೆರೆಸುವ ಕ್ರಮ (W-A-L-E-S):</b> ${steps}` : `🪣 <b>Drum Mixing Order (W-A-L-E-S):</b> ${steps}`;
+}
+
 const I18N = {
   EN: {
     appTitle: "🍎 Hosahalli Pomegranate Tracker", appSub: "3 Acres • 1,500 Plants (10×8) • Wk 1 (Ethrel): 15 Aug 2026",
@@ -369,9 +440,11 @@ const I18N = {
     lblManChem1: "Primary Input:", lblManChem2: "Second Input (Optional):", lblManNotes: "Notes / Brand Used:",
     lblManShift: "Auto-adjust future schedule (+3d shift, 5d Copper cooldown, 10d Boron lock & IRAC/FRAC rotation)", btnSaveMan: "💾 Save Activity & Update Schedule",
     expTitle: "💰 Total Recorded Orchard Spend (3 Acres)", shopTitle: "Agro-Store Shopping List (3 Acres)", shopSub: "Skipped and completed items are excluded. Enter shed leftovers below.", btnCopy: "📲 Copy List",
+    brandCheckerTitle: "🧪 Agro-Store Brand & Tank-Mix Compatibility Checker",
+    brandCheckerSub: "Dealer offering a brand at the counter? Select 1 or 2 brands below to verify active salt, 21-day repeat-spray resistance, and drum mixing order:",
     scoutTitle: "🔍 1-Tap Field Problem Reporter", scoutSub: "Confirms before adding a weather-smart spray card to your schedule (deletable anytime).",
     auditTitle: "👤 Recent Activity & User Tracking Log", masterTitle: "📅 Complete Orchard Schedule (Week 0 to Week 30)",
-    modalTitle: "🏪 Agro-Store Counter Helper", userModalTitle: "👤 Manage App Users",
+    modalTitle: "🏪 4-Check Agro-Store Brand Validator", lblBrandSearch: "🔍 What brand did the store dealer offer you?", userModalTitle: "👤 Manage App Users",
     delayModalTitle: "⏳ Delay / Reschedule Task", lblQuickDelay: "1. Shift Earlier (-), Later (+) or Pick Date:", btnOrigDate: "↺ Original Date", lblNewDate: "New Date:",
     lblCascadeMode: "2. How should subsequent tasks update?",
     casAllTitle: "🌊 Shift ALL subsequent tasks forward/backward (Recommended)", casAllSub: "Moves all following Sprays and Drips by the exact same days.",
@@ -382,7 +455,7 @@ const I18N = {
     rn1: "🌦️ Light Drizzle (~3 mm) — Top 1 cm damp, no drip pause", rn2: "🌧️ Moderate Rain (~10 mm) — Soil wet 3–4 inches deep",
     rn3: "⛈️ Heavy Downpour (~20 mm) — Water in furrows (Pause drip 48h + Copper)", rn4: "🌊 Very Heavy Storm (~35 mm) — Standing water near bunds",
     weekWord: "Week", preEthrelLabel: "📜 Week 0: Pre-Ethrel History (Before 15 Aug 2026)", dadWord: "DAD",
-    doneBtn: "✅ All Done", delayBtn: "⏳ Delay / Move", skipBtn: "⏭️ Skip All", resetBtn: "↺ Reset", deleteBtn: "🗑️ Delete", storeOutBtn: "🏪 Swap",
+    doneBtn: "✅ All Done", delayBtn: "⏳ Delay / Move", skipBtn: "⏭️ Skip All", resetBtn: "↺ Reset", deleteBtn: "🗑️ Delete", storeOutBtn: "🏪 Swap / Brand",
     mustSource: "🔴 Must Source Exact", flexible: "🟢 Store Flexible",
     status_PENDING: "🕒 Pending", status_PARTIAL: "🌗 Partial Done", status_COMPLETED: "✅ Completed", status_DELAYED: "⏳ Rescheduled", status_SKIPPED: "⏭️ Skipped",
     type_DRIP_MON_THU: "💧 Main P-K Split Drip (3 Acres)", type_DRIP_SAT: "💧 Calcium / Micro Standalone Drip (3 Acres)",
@@ -397,9 +470,11 @@ const I18N = {
     lblManChem1: "ಮೊದಲನೇ ಔಷಧಿ / ಗೊಬ್ಬರ:", lblManChem2: "ಎರಡನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಐಚ್ಛಿಕ):", lblManNotes: "ವಿವರ / ಕಂಪನಿ ಹೆಸರು:",
     lblManShift: "ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸಿ (+3 ದಿನ ಮುಂದೂಡಿಕೆ, 5 ದಿನ ಕಾಪರ್ ಅಂತರ, ಬೋರಾನ್ ಮಿತಿ)", btnSaveMan: "💾 ದಾಖಲಿಸಿ ಮತ್ತು ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ",
     expTitle: "💰 ಒಟ್ಟು ದಾಖಲಾದ ತೋಟದ ಖರ್ಚು (3 ಎಕರೆ)", shopTitle: "ಅಗ್ರೋ ಅಂಗಡಿ ಖರೀದಿ ಪಟ್ಟಿ (3 ಎಕರೆ)", shopSub: "ಪೂರ್ಣಗೊಂಡ ಮತ್ತು ಬಿಟ್ಟುಬಿಟ್ಟ ಔಷಧಿಗಳನ್ನು ಕೈಬಿಡಲಾಗಿದೆ. ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣ ನಮೂದಿಸಿ.", btnCopy: "📲 ಪಟ್ಟಿ ಕಾಪಿ ಮಾಡಿ",
+    brandCheckerTitle: "🧪 ಅಗ್ರೋ ಅಂಗಡಿ ಕಂಪನಿ ಹೆಸರು & ಮಿಶ್ರಣ ಪರೀಕ್ಷಕ (Brand Checker)",
+    brandCheckerSub: "ಅಂಗಡಿಯವರು ಕೊಡುವ ಕಂಪನಿ ಹೆಸರನ್ನು ಕೆಳಗೆ ಆರಿಸಿ — ಅದರ ಒಳಗಿರುವ ಲವಣಾಂಶ, ಹಿಂದಿನ 21 ದಿನಗಳಲ್ಲಿ ಸಿಂಪಡಿಸಿದೆಯೇ ಮತ್ತು ಒಟ್ಟಿಗೆ ಬೆರೆಸಬಹುದೇ ಎಂದು ತಕ್ಷಣ ತಿಳಿಯಿರಿ:",
     scoutTitle: "🔍 ತೋಟದ ರೋಗ / ಕೀಟ ವರದಿ ಮಾಡಿ", scoutSub: "ಕೆಳಗಿನ ಸಮಸ್ಯೆ ಒತ್ತಿರಿ. ದೃಢೀಕರಿಸಿದ ನಂತರ ಹವಾಮಾನ ಪರಿಶೀಲಿಸಿ ನಿಮ್ಮ ವೇಳಾಪಟ್ಟಿಗೆ ಸಿಂಪಡಣೆ ಸೇರಿಸುತ್ತದೆ.",
     auditTitle: "👤 ಯಾರು, ಯಾವಾಗ ಬದಲಾವಣೆ ಮಾಡಿದರು (ದಾಖಲೆ ಪಟ್ಟಿ)", masterTitle: "📅 ಪೂರ್ಣ ವೇಳಾಪಟ್ಟಿ (ವಾರ 0 ರಿಂದ ವಾರ 30 ರವರೆಗೆ)",
-    modalTitle: "🏪 ಅಗ್ರೋ ಅಂಗಡಿ ಪರ್ಯಾಯ ಔಷಧಿ ಸಹಾಯಕ", userModalTitle: "👤 ಬಳಕೆದಾರರ ಹೆಸರು ನಿರ್ವಹಿಸಿ",
+    modalTitle: "🏪 ಅಗ್ರೋ ಅಂಗಡಿ ಕಂಪನಿ ಹೆಸರು & ಪರ್ಯಾಯ ಪರೀಕ್ಷಕ", lblBrandSearch: "🔍 ಅಂಗಡಿಯವರು ಯಾವ ಕಂಪನಿಯ ಔಷಧಿ ಕೊಡುತ್ತಿದ್ದಾರೆ?", userModalTitle: "👤 ಬಳಕೆದಾರರ ಹೆಸರು ನಿರ್ವಹಿಸಿ",
     delayModalTitle: "⏳ ದಿನಾಂಕ ಬದಲಿಸಿ / ಮುಂದೂಡಿ", lblQuickDelay: "1. ದಿನಗಳನ್ನು ಹಿಂದೆ (-) / ಮುಂದೆ (+) ಮಾಡಿ ಅಥವಾ ದಿನಾಂಕ ಆರಿಸಿ:", btnOrigDate: "↺ ಮೂಲ ದಿನಾಂಕಕ್ಕೆ ತನ್ನಿ", lblNewDate: "ಹೊಸ ದಿನಾಂಕ:",
     lblCascadeMode: "2. ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಹೇಗೆ ಬದಲಾಗಬೇಕು?",
     casAllTitle: "🌊 ಮುಂದಿನ ಎಲ್ಲಾ ಸಿಂಪಡಣೆ ಮತ್ತು ಡ್ರಿಪ್ ಒಟ್ಟಿಗೆ ಬದಲಿಸಿ (ಶಿಫಾರಸು)", casAllSub: "ಮುಂದಿನ ಎಲ್ಲಾ ಕೆಲಸಗಳೂ ಅಷ್ಟೇ ದಿನ ಮುಂದೆ ಅಥವಾ ಹಿಂದೆ ಬರುತ್ತವೆ.",
@@ -410,7 +485,7 @@ const I18N = {
     rn1: "🌦️ ತುಂತುರು ಮಳೆ (~3 ಮಿ.ಮೀ) — ಮೇಲ್ಮಣ್ಣು ಮಾತ್ರ ಹಸಿ", rn2: "🌧️ ಸಾಧಾರಣ ಮಳೆ (~10 ಮಿ.ಮೀ) — 3–4 ಇಂಚು ಮಣ್ಣು ಹಸಿ",
     rn3: "⛈️ ಜೋರು ಮಳೆ (~20 ಮಿ.ಮೀ) — ಸಾಲುಗಳಲ್ಲಿ ನೀರು ಹರಿದಿದೆ (48ಗಂ ಡ್ರಿಪ್ ನಿಲ್ಲಿಸಿ + ಕಾಪರ್)", rn4: "🌊 ಭಾರಿ ಮಳೆ (~35 ಮಿ.ಮೀ) — ಗಿಡದ ಬುಡದಲ್ಲಿ ನೀರು ನಿಂತಿದೆ",
     weekWord: "ವಾರ", preEthrelLabel: "📜 ವಾರ 0: ಎಥ್ರೆಲ್ ಮುಂಚಿನ ದಾಖಲೆಗಳು (15 ಆಗಸ್ಟ್ 2026 ಕ್ಕಿಂತ ಮೊದಲು)", dadWord: "ದಿನ (DAD)",
-    doneBtn: "✅ ಎಲ್ಲಾ ಪೂರ್ಣ", delayBtn: "⏳ ದಿನಾಂಕ ಬದಲಿಸಿ", skipBtn: "⏭️ ಬಿಟ್ಟುಬಿಡಿ", resetBtn: "↺ ಮರುಹೊಂದಿಸಿ", deleteBtn: "🗑️ ಅಳಿಸಿ", storeOutBtn: "🏪 ಬದಲಿಸಿ",
+    doneBtn: "✅ ಎಲ್ಲಾ ಪೂರ್ಣ", delayBtn: "⏳ ದಿನಾಂಕ ಬದಲಿಸಿ", skipBtn: "⏭️ ಬಿಟ್ಟುಬಿಡಿ", resetBtn: "↺ ಮರುಹೊಂದಿಸಿ", deleteBtn: "🗑️ ಅಳಿಸಿ", storeOutBtn: "🏪 ಬದಲಿಸಿ / ಕಂಪನಿ",
     mustSource: "🔴 ಇದೇ ಔಷಧಿ ಕಡ್ಡಾಯ", flexible: "🟢 ಬದಲಿಸಬಹುದು",
     status_PENDING: "🕒 ಬಾಕಿ ಇದೆ", status_PARTIAL: "🌗 ಅರ್ಧ ಪೂರ್ಣಗೊಂಡಿದೆ", status_COMPLETED: "✅ ಪೂರ್ಣಗೊಂಡಿದೆ", status_DELAYED: "⏳ ದಿನಾಂಕ ಬದಲಾಗಿದೆ", status_SKIPPED: "⏭️ ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ",
     type_DRIP_MON_THU: "💧 ಮುಖ್ಯ P-K ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)", type_DRIP_SAT: "💧 ಕ್ಯಾಲ್ಸಿಯಂ / ಲಘು ಪೋಷಕಾಂಶ ಡ್ರಿಪ್ (3 ಎಕರೆ)",
@@ -476,7 +551,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("envSelect").value = APP_ENV;
   applyEnvStyling();
   const todayDad = diffDaysYMD("2026-08-15", tStr);
-  curWk = (todayDad >= 0 && todayDad <= 220) ? Math.floor(todayDad / 7) + 1 : 10;
+  curWk = (todayDad >= 0 && todayDad <= 220) ? Math.floor(todayDad / 7) + 1 : 11;
   await loadWeather();
   setInterval(() => { if (wState.mode !== "SIM") loadWeather().then(render); }, 30 * 60 * 1000);
   await loadDB();
@@ -591,10 +666,11 @@ async function saveNewChemical() {
   const category = document.getElementById("ncCat").value, method = document.getElementById("ncMethod").value;
   const dose = Number(document.getElementById("ncDose").value) || 1.0, unit = document.getElementById("ncUnit").value;
   const id = "CUSTOM_" + nameEn.toUpperCase().replace(/[^A-Z0-9]/g, "_").slice(0, 16) + "_" + Math.floor(Math.random() * 90 + 10);
-  const newChem = { id, name_en: nameEn, name_kn: nameKn, category, active_ingredient: salt, popular_brands: nameEn, application_method: method, base_dose_per_liter: method === "FOLIAR" ? dose : null, base_dose_per_acre: method === "DRIP" ? dose : null, unit, standard_pack_sizes: "Store Pack", procurement_criticality: "FLEXIBLE", phi_days: 7, is_copper_compound: category === "BACTERICIDE" && salt.toLowerCase().includes("copper") };
+  const newChem = { id, name_en: nameEn, name_kn: nameKn, category, active_ingredient: salt, popular_brands: nameEn, application_method: method, base_dose_per_liter: method === "FOLIAR" ? dose : null, base_dose_per_acre: method === "DRIP" ? dose : null, unit, standard_pack_sizes: "Store Pack", procurement_criticality: "FLEXIBLE", phi_days: 7, is_copper_compound: category === "BACTERICIDE" && salt.toLowerCase().includes("copper"), formulation_type: unit === "g" ? "WP" : "SC" };
   catalog[id] = newChem;
+  brandsDir.push({ id: Date.now(), brand_name: nameEn, company_name: "Custom Store Brand", input_id: id, primary_use_en: category, primary_use_kn: category });
   document.getElementById("newChemModal").classList.add("hidden");
-  populateManualSelects(); render();
+  populateManualSelects(); populateBrandCheckerDropdowns(); render();
   await sb.from("inputs_catalog").insert([newChem]);
   await logAudit("NEW_CHEMICAL_ADDED", `${nameEn} (${salt})`, `${dose} ${unit} via ${method}`);
 }
@@ -652,8 +728,10 @@ async function clearCurrentEnvAuditLog() {
 async function loadDB() {
   const b = document.getElementById("syncBadge");
   try {
-    const [cR, sR, lR, qR, tR, aR, uR] = await Promise.all([
-      sb.from("inputs_catalog").select("*"), sb.from("substitution_rules").select("*"),
+    const [cR, sR, bR, lR, qR, tR, aR, uR] = await Promise.all([
+      sb.from("inputs_catalog").select("*"),
+      sb.from("substitution_rules").select("*"),
+      sb.from("commercial_brands_directory").select("*").order("brand_name", { ascending: true }),
       sb.from("shed_leftovers").select("*"),
       sb.from("daily_task_queue").select("*").eq("env", APP_ENV).order("current_scheduled_date", { ascending: true }),
       sb.from("baseline_schedule_template").select("*").order("id", { ascending: true }),
@@ -663,6 +741,7 @@ async function loadDB() {
     if (cR.error) throw cR.error;
     cR.data.forEach(x => catalog[x.id] = x);
     subs = sR.data || [];
+    brandsDir = bR.data || [];
     (lR.data || []).forEach(x => leftovers[x.input_id] = Number(x.leftover_qty));
     auditLogs = aR.data || []; templates = tR.data || [];
     if (uR.data && uR.data.length > 0) usersList = uR.data;
@@ -677,23 +756,99 @@ async function loadDB() {
         target_description_kn: q.custom_title_kn || ""
       };
     });
-    localStorage.setItem(`h_cache_v8_${APP_ENV}`, JSON.stringify({ catalog, subs, leftovers, tasks, templates, auditLogs, usersList }));
+    localStorage.setItem(`h_cache_v9_${APP_ENV}`, JSON.stringify({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList }));
     b.textContent = `🟢 ${APP_ENV}`;
   } catch (e) {
-    const c = localStorage.getItem(`h_cache_v8_${APP_ENV}`);
-    if (c) ({ catalog, subs, leftovers, tasks, templates, auditLogs, usersList } = JSON.parse(c));
+    const c = localStorage.getItem(`h_cache_v9_${APP_ENV}`);
+    if (c) ({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList } = JSON.parse(c));
     b.textContent = "🟠 Offline";
   }
-  renderUserDropdown(); populateManualSelects();
+  renderUserDropdown(); populateManualSelects(); populateBrandCheckerDropdowns();
 }
 
 function populateManualSelects() {
   const s1 = document.getElementById("manChem1"), s2 = document.getElementById("manChem2"); if (!s1 || !s2) return;
   const c1 = s1.value, c2 = s2.value;
-  const opts = Object.values(catalog).map(c => `<option value="${c.id}">${LANG === "KN" && c.name_kn ? c.name_kn : c.name_en} (${c.unit})</option>`).join("");
+  const opts = Object.values(catalog).map(c => `<option value="${c.id}">${LANG === "KN" && c.name_kn ? c.name_kn : c.name_en} (${c.popular_brands || c.unit})</option>`).join("");
   s1.innerHTML = opts; s2.innerHTML = `<option value="">-- ${LANG === "KN" ? "ಯಾವುದೂ ಇಲ್ಲ" : "None"} --</option>` + opts;
   if (c1) s1.value = c1; if (c2) s2.value = c2;
   prefillManualQty(1); prefillManualQty(2);
+}
+
+function populateBrandCheckerDropdowns() {
+  const b1 = document.getElementById("checkerBrand1"), b2 = document.getElementById("checkerBrand2");
+  if (!b1 || !b2) return;
+  const list = brandsDir.length > 0 ? brandsDir : Object.values(catalog).map(c => ({ brand_name: c.popular_brands || c.name_en, company_name: c.category, input_id: c.id, primary_use_en: c.active_ingredient, primary_use_kn: c.name_kn }));
+  const opts = list.map(b => `<option value="${b.input_id}">🏷️ ${b.brand_name} (${b.company_name}) — ${LANG === "KN" ? b.primary_use_kn : b.primary_use_en}</option>`).join("");
+  b1.innerHTML = `<option value="">-- ${LANG === "KN" ? "1ನೇ ಕಂಪನಿ ಹೆಸರು ಆರಿಸಿ" : "Select 1st Brand Name"} --</option>` + opts;
+  b2.innerHTML = `<option value="">-- ${LANG === "KN" ? "2ನೇ ಕಂಪನಿ ಹೆಸರು (ಬೆರೆಸಲು ಪರಿಶೀಲಿಸಿ)" : "Select 2nd Brand (Check Tank-Mix)"} --</option>` + opts;
+}
+
+// ============================================================================
+// 21-DAY REPEAT-SALT & IRAC/FRAC RESISTANCE DETECTOR
+// ============================================================================
+function checkRecentSprayResistance(inputId, refDateStr) {
+  const cat = catalog[inputId];
+  if (!cat) return null;
+  const recentCompleted = tasks.filter(t => t.status === "COMPLETED" && Math.abs(diffDaysYMD(t.current_scheduled_date, refDateStr)) <= 25);
+  for (const t of recentCompleted) {
+    for (const r of (t.resolved_recipe || [])) {
+      if (r.item_status === "SKIPPED") continue;
+      const pastCat = catalog[r.input_id];
+      if (!pastCat) continue;
+      if (pastCat.id === cat.id && cat.category !== "FERTIGATION" && cat.category !== "BIOSTIMULANT") {
+        return {
+          level: "EXACT_SALT",
+          msgEn: `⚠️ DUPLICATE SALT WARNING: You already sprayed this exact active chemical (${cat.active_ingredient}) on ${t.current_scheduled_date} (${t.target_description}). Repeating the same salt within 21 days builds pest/fungal resistance!`,
+          msgKn: `⚠️ ಒಂದೇ ಲವಣಾಂಶ ಎಚ್ಚರಿಕೆ: ನೀವು ಇದೇ ಲವಣಾಂಶವನ್ನು (${cat.active_ingredient}) ${t.current_scheduled_date} ರಂದು ಸಿಂಪಡಿಸಿದ್ದೀರಿ! ಪದೇ ಪದೇ ಒಂದೇ ಲವಣಾಂಶ ಬಳಸಿದರೆ ಕೀಟ/ರೋಗ ನಿಯಂತ್ರಣಕ್ಕೆ ಬರುವುದಿಲ್ಲ.`
+        };
+      }
+      if (cat.irac_frac_group && pastCat.irac_frac_group === cat.irac_frac_group && cat.irac_frac_group !== "FRAC-M01" && cat.irac_frac_group !== "FRAC-M03") {
+        return {
+          level: "SAME_GROUP",
+          msgEn: `⚠️ RESISTANCE GROUP ROTATION ALERT: ${cat.name_en} belongs to group ${cat.irac_frac_group}, which was recently sprayed on ${t.current_scheduled_date} (${pastCat.name_en}). Consider rotating to a different group.`,
+          msgKn: `⚠️ ಗುಂಪು ಬದಲಾವಣೆ ಸಲಹೆ: ಇದು ${cat.irac_frac_group} ಗುಂಪಿಗೆ ಸೇರಿದೆ (${t.current_scheduled_date} ರಂದು ಬಳಸಲಾಗಿದೆ). ಸಾಧ್ಯವಾದರೆ ಬೇರೆ ಗುಂಪಿನ ಔಷಧಿ ಬಳಸಿ.`
+        };
+      }
+    }
+  }
+  return null;
+}
+
+function runStandaloneBrandChecker() {
+  const id1 = document.getElementById("checkerBrand1").value;
+  const id2 = document.getElementById("checkerBrand2").value;
+  const out = document.getElementById("standaloneCheckerResult");
+  if (!id1 && !id2) { out.innerHTML = ""; return; }
+
+  const htmlParts = [];
+  [id1, id2].filter(Boolean).forEach(id => {
+    const c = catalog[id]; if (!c) return;
+    const doseStr = c.base_dose_per_liter
+      ? `${Math.round(c.base_dose_per_liter * CFG.drumL)} ${c.unit} / 200L Drum (${Math.round(c.base_dose_per_liter * CFG.drumL * CFG.drums)} ${c.unit} for 3 Acres)`
+      : `${c.base_dose_per_acre} ${c.unit} / Acre (${(c.base_dose_per_acre * CFG.acres).toFixed(1)} ${c.unit} for 3 Acres)`;
+    const resWarn = checkRecentSprayResistance(id, todayYMD());
+    htmlParts.push(`
+      <div class="p-2.5 bg-slate-50 border rounded-lg">
+        <div class="font-extrabold text-slate-900">${LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en} <span class="text-emerald-700">[${c.category}]</span></div>
+        <div class="text-slate-600">🧪 <b>Active Salt:</b> ${c.active_ingredient} ${c.irac_frac_group ? `(${c.irac_frac_group})` : ""}</div>
+        <div class="text-slate-700">⚖️ <b>Calibrated Dose:</b> ${doseStr}</div>
+        ${c.dealer_warning_en ? `<div class="text-amber-800 mt-1">💡 ${c.dealer_warning_en}</div>` : ""}
+        ${resWarn ? `<div class="p-2 mt-1 bg-amber-100 border border-amber-300 text-amber-950 rounded font-bold">${LANG === "KN" ? resWarn.msgKn : resWarn.msgEn}</div>` : `<div class="text-emerald-700 font-bold mt-0.5">✅ No repeat-salt conflict in past 21 days.</div>`}
+      </div>
+    `);
+  });
+
+  if (id1 && id2) {
+    const comp = checkPairCompatibility(catalog[id1], catalog[id2]);
+    if (!comp.ok) {
+      htmlParts.push(`<div class="p-2.5 bg-red-100 border-2 border-red-400 text-red-950 rounded-lg font-extrabold">${LANG === "KN" ? comp.reasonKn : comp.reasonEn}</div>`);
+    } else {
+      const wales = getWalesMixingGuide([{ input_id: id1 }, { input_id: id2 }]);
+      htmlParts.push(`<div class="p-2.5 bg-emerald-50 border border-emerald-300 text-emerald-950 rounded-lg">✅ <b>Compatible Tank Mix!</b><br>${wales}${comp.cautionEn ? `<div class="mt-1 text-amber-900 font-semibold">${LANG === "KN" ? comp.cautionKn : comp.cautionEn}</div>` : ""}</div>`);
+    }
+  }
+  out.innerHTML = htmlParts.join("");
 }
 
 function prefillManualQty(slot) {
@@ -727,20 +882,10 @@ async function resetEntireScheduleToBaseline() {
   await Promise.all(baselineTasks.map(bt => {
     const tmpl = tMap[bt.template_id];
     let cleanRecipe = tmpl ? tmpl.recipe_items : bt.resolved_recipe, customEn = null, customKn = null;
-    if (bt.originally_scheduled_date === "2026-10-18" && bt.task_type === "DRIP_MON_THU") {
-      cleanRecipe = [{ input_id: "WSF_00_52_34", dose_per_acre: 2.0 }, { input_id: "WSF_13_00_45", dose_per_acre: 2.5 }];
-      customEn = "Main P-K Drip (Adjusted for Oct 15 C-Phos): 13:00:45 + Reduced MKP"; customKn = "ಮುಖ್ಯ P-K ಡ್ರಿಪ್ (ಅಕ್ಟೋಬರ್ 15ರ C-Phos ನಂತರ ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ)";
-    } else if (bt.originally_scheduled_date === "2026-10-20" && bt.task_type === "FOLIAR_SPRAY") {
-      cleanRecipe = [{ input_id: "INS_SPINETORAM", dose_per_liter: 0.8 }, { input_id: "FUN_DIFENOCONAZOLE", dose_per_liter: 0.5 }];
-      customEn = "Foliar Spray (Rotated after Oct 7 Exponus & Oct 12 Cabrio Top): Spinetoram + Difenoconazole"; customKn = "ಎಲೆ ಸಿಂಪಡಣೆ (ಅಕ್ಟೋಬರ್ 12ರ ಕ್ಯಾಬ್ರಿಟಾಪ್ ನಂತರ ಬದಲಾಯಿಸಿದ ಔಷಧಿ): ಸ್ಪೈನೆಟೊರಾಮ್ + ಡೈಫೆನೊಕೊನಜೋಲ್";
-    } else if (bt.originally_scheduled_date === "2026-10-23" && bt.task_type === "DRIP_SAT") {
-      cleanRecipe = [{ input_id: "WSF_CALCIUM_NITRATE", dose_per_acre: 2.5 }];
-      customEn = "Calcium Drip (Boron removed — applied on Oct 15): Calcium Nitrate Only"; customKn = "ಕ್ಯಾಲ್ಸಿಯಂ ಡ್ರಿಪ್ (ಅಕ್ಟೋಬರ್ 15 ರಂದು ಬೋರಾನ್ ನೀಡಿರುವುದರಿಂದ ಇಂದು ಕ್ಯಾಲ್ಸಿಯಂ ನೈಟ್ರೇಟ್ ಮಾತ್ರ)";
-    }
     const dyn = computeDynamicDadAndWeek(bt.originally_scheduled_date);
     return sb.from("daily_task_queue").update({ current_scheduled_date: bt.originally_scheduled_date, effective_dad: dyn.dad, status: "PENDING", delay_reason: null, resolved_recipe: cleanRecipe, custom_title_en: customEn, custom_title_kn: customKn, updated_by: activeUser, updated_at: new Date().toISOString() }).eq("id", bt.id);
   }));
-  await loadDB(); curWk = 10; render();
+  await loadDB(); curWk = 11; render();
 }
 
 function render() {
@@ -749,20 +894,20 @@ function render() {
   document.getElementById("langBtn").textContent = LANG === "EN" ? "ಕನ್ನಡ" : "English";
   [
     "appTitle","appSub","btnLogRain","tabTasks","tabManual","tabShop","tabScout","manTitle","lblManDate","lblManType","lblManCost","optFoliar","optCopper","optDrip",
-    "lblManChem1","lblManChem2","lblManNotes","lblManShift","btnSaveMan","expTitle","shopTitle","shopSub","btnCopy","scoutTitle","scoutSub","auditTitle","masterTitle",
-    "modalTitle","userModalTitle","delayModalTitle","lblQuickDelay","btnOrigDate","lblNewDate","lblCascadeMode","casAllTitle","casAllSub","casTrackTitle","casSingleTitle",
+    "lblManChem1","lblManChem2","lblManNotes","lblManShift","btnSaveMan","expTitle","shopTitle","shopSub","btnCopy","brandCheckerTitle","brandCheckerSub","scoutTitle","scoutSub","auditTitle","masterTitle",
+    "modalTitle","lblBrandSearch","userModalTitle","delayModalTitle","lblQuickDelay","btnOrigDate","lblNewDate","lblCascadeMode","casAllTitle","casAllSub","casTrackTitle","casSingleTitle",
     "lblDelayReason","rsnRain","rsnPower","rsnLabor","rsnStore","btnConfirmDelay","rainModalTitle","rainModalSub","rn1","rn2","rn3","rn4"
   ].forEach(k => { const el = document.getElementById(`ui_${k}`); if (el && L[k]) el.textContent = L[k]; });
 
-  updateWBar(); populateManualSelects();
+  updateWBar(); populateManualSelects(); populateBrandCheckerDropdowns();
 
   const sel = document.getElementById("wkSelect"), loc = LANG === "KN" ? "kn-IN" : "en-IN";
   sel.innerHTML = `<option value="0" ${curWk === 0 ? "selected" : ""}>${L.preEthrelLabel}</option>`;
-  const maxWk = Math.max(30, ...tasks.map(t => Number(t.week_number) || 10));
+  const maxWk = Math.max(30, ...tasks.map(t => Number(t.week_number) || 11));
   for (let w = 1; w <= maxWk; w++) {
     const { start, dadStart, dadEnd } = getWeekStartAndEndDates(w);
     const dt = start.toLocaleDateString(loc, { day: "2-digit", month: "short" });
-    const tag = w <= 9 ? "✅" : w === 10 ? "📍" : "";
+    const tag = w <= 9 ? "✅" : w === 11 ? "📍" : "";
     sel.innerHTML += `<option value="${w}" ${w === curWk ? "selected" : ""}>${tag} ${L.weekWord} ${w}: ${dt} (${dadStart}–${dadEnd}d)</option>`;
   }
 
@@ -802,6 +947,7 @@ function render() {
       const hasPartialDone = recipeArr.length > 1 && doneCount > 0 && pendingCount > 0;
       const statusText = hasPartialDone ? `${L.status_PARTIAL} (${doneCount}/${recipeArr.length})` : (L[`status_${tk.status}`] || tk.status);
       const wasShifted = tk.originally_scheduled_date && tk.originally_scheduled_date !== tk.current_scheduled_date;
+      const walesGuide = getWalesMixingGuide(recipeArr);
 
       const itemsHtml = recipeArr.map((it, idx) => {
         const cat = catalog[it.input_id] || { id: it.input_id, name_en: it.input_id, name_kn: it.input_id, unit: it.dose_per_liter ? "ml" : "kg", procurement_criticality: "FLEXIBLE" };
@@ -819,9 +965,10 @@ function render() {
               <div class="font-bold text-sm flex items-center gap-1.5 flex-wrap">
                 <span>${chemName}</span>
                 <span class="text-[10px] px-1.5 py-0.5 rounded ${isCrit ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'}">${isCrit ? L.mustSource : L.flexible}</span>
+                ${cat.irac_frac_group ? `<span class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono">${cat.irac_frac_group}</span>` : ""}
               </div>
               <div class="text-xs text-slate-600 mt-0.5">${perUnitText} • ${LANG === "KN" ? "ಶಿಫಾರಸು (3 ಎಕರೆ)" : "Suggested 3-Acre"}: <b>${suggestedTotal3Ac} ${cat.unit}</b></div>
-              <div class="text-[11px] text-slate-400">${cat.active_ingredient || ''} ${cat.popular_brands ? '• ' + cat.popular_brands : ''}</div>
+              <div class="text-[11px] text-slate-500">🧪 <b>Salt:</b> ${cat.active_ingredient || ''} ${cat.popular_brands ? `• 🏷️ <b>Brands:</b> ${cat.popular_brands}` : ''}</div>
             </div>
             <div class="flex flex-wrap items-center gap-1.5 pt-1 sm:pt-0">
               <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
@@ -831,7 +978,7 @@ function render() {
               </div>
               <button onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'COMPLETED' ? 'PENDING' : 'COMPLETED'}',${suggestedTotal3Ac})" class="${itemSt === 'COMPLETED' ? 'bg-emerald-800' : 'bg-emerald-600'} text-white text-xs font-bold px-2.5 py-1.5 rounded-lg">✅</button>
               <button onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'SKIPPED' ? 'PENDING' : 'SKIPPED'}',${suggestedTotal3Ac})" class="bg-slate-200 text-slate-800 text-xs font-bold px-2 py-1.5 rounded-lg">⏭️</button>
-              <button onclick="openSwap('${tk.id}',${idx},'${cat.id}')" class="bg-white border border-slate-300 text-xs font-bold px-2 py-1.5 rounded-lg">${L.storeOutBtn}</button>
+              <button onclick="openSwap('${tk.id}',${idx},'${cat.id}')" class="bg-indigo-50 border border-indigo-300 text-indigo-900 text-xs font-bold px-2 py-1.5 rounded-lg">${L.storeOutBtn}</button>
             </div>
           </div>
         </div>`;
@@ -852,6 +999,7 @@ function render() {
             <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 shrink-0">${statusText}</span>
           </div>
           ${itemsHtml ? `<div class="space-y-2">${itemsHtml}</div>` : ""}
+          ${walesGuide ? `<div class="p-2 bg-emerald-50/70 border border-emerald-200 rounded-lg text-[11px] text-emerald-950">${walesGuide}</div>` : ""}
           ${hasPartialDone ? `<button onclick="splitRemainingItemsToTomorrow('${tk.id}')" class="w-full bg-indigo-600 text-white font-bold text-xs py-2 px-3 rounded-lg shadow">${L.splitRemainingBtn}</button>` : ""}
           <div class="flex flex-wrap gap-1.5 pt-2 border-t text-xs font-bold items-center">
             <button onclick="markWholeCard('${tk.id}','COMPLETED')" class="flex-1 bg-emerald-600 text-white py-2 px-2 rounded-lg">${L.doneBtn}</button>
@@ -889,7 +1037,7 @@ function render() {
     const c = catalog[id] || { name_en: id, name_kn: id, unit: "" }, dispName = LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en;
     const need = Number(tot[id].toFixed(2)), left = Number(leftovers[id] || 0), buy = Math.max(0, Number((need - left).toFixed(2)));
     return `<div class="py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-      <div><div class="font-bold text-sm">${dispName}</div><div>${LANG === "KN" ? "3 ಎಕರೆಗೆ ಬಾಕಿ ಅಗತ್ಯ" : "Pending 3-Acre Need"}: <b>${need} ${c.unit}</b> • <span class="text-emerald-800 font-bold">${LANG === "KN" ? "ಖರೀದಿಸಬೇಕಾದ್ದು" : "Net to Buy"}: ${buy} ${c.unit}</span></div></div>
+      <div><div class="font-bold text-sm">${dispName} <span class="text-slate-400 font-normal">(${c.popular_brands || ""})</span></div><div>${LANG === "KN" ? "3 ಎಕರೆಗೆ ಬಾಕಿ ಅಗತ್ಯ" : "Pending 3-Acre Need"}: <b>${need} ${c.unit}</b> • <span class="text-emerald-800 font-bold">${LANG === "KN" ? "ಖರೀದಿಸಬೇಕಾದ್ದು" : "Net to Buy"}: ${buy} ${c.unit}</span></div></div>
       <div class="flex items-center gap-1.5"><span>${LANG === "KN" ? "ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದದ್ದು:" : "Shed Leftover:"}</span><input type="number" value="${left}" onchange="saveLeftover('${id}',this.value)" class="w-16 border rounded px-2 py-1 font-bold"/></div>
     </div>`;
   }).join("") || `<div class="py-3 text-xs text-slate-500">${LANG === "KN" ? "ಈ ವಾರ ಯಾವುದೇ ಖರೀದಿ ಅಗತ್ಯವಿಲ್ಲ." : "No pending inputs needed for this week."}</div>`;
@@ -915,6 +1063,106 @@ function render() {
       <td class="font-bold">${L[`status_${t.status}`] || t.status} ${t.cost_rs > 0 ? `<span class="text-emerald-700">(₹${t.cost_rs})</span>` : ""} ${canDel ? `<button onclick="deleteCustomTask('${t.id}')" class="text-red-600 underline text-[11px]">🗑️</button>` : ""}<br><span class="font-normal text-[10px] text-slate-400">👤 ${t.updated_by || "System"}</span></td>
     </tr>`;
   }).join("");
+}
+
+// ============================================================================
+// 4-CHECK STORE COUNTER BRAND VALIDATOR & SWAP MODAL
+// ============================================================================
+function openSwap(taskId, idx, id) {
+  const c = catalog[id]; if (!c) return;
+  activeSwapContext = { taskId, itemIdx: idx, primaryInputId: id };
+
+  // Populate Brand Selector inside Modal
+  const bSel = document.getElementById("modalBrandSelect");
+  const list = brandsDir.length > 0 ? brandsDir : Object.values(catalog).map(x => ({ brand_name: x.popular_brands || x.name_en, company_name: x.category, input_id: x.id, primary_use_en: x.active_ingredient, primary_use_kn: x.name_kn }));
+  bSel.innerHTML = `<option value="">-- ${LANG === "KN" ? "ಅಂಗಡಿಯ ಕಂಪನಿ ಹೆಸರು ಆರಿಸಿ (85+ Brands)" : "Select Any Store Brand to Verify (85+ Brands)"} --</option>` +
+    list.map(b => `<option value="${b.input_id}">🏷️ ${b.brand_name} (${b.company_name}) — ${LANG === "KN" ? b.primary_use_kn : b.primary_use_en}</option>`).join("");
+  document.getElementById("modalBrandAuditResult").innerHTML = "";
+
+  const dispName = LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en;
+  const directSubs = subs.filter(s => s.primary_input_id === id);
+  const sameCat = Object.values(catalog).filter(x => x.id !== id && x.category === c.category && x.application_method === c.application_method);
+
+  let h = `<div class="p-2.5 bg-slate-100 rounded-lg"><div class="font-extrabold text-sm">${dispName}</div><div class="text-slate-600">Salt: ${c.active_ingredient} ${c.irac_frac_group ? `(${c.irac_frac_group})` : ""} • Brands: ${c.popular_brands || ""}</div></div>`;
+  if (c.dealer_warning_en) h += `<div class="p-2.5 bg-red-50 border border-red-200 text-red-900 rounded-lg">⚠️ ${c.dealer_warning_en}</div>`;
+  if (c.procurement_criticality === "CRITICAL_MUST_SOURCE" && directSubs.length === 0) {
+    h += `<div class="p-3 bg-amber-50 border border-amber-300 text-amber-950 rounded-lg font-bold">🔴 ${LANG === "KN" ? `ಇದು ಕಡ್ಡಾಯವಾಗಿ ಬೇಕಾದ ಪೋಷಕಾಂಶ (${dispName}). ಇದೇ ಲವಣಾಂಶ (${c.active_ingredient}) ಇರುವ ಬೇರೆ ಕಂಪನಿ ಕೇಳಿ.` : `CRITICAL INPUT: Ask for another brand with exact salt (${c.active_ingredient}).`}</div>`;
+  } else {
+    h += `<div class="font-bold text-slate-700 pt-1">${LANG === "KN" ? "ಅನುಮೋದಿತ ಪರ್ಯಾಯಗಳು:" : "Recommended Alternatives:"}</div>`;
+    directSubs.forEach(s => {
+      const sc = catalog[s.substitute_input_id]; if (!sc) return;
+      h += `<div class="p-2.5 border-2 border-emerald-200 bg-emerald-50 rounded-lg flex justify-between items-center gap-2"><div><div class="font-bold text-sm">${LANG === "KN" ? (sc.name_kn || sc.name_en) : sc.name_en}</div><div class="text-[11px] text-slate-600">🏷️ ${sc.popular_brands || sc.active_ingredient}</div><div class="text-emerald-900 font-semibold">${s.adjustment_note_en || ""}</div></div><button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg shrink-0">${LANG === "KN" ? "ಬಳಸಿ" : "Swap"}</button></div>`;
+    });
+    sameCat.forEach(sc => {
+      const doseInfo = sc.base_dose_per_liter ? `${sc.base_dose_per_liter * CFG.drumL} ${sc.unit}/Drum` : `${sc.base_dose_per_acre} ${sc.unit}/Acre`;
+      h += `<div class="p-2 border border-slate-200 bg-slate-50 rounded-lg flex justify-between items-center gap-2"><div><b>${LANG === "KN" ? (sc.name_kn || sc.name_en) : sc.name_en}</b> • ${doseInfo}<br><span class="text-slate-500 text-[11px]">🏷️ ${sc.popular_brands || sc.active_ingredient}</span></div><button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="bg-slate-700 text-white font-bold px-2.5 py-1 rounded-lg shrink-0">${LANG === "KN" ? "ಬಳಸಿ" : "Swap"}</button></div>`;
+    });
+  }
+  document.getElementById("swapModalContent").innerHTML = h;
+  document.getElementById("swapModal").classList.remove("hidden");
+}
+
+function evaluateDealerBrandInModal() {
+  const candidateId = document.getElementById("modalBrandSelect").value;
+  const out = document.getElementById("modalBrandAuditResult");
+  if (!candidateId) { out.innerHTML = ""; return; }
+
+  const { taskId, itemIdx, primaryInputId } = activeSwapContext;
+  const tk = tasks.find(x => x.id === taskId);
+  const primaryCat = catalog[primaryInputId];
+  const candCat = catalog[candidateId];
+  if (!tk || !primaryCat || !candCat) return;
+
+  const checks = [];
+  // Check 1: Target Function Match
+  if (candCat.category === primaryCat.category) {
+    checks.push(`<div class="text-emerald-800 font-bold">✅ Check 1 (Target Function): Matches required category (${candCat.category}).</div>`);
+  } else {
+    checks.push(`<div class="p-2 bg-red-100 border border-red-300 text-red-950 rounded font-bold">❌ Check 1 (Wrong Category!): Scheduled item is a <b>${primaryCat.category}</b>, but this store brand is a <b>${candCat.category}</b> (${candCat.active_ingredient}). Do NOT replace ${primaryCat.name_en} with this!</div>`);
+  }
+
+  // Check 2: 21-Day Repeat Salt & IRAC/FRAC Resistance
+  const resWarn = checkRecentSprayResistance(candidateId, tk.current_scheduled_date);
+  if (resWarn) {
+    checks.push(`<div class="p-2 bg-amber-100 border border-amber-300 text-amber-950 rounded font-bold">${LANG === "KN" ? resWarn.msgKn : resWarn.msgEn}</div>`);
+  } else {
+    checks.push(`<div class="text-emerald-800 font-bold">✅ Check 2 (Anti-Resistance): Not sprayed in the past 21 days (${candCat.irac_frac_group || "Safe"}).</div>`);
+  }
+
+  // Check 3: Tank-Mix Compatibility with other items in the same task card
+  const otherItems = (tk.resolved_recipe || []).filter((_, i) => i !== itemIdx);
+  let compatOk = true;
+  otherItems.forEach(o => {
+    const comp = checkPairCompatibility(candCat, catalog[o.input_id]);
+    if (!comp.ok) {
+      compatOk = false;
+      checks.push(`<div class="p-2 bg-red-100 border border-red-300 text-red-950 rounded font-bold">${LANG === "KN" ? comp.reasonKn : comp.reasonEn}</div>`);
+    } else if (comp.cautionEn) {
+      checks.push(`<div class="p-2 bg-amber-50 border border-amber-200 text-amber-900 rounded">${LANG === "KN" ? comp.cautionKn : comp.cautionEn}</div>`);
+    }
+  });
+  if (compatOk) {
+    checks.push(`<div class="text-emerald-800 font-bold">✅ Check 3 (Drum Compatibility): Safe to mix with the other item(s) on this card.</div>`);
+  }
+
+  // Check 4: Exact Calibrated Dose & 1-Tap Swap Button
+  const doseInfo = candCat.base_dose_per_liter
+    ? `${Math.round(candCat.base_dose_per_liter * CFG.drumL)} ${candCat.unit} per 200L Drum (${Math.round(candCat.base_dose_per_liter * CFG.drumL * CFG.drums)} ${candCat.unit} for 3 Acres)`
+    : `${candCat.base_dose_per_acre} ${candCat.unit} per Acre (${(candCat.base_dose_per_acre * CFG.acres).toFixed(1)} ${candCat.unit} for 3 Acres)`;
+
+  checks.push(`
+    <div class="p-2.5 bg-white border border-indigo-200 rounded-lg flex items-center justify-between gap-2 mt-1">
+      <div>
+        <div class="font-extrabold text-slate-900">${LANG === "KN" ? (candCat.name_kn || candCat.name_en) : candCat.name_en}</div>
+        <div class="text-indigo-900 font-bold">⚖️ ${doseInfo}</div>
+      </div>
+      <button onclick="doSwap('${taskId}',${itemIdx},'${candCat.id}')" class="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold px-3 py-2 rounded-lg shrink-0 shadow">
+        ✅ ${LANG === "KN" ? "ಇದನ್ನು ಬಳಸಿ" : "Use This Brand"}
+      </button>
+    </div>
+  `);
+
+  out.innerHTML = checks.join("");
 }
 
 async function saveTaskCost(taskId, val) {
@@ -1063,30 +1311,6 @@ async function resetCardWithCascade(taskId) {
   await sb.from("daily_task_queue").update({ status: "PENDING", resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }).eq("id", taskId);
 }
 
-function openSwap(taskId, idx, id) {
-  const c = catalog[id]; if (!c) return;
-  const dispName = LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en;
-  const directSubs = subs.filter(s => s.primary_input_id === id);
-  const sameCat = Object.values(catalog).filter(x => x.id !== id && x.category === c.category && x.application_method === c.application_method);
-
-  let h = `<div class="p-2.5 bg-slate-100 rounded-lg"><div class="font-extrabold text-sm">${dispName}</div><div class="text-slate-600">Salt: ${c.active_ingredient}</div></div>`;
-  if (c.dealer_warning_en) h += `<div class="p-2.5 bg-red-50 border border-red-200 text-red-900 rounded-lg">⚠️ ${c.dealer_warning_en}</div>`;
-  if (c.procurement_criticality === "CRITICAL_MUST_SOURCE" && directSubs.length === 0) {
-    h += `<div class="p-3 bg-amber-50 border border-amber-300 text-amber-950 rounded-lg font-bold">🔴 ${LANG === "KN" ? `ಇದು ಕಡ್ಡಾಯವಾಗಿ ಬೇಕಾದ ಪೋಷಕಾಂಶ (${dispName}). ಇದೇ ಲವಣಾಂಶ (${c.active_ingredient}) ಇರುವ ಬೇರೆ ಕಂಪನಿ ಕೇಳಿ.` : `CRITICAL INPUT: Ask for another brand with exact salt (${c.active_ingredient}).`}</div>`;
-  } else {
-    directSubs.forEach(s => {
-      const sc = catalog[s.substitute_input_id]; if (!sc) return;
-      h += `<div class="p-2.5 border-2 border-emerald-200 bg-emerald-50 rounded-lg flex justify-between items-center gap-2"><div><div class="font-bold text-sm">${LANG === "KN" ? (sc.name_kn || sc.name_en) : sc.name_en}</div><div class="text-emerald-900 font-semibold">${s.adjustment_note_en || ""}</div></div><button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg">${LANG === "KN" ? "ಬಳಸಿ" : "Swap"}</button></div>`;
-    });
-    sameCat.forEach(sc => {
-      const doseInfo = sc.base_dose_per_liter ? `${sc.base_dose_per_liter * CFG.drumL} ${sc.unit}/Drum` : `${sc.base_dose_per_acre} ${sc.unit}/Acre`;
-      h += `<div class="p-2 border border-slate-200 bg-slate-50 rounded-lg flex justify-between items-center gap-2"><div><b>${LANG === "KN" ? (sc.name_kn || sc.name_en) : sc.name_en}</b> • ${doseInfo}</div><button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="bg-slate-700 text-white font-bold px-2.5 py-1 rounded-lg">${LANG === "KN" ? "ಬಳಸಿ" : "Swap"}</button></div>`;
-    });
-  }
-  document.getElementById("swapModalContent").innerHTML = h;
-  document.getElementById("swapModal").classList.remove("hidden");
-}
-
 async function doSwap(taskId, idx, newId) {
   const tk = tasks.find(x => x.id === taskId), sc = catalog[newId];
   const oldId = tk.resolved_recipe[idx]?.input_id;
@@ -1124,6 +1348,12 @@ async function saveManualActivity() {
   const costRs = Number(document.getElementById("manCost").value) || 0, notes = document.getElementById("manNotes").value.trim(), autoShift = document.getElementById("manShiftCheck").checked;
   if (!dateStr || !chem1) return;
 
+  // Check pair compatibility before saving manual tank mix
+  if (chem1 && chem2) {
+    const comp = checkPairCompatibility(catalog[chem1], catalog[chem2]);
+    if (!comp.ok && !confirm((LANG === "KN" ? comp.reasonKn : comp.reasonEn) + "\n\nSave anyway?")) return;
+  }
+
   const pairs = [{ id: chem1, q: qty1 }]; if (chem2) pairs.push({ id: chem2, q: qty2 });
   const recipe = pairs.map(p => { const c = catalog[p.id]; return { ...(c?.base_dose_per_liter ? { input_id: p.id, dose_per_liter: Number(c.base_dose_per_liter) } : { input_id: p.id, dose_per_acre: Number(c?.base_dose_per_acre || 2) }), actual_total_3ac: p.q, item_status: "COMPLETED" }; });
   const dyn = computeDynamicDadAndWeek(dateStr), appliedIds = pairs.map(p => p.id);
@@ -1157,7 +1387,7 @@ function copyList() {
   const lines = [`🍎 Hosahalli Orchard Week ${curWk} Store List (3 Acres):`];
   Object.keys(tot).forEach(id => {
     const c = catalog[id], net = Math.max(0, Number((tot[id] - (leftovers[id] || 0)).toFixed(2)));
-    if (net > 0) lines.push(`• ${LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en}: ${net} ${c.unit} (${c.active_ingredient})`);
+    if (net > 0) lines.push(`• ${LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en} [${c.popular_brands || ""}]: ${net} ${c.unit} (${c.active_ingredient})`);
   });
   navigator.clipboard.writeText(lines.join("\n"));
   alert(LANG === "KN" ? "ಖರೀದಿ ಪಟ್ಟಿಯನ್ನು ಕಾಪಿ ಮಾಡಲಾಗಿದೆ!" : "Shopping list copied to clipboard!");
