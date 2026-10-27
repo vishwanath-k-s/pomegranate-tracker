@@ -12,7 +12,7 @@
   <header id="mainHeader" class="bg-emerald-900 text-white sticky top-0 z-30 shadow-md">
     <div class="max-w-4xl mx-auto px-3 py-2 flex flex-wrap items-center justify-between gap-2">
       <div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <h1 id="ui_appTitle" class="font-bold text-base sm:text-lg">🍎 Hosahalli Pomegranate Tracker</h1>
           <select id="envSelect" onchange="switchEnv(this.value)" class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950 cursor-pointer">
             <option value="PROD">🟢 PROD (Live)</option>
@@ -24,21 +24,21 @@
       <div class="flex items-center gap-1.5">
         <div class="flex items-center bg-emerald-800 rounded-lg px-2 py-1 text-xs border border-emerald-700">
           <span class="mr-1">👤</span>
-          <select id="userSelect" onchange="changeActiveUser(this.value)" class="bg-transparent text-white font-bold focus:outline-none max-w-[100px]"></select>
+          <select id="userSelect" onchange="changeActiveUser(this.value)" class="bg-transparent text-white font-bold focus:outline-none max-w-[95px]"></select>
           <button onclick="openUserModal()" class="ml-1 pl-1 border-l border-emerald-600 text-amber-300 font-bold">✏️</button>
         </div>
-        <span id="syncBadge" class="text-[10px] px-2 py-1 rounded-full bg-emerald-700">...</span>
+        <button onclick="flushOutbox()" id="syncBadge" class="text-[10px] px-2 py-1 rounded-full bg-emerald-700 font-bold">...</button>
         <button onclick="toggleLanguage()" id="langBtn" class="bg-amber-400 text-slate-900 font-extrabold text-xs px-2.5 py-1.5 rounded-lg shadow">ಕನ್ನಡ</button>
       </div>
     </div>
 
     <div class="bg-emerald-950 px-3 py-1.5 text-xs border-t border-emerald-800">
       <div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2">
-        <div class="flex flex-wrap items-center gap-2.5">
+        <div class="flex flex-wrap items-center gap-2">
           <span id="wTemp" class="text-amber-300 font-semibold">🌡️ ...</span>
           <span id="wHum" class="text-sky-300 font-semibold">💧 ...</span>
           <span id="wRain">🌧️ ...</span>
-          <span id="wProb">☔ ...</span>
+          <span id="wRiskBadge" onclick="showTab('ANALYTICS')" class="cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-800 text-white">🦠 Risk: ...</span>
           <button onclick="loadWeather().then(render)" id="wUpdatedTime" class="text-[10px] text-emerald-300 underline">🔄</button>
         </div>
         <div class="flex items-center gap-2">
@@ -54,11 +54,11 @@
 
   <div id="simBox" class="hidden bg-slate-800 text-white px-3 py-2 text-xs">
     <div class="max-w-4xl mx-auto flex flex-wrap items-center gap-2">
-      <span class="font-bold text-amber-300">DEV Weather Sim:</span>
-      <button onclick="setWeather('LIVE')" class="bg-slate-600 px-2.5 py-1 rounded">☀️ Live GPS</button>
-      <button onclick="setWeather('RAIN')" class="bg-blue-600 px-2.5 py-1 rounded">🌧️ Heavy Rain (&gt;15mm)</button>
-      <button onclick="setWeather('HOLD')" class="bg-indigo-600 px-2.5 py-1 rounded">⛈️ Rain in 2h (&gt;60%)</button>
-      <button onclick="setWeather('WARM')" class="bg-orange-600 px-2.5 py-1 rounded">🔥 Warm Nights (&gt;19°C)</button>
+      <span class="font-bold text-amber-300">DEV Sim:</span>
+      <button onclick="setWeather('LIVE')" class="bg-slate-600 px-2 py-1 rounded">☀️ Live GPS</button>
+      <button onclick="setWeather('RAIN')" class="bg-blue-600 px-2 py-1 rounded">🌧️ Heavy Rain (&gt;15mm)</button>
+      <button onclick="setWeather('HIGH_RISK')" class="bg-rose-600 px-2 py-1 rounded">🦠 High Blight Risk (RH 86%)</button>
+      <button onclick="setWeather('WARM')" class="bg-orange-600 px-2 py-1 rounded">🔥 Warm Nights (&gt;19°C)</button>
     </div>
   </div>
 
@@ -77,14 +77,39 @@
 
     <div id="alertsBox" class="space-y-2 mb-3"></div>
 
-    <div class="grid grid-cols-4 gap-1 bg-slate-200 p-1 rounded-xl mb-3 text-[11px] sm:text-xs font-bold">
+    <div class="grid grid-cols-5 gap-1 bg-slate-200 p-1 rounded-xl mb-3 text-[10px] sm:text-xs font-bold">
       <button onclick="showTab('TASKS')" id="tBtn_TASKS" class="py-2 rounded-lg bg-white text-emerald-900 shadow-sm">📋 <span id="ui_tabTasks">Tasks</span></button>
+      <button onclick="showTab('ANALYTICS')" id="tBtn_ANALYTICS" class="py-2 rounded-lg text-slate-600">📊 <span id="ui_tabAnalytics">GDD &amp; NPK</span></button>
       <button onclick="showTab('MANUAL')" id="tBtn_MANUAL" class="py-2 rounded-lg text-slate-600">➕ <span id="ui_tabManual">Log Work</span></button>
       <button onclick="showTab('SHOP')" id="tBtn_SHOP" class="py-2 rounded-lg text-slate-600">🏪 <span id="ui_tabShop">Store &amp; ₹</span></button>
-      <button onclick="showTab('SCOUT')" id="tBtn_SCOUT" class="py-2 rounded-lg text-slate-600">🔍 <span id="ui_tabScout">Scout &amp; Log</span></button>
+      <button onclick="showTab('SCOUT')" id="tBtn_SCOUT" class="py-2 rounded-lg text-slate-600">🔍 <span id="ui_tabScout">Scout/Log</span></button>
     </div>
 
     <section id="panel_TASKS" class="space-y-3"></section>
+
+    <section id="panel_ANALYTICS" class="hidden space-y-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="bg-white rounded-xl p-4 shadow-sm border space-y-1.5">
+          <div class="text-xs font-extrabold text-amber-700 uppercase" id="ui_gddCardTitle">☀️ Thermal Growing Degree Days (GDD Base 10°C)</div>
+          <div class="text-2xl font-extrabold text-slate-900" id="gddTotalValue">... GDD</div>
+          <div class="text-xs text-slate-600" id="gddComparisonText">...</div>
+          <div class="text-[11px] text-emerald-800 font-semibold pt-1 border-t" id="gddHarvestForecast">...</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 shadow-sm border space-y-1.5">
+          <div class="text-xs font-extrabold text-rose-700 uppercase" id="ui_riskCardTitle">🦠 72-Hour Blight &amp; Fungal Infection Index</div>
+          <div class="text-2xl font-extrabold" id="diseaseScoreValue">... / 100</div>
+          <div class="text-xs text-slate-600" id="diseaseReasonText">...</div>
+          <div class="text-[11px] font-bold pt-1 border-t" id="diseaseActionText">...</div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl p-4 shadow-sm border space-y-3">
+        <div>
+          <h2 class="font-extrabold text-sm sm:text-base text-slate-900" id="ui_npkLedgerTitle">⚖️ Cumulative Elemental Nutrient Ledger (Grams / Plant Delivered vs. Target)</h2>
+          <p class="text-xs text-slate-500" id="ui_npkLedgerSub">Calculated across 1,500 plants from all COMPLETED applications so far vs. ICAR-NRCP target curve for today's DAD.</p>
+        </div>
+        <div id="npkBarsContainer" class="space-y-3 text-xs"></div>
+      </div>
+    </section>
 
     <section id="panel_MANUAL" class="hidden bg-white rounded-xl p-4 shadow-sm border space-y-3">
       <div class="flex items-center justify-between">
@@ -152,10 +177,9 @@
         </div>
       </div>
 
-      <!-- STANDALONE STORE BRAND & TANK-MIX CHECKER -->
       <div class="bg-white rounded-xl p-4 shadow-sm border space-y-2.5">
         <h2 class="font-extrabold text-sm text-slate-900" id="ui_brandCheckerTitle">🧪 Agro-Store Brand &amp; Tank-Mix Compatibility Checker</h2>
-        <p class="text-xs text-slate-500" id="ui_brandCheckerSub">Dealer offering a brand at the counter? Select up to 2 brands below to check salt identity, 21-day repeat-spray resistance, and drum compatibility:</p>
+        <p class="text-xs text-slate-500" id="ui_brandCheckerSub">Select 1 or 2 store brands below to verify active salt, 21-day repeat-spray resistance, and drum mixing order:</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
           <select id="checkerBrand1" onchange="runStandaloneBrandChecker()" class="border rounded-lg px-2.5 py-2 font-bold bg-slate-50"></select>
           <select id="checkerBrand2" onchange="runStandaloneBrandChecker()" class="border rounded-lg px-2.5 py-2 font-bold bg-slate-50"></select>
@@ -182,9 +206,12 @@
         <div id="scoutGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-bold"></div>
       </div>
       <div class="bg-white rounded-xl p-4 shadow-sm border">
-        <div class="flex items-center justify-between mb-2">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
           <h2 id="ui_auditTitle" class="font-bold text-sm">👤 Recent Activity &amp; User Tracking Log</h2>
-          <button onclick="clearCurrentEnvAuditLog()" class="text-[11px] text-slate-400 hover:text-red-600 underline">🧹 Clear Log</button>
+          <div class="flex items-center gap-2">
+            <button onclick="exportScheduleCSV()" class="bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">📥 Export CSV Backup</button>
+            <button onclick="clearCurrentEnvAuditLog()" class="text-[11px] text-slate-400 hover:text-red-600 underline">🧹 Clear Log</button>
+          </div>
         </div>
         <div id="auditLogBox" class="divide-y text-xs max-h-60 overflow-y-auto"></div>
       </div>
@@ -198,7 +225,6 @@
     </section>
   </main>
 
-  <!-- FARM RAIN MODAL -->
   <div id="rainModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-2.5 text-xs">
       <div class="flex items-center justify-between border-b pb-2">
@@ -219,7 +245,6 @@
     </div>
   </div>
 
-  <!-- ADD NEW CHEMICAL MODAL -->
   <div id="newChemModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-2.5 text-xs">
       <div class="flex items-center justify-between border-b pb-2">
@@ -249,7 +274,6 @@
     </div>
   </div>
 
-  <!-- DELAY / RESCHEDULE MODAL -->
   <div id="delayModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-3 text-xs">
       <div class="flex items-center justify-between border-b pb-2">
@@ -306,27 +330,22 @@
     </div>
   </div>
 
-  <!-- 4-CHECK STORE COUNTER BRAND VALIDATOR & SWAP MODAL -->
   <div id="swapModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-3 text-xs">
       <div class="flex items-center justify-between border-b pb-2">
         <h3 id="ui_modalTitle" class="font-extrabold text-base text-slate-900">🏪 4-Check Agro-Store Brand Validator</h3>
         <button onclick="document.getElementById('swapModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
       </div>
-
-      <!-- SEARCH ANY STORE BRAND TO VALIDATE -->
       <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2">
         <label class="font-extrabold text-indigo-950 block" id="ui_lblBrandSearch">🔍 What brand did the store dealer offer you?</label>
         <select id="modalBrandSelect" onchange="evaluateDealerBrandInModal()" class="w-full border border-indigo-300 rounded-lg px-2.5 py-2 font-bold text-slate-900 bg-white"></select>
         <div id="modalBrandAuditResult" class="space-y-1.5"></div>
       </div>
-
       <div id="swapModalContent" class="space-y-2"></div>
       <button onclick="document.getElementById('swapModal').classList.add('hidden');openNewChemModal();" class="w-full bg-slate-100 border border-slate-300 text-slate-800 font-bold py-2 rounded-lg text-xs">➕ Brand not in list? Add New Store Chemical</button>
     </div>
   </div>
 
-  <!-- MANAGE USERS MODAL -->
   <div id="userModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[85vh] overflow-y-auto space-y-3">
       <div class="flex items-center justify-between border-b pb-2">
@@ -343,7 +362,7 @@
 
 <script>
 const sb = window.supabase.createClient("https://mjkcmghhtbsgxohpzlsq.supabase.co", "sb_publishable_pKLBohG_JzhsQ8C4jqwayw_tQCn4bJA");
-const CFG = { lat: 14.661830, lon: 76.454375, acres: 3, drums: 7, drumL: 200 };
+const CFG = { lat: 14.661830, lon: 76.454375, acres: 3, plants: 1500, drums: 7, drumL: 200 };
 
 let APP_ENV = localStorage.getItem("h_env") || "PROD";
 let LANG = localStorage.getItem("h_lang") || "EN";
@@ -351,9 +370,60 @@ let activeUser = localStorage.getItem("h_user") || "Vishwanath";
 let usersList = [{ id: 1, name: "Vishwanath" }];
 let curWk = 11, catalog = {}, subs = [], brandsDir = [], leftovers = {}, tasks = [], templates = [], auditLogs = [];
 let farmRainToday = null;
-let wState = { tempNow: 29.0, humidity: 58, rain24: 0, prob4: 0, tMax: 30.5, tMin: 18.2, updatedAt: "", mode: "LIVE" };
+let wState = { tempNow: 29.0, humidity: 58, rain24: 0, prob4: 0, tMax: 30.5, tMin: 18.2, rh72Avg: 64, rain72Sum: 0, riskScore: 28, cumulativeGdd: 1105, updatedAt: "", mode: "LIVE" };
 let activeDelayTaskId = null;
 let activeSwapContext = { taskId: null, itemIdx: null, primaryInputId: null };
+
+function getOutbox() { try { return JSON.parse(localStorage.getItem("h_outbox_queue") || "[]"); } catch { return []; } }
+function saveOutbox(q) { localStorage.setItem("h_outbox_queue", JSON.stringify(q)); updateSyncBadge(); }
+function updateSyncBadge() {
+  const b = document.getElementById("syncBadge"); if (!b) return;
+  const q = getOutbox();
+  if (q.length > 0) {
+    b.textContent = `🟠 Queued (${q.length})`;
+    b.className = "text-[10px] px-2 py-1 rounded-full bg-amber-500 text-slate-950 font-extrabold";
+  } else {
+    b.textContent = navigator.onLine ? `🟢 ${APP_ENV}` : `🟠 Offline`;
+    b.className = navigator.onLine ? "text-[10px] px-2 py-1 rounded-full bg-emerald-700 text-white font-bold" : "text-[10px] px-2 py-1 rounded-full bg-amber-600 text-white font-bold";
+  }
+}
+
+async function dbMutate(op) {
+  if (!navigator.onLine) { const q = getOutbox(); q.push(op); saveOutbox(q); return { queued: true }; }
+  try {
+    let query = sb.from(op.table);
+    if (op.type === "update") query = query.update(op.payload).eq(op.matchCol, op.matchVal);
+    else if (op.type === "insert") query = query.insert(op.payload).select();
+    else if (op.type === "upsert") query = query.upsert(op.payload);
+    else if (op.type === "delete") query = query.delete().eq(op.matchCol, op.matchVal);
+    const { data, error } = await query;
+    if (error) throw error;
+    updateSyncBadge();
+    return { data };
+  } catch (err) {
+    const q = getOutbox(); q.push(op); saveOutbox(q);
+    return { queued: true };
+  }
+}
+
+async function flushOutbox() {
+  if (!navigator.onLine) return;
+  const q = getOutbox(); if (!q.length) { updateSyncBadge(); return; }
+  const remaining = [];
+  for (const op of q) {
+    try {
+      let query = sb.from(op.table);
+      if (op.type === "update") await query.update(op.payload).eq(op.matchCol, op.matchVal);
+      else if (op.type === "insert") await query.insert(op.payload);
+      else if (op.type === "upsert") await query.upsert(op.payload);
+      else if (op.type === "delete") await query.delete().eq(op.matchCol, op.matchVal);
+    } catch { remaining.push(op); }
+  }
+  saveOutbox(remaining);
+  if (remaining.length === 0) await loadDB();
+}
+window.addEventListener("online", () => { flushOutbox().then(render); });
+window.addEventListener("offline", updateSyncBadge);
 
 function parseYMD(s) { const [y, m, d] = (s || "2026-10-18").split("-").map(Number); return Date.UTC(y, m - 1, d); }
 function addDaysYMD(s, days) { return new Date(parseYMD(s) + Math.round(days) * 86400000).toISOString().split("T")[0]; }
@@ -370,47 +440,37 @@ function formatDateWithWeekday(s) {
   return new Date(y, m - 1, d).toLocaleDateString(LANG === "KN" ? "kn-IN" : "en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
 }
 
-// ============================================================================
-// ICAR-NRCP / HAIFA TANK-MIX COMPATIBILITY & W-A-L-E-S MIXING ORDER ENGINE
-// ============================================================================
-const WALES_ORDER = {
-  WSF: { step: 1, tagEn: "1st (Dissolve Water-Soluble Powder)", tagKn: "1ನೇ (ನೀರಿನಲ್ಲಿ ಕರಗುವ ಪೌಡರ್)" },
-  DF:  { step: 1, tagEn: "1st (Dry Flowable Granules)", tagKn: "1ನೇ (ಹರಳು/ಪೌಡರ್ - DF)" },
-  WG:  { step: 1, tagEn: "1st (Wettable Granules - WG)", tagKn: "1ನೇ (ನೀರಿನಲ್ಲಿ ಕರಗುವ ಹರಳು - WG)" },
-  WP:  { step: 1, tagEn: "1st (Wettable Powder - WP)", tagKn: "1ನೇ (ಪೌಡರ್ - WP)" },
-  SP:  { step: 2, tagEn: "2nd (Soluble Powder - SP)", tagKn: "2ನೇ (ಕರಗುವ ಪೌಡರ್ - SP)" },
-  SC:  { step: 3, tagEn: "3rd (Suspension Concentrate - SC)", tagKn: "3ನೇ (ದ್ರಾವಣ - SC)" },
-  OD:  { step: 3, tagEn: "3rd (Oil Dispersion - OD)", tagKn: "3ನೇ (ಎಣ್ಣೆ ಆಧಾರಿತ ದ್ರಾವಣ - OD)" },
-  SL:  { step: 3, tagEn: "3rd (Soluble Liquid - SL)", tagKn: "3ನೇ (ದ್ರಾವಣ - SL)" },
-  EC:  { step: 4, tagEn: "4th / Last (Emulsifiable Concentrate - EC)", tagKn: "4ನೇ / ಕೊನೆಯಲ್ಲಿ (EC ದ್ರಾವಣ)" }
-};
+function computeDiseaseRiskScore(rh72Avg, tMax, tMin, rain72Sum, prob4) {
+  let score = rh72Avg >= 82 ? 45 : rh72Avg >= 72 ? 30 : rh72Avg >= 60 ? 15 : 5;
+  score += (tMax >= 25 && tMax <= 33 && tMin >= 18) ? 25 : 10;
+  score += rain72Sum >= 15 ? 30 : rain72Sum >= 3 ? 18 : prob4 >= 60 ? 12 : 0;
+  return Math.min(100, Math.max(5, Math.round(score)));
+}
 
+const WALES_ORDER = { WSF: 1, DF: 1, WG: 1, WP: 1, SP: 2, SC: 3, OD: 3, SL: 3, EC: 4 };
 function checkPairCompatibility(catA, catB) {
   if (!catA || !catB || catA.id === catB.id) return { ok: true };
-  // Rule 1 & 2: Copper incompatibility
   if ((catA.is_copper_compound && catB.incompatible_with_copper) || (catB.is_copper_compound && catA.incompatible_with_copper)) {
     return {
       ok: false,
-      reasonEn: `❌ INCOMPATIBLE MIX: ${catA.name_en} and ${catB.name_en} cannot be mixed in the same drum! Copper reacts with Captan, insecticides, chelates, and bio-sprays causing fruit scorching or chemical breakdown.`,
-      reasonKn: `❌ ಬೆರೆಸಬೇಡಿ (Incompatible): ${catA.name_kn || catA.name_en} ಮತ್ತು ${catB.name_kn || catB.name_en} ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ಬೆರೆಸಬಾರದು! ಕಾಪರ್ ಜೊತೆ ಇದನ್ನು ಬೆರೆಸಿದರೆ ಹಣ್ಣಿನ ಸಿಪ್ಪೆ ಸುಡುತ್ತದೆ.`
+      reasonEn: `❌ INCOMPATIBLE MIX: ${catA.name_en} and ${catB.name_en} cannot be mixed in the same drum! Copper reacts with Captan, insecticides, chelates, and bio-sprays.`,
+      reasonKn: `❌ ಬೆರೆಸಬೇಡಿ: ${catA.name_kn || catA.name_en} ಮತ್ತು ${catB.name_kn || catB.name_en} ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ಬೆರೆಸಬಾರದು (ಸಿಪ್ಪೆ ಸುಡುತ್ತದೆ).`
     };
   }
-  // Rule 3 & 4: Calcium Nitrate + Sulphates or Phosphates
-  const isCaNitrateA = catA.id === "WSF_CALCIUM_NITRATE", isCaNitrateB = catB.id === "WSF_CALCIUM_NITRATE";
-  if ((isCaNitrateA && catB.incompatible_with_calcium) || (isCaNitrateB && catA.incompatible_with_calcium)) {
+  const isCaA = catA.id === "WSF_CALCIUM_NITRATE", isCaB = catB.id === "WSF_CALCIUM_NITRATE";
+  if ((isCaA && catB.incompatible_with_calcium) || (isCaB && catA.incompatible_with_calcium)) {
     return {
       ok: false,
-      reasonEn: `❌ DRIP PRECIPITATION LOCK: Calcium Nitrate cannot be mixed with ${isCaNitrateA ? catB.name_en : catA.name_en} (forms insoluble gypsum/phosphate sludge that blocks drip emitters).`,
-      reasonKn: `❌ ಡ್ರಿಪ್ ಎಚ್ಚರಿಕೆ: ಕ್ಯಾಲ್ಸಿಯಂ ನೈಟ್ರೇಟ್ ಜೊತೆ ${isCaNitrateA ? (catB.name_kn || catB.name_en) : (catA.name_kn || catA.name_en)} ಬೆರೆಸಬೇಡಿ (ಡ್ರಿಪ್ ಪೈಪ್ ಕಟ್ಟಿಕೊಳ್ಳುತ್ತದೆ).`
+      reasonEn: `❌ DRIP PRECIPITATION LOCK: Calcium Nitrate cannot be mixed with ${isCaA ? catB.name_en : catA.name_en}.`,
+      reasonKn: `❌ ಡ್ರಿಪ್ ಎಚ್ಚರಿಕೆ: ಕ್ಯಾಲ್ಸಿಯಂ ನೈಟ್ರೇಟ್ ಜೊತೆ ${isCaA ? (catB.name_kn || catB.name_en) : (catA.name_kn || catA.name_en)} ಬೆರೆಸಬೇಡಿ.`
     };
   }
-  // Rule 5: Chlorothalonil (Kavach) or Captan + EC Insecticide caution
   if (((catA.id === "FUN_CHLOROTHALONIL" || catA.id === "FUN_CAPTAF") && catB.formulation_type === "EC") ||
       ((catB.id === "FUN_CHLOROTHALONIL" || catB.id === "FUN_CAPTAF") && catA.formulation_type === "EC")) {
     return {
       ok: true,
-      cautionEn: `⚠️ EC + WP Caution: Mixing ${catA.name_en} with an EC liquid (${catB.name_en}) in hot weather (>31°C) can burn fruit skin. Dissolve WP powder first, add EC last, do NOT add silicone spreader, and spray before 9:30 AM.`,
-      cautionKn: `⚠️ ಎಚ್ಚರಿಕೆ: ಪೌಡರ್ ಮತ್ತು EC ದ್ರಾವಣ ಬೆರೆಸುವಾಗ ಬಿಸಿಲಿನಲ್ಲಿ (>31°C) ಸಿಂಪಡಿಸಬೇಡಿ. ಮೊದಲು ಪೌಡರ್ ಕರಗಿಸಿ, ಕೊನೆಯಲ್ಲಿ EC ಹಾಕಿ, ಬೆಳಿಗ್ಗೆ 9:30 ರೊಳಗೆ ಸಿಂಪಡಿಸಿ.`
+      cautionEn: `⚠️ EC + WP Caution: Dissolve WP powder first, add EC last, skip silicone spreader, and spray before 9:30 AM.`,
+      cautionKn: `⚠️ ಎಚ್ಚರಿಕೆ: ಮೊದಲು ಪೌಡರ್ ಕರಗಿಸಿ, ಕೊನೆಯಲ್ಲಿ EC ಹಾಕಿ, ಬೆಳಿಗ್ಗೆ 9:30 ರೊಳಗೆ ಸಿಂಪಡಿಸಿ.`
     };
   }
   return { ok: true };
@@ -418,40 +478,32 @@ function checkPairCompatibility(catA, catB) {
 
 function getWalesMixingGuide(recipeItems) {
   if (!recipeItems || recipeItems.length < 2) return "";
-  const sorted = [...recipeItems].map(r => catalog[r.input_id]).filter(Boolean).sort((a, b) => {
-    const sA = WALES_ORDER[a.formulation_type || "SC"]?.step || 3;
-    const sB = WALES_ORDER[b.formulation_type || "SC"]?.step || 3;
-    return sA - sB;
-  });
-  const steps = sorted.map((c, i) => {
-    const nm = LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en;
-    const fType = c.formulation_type || "SC";
-    return `<b>${i + 1}.</b> ${nm} <span class="text-slate-500">[${fType}]</span>`;
-  }).join(" → ");
+  const sorted = [...recipeItems].map(r => catalog[r.input_id]).filter(Boolean).sort((a, b) => (WALES_ORDER[a.formulation_type || "SC"] || 3) - (WALES_ORDER[b.formulation_type || "SC"] || 3));
+  const steps = sorted.map((c, i) => `<b>${i + 1}.</b> ${LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en} <span class="text-slate-500">[${c.formulation_type || "SC"}]</span>`).join(" → ");
   return LANG === "KN" ? `🪣 <b>ಡ್ರಮ್ ಬೆರೆಸುವ ಕ್ರಮ (W-A-L-E-S):</b> ${steps}` : `🪣 <b>Drum Mixing Order (W-A-L-E-S):</b> ${steps}`;
 }
 
 const I18N = {
   EN: {
     appTitle: "🍎 Hosahalli Pomegranate Tracker", appSub: "3 Acres • 1,500 Plants (10×8) • Wk 1 (Ethrel): 15 Aug 2026",
-    btnLogRain: "🌧️ Log Farm Rain", tabTasks: "Tasks", tabManual: "Log Work", tabShop: "Store & ₹", tabScout: "Scout & Log",
+    btnLogRain: "🌧️ Log Farm Rain", tabTasks: "Tasks", tabAnalytics: "GDD & NPK", tabManual: "Log Work", tabShop: "Store & ₹", tabScout: "Scout/Log",
+    gddCardTitle: "☀️ Thermal Growing Degree Days (GDD Base 10°C)", riskCardTitle: "🦠 72-Hour Blight & Fungal Infection Index",
+    npkLedgerTitle: "⚖️ Cumulative Elemental Nutrient Ledger (Grams / Plant Delivered vs. Target)",
+    npkLedgerSub: "Calculated across 1,500 plants from all COMPLETED applications so far vs. ICAR-NRCP target curve for today's DAD.",
     manTitle: "➕ Record Manual or Past Spray / Drip", lblManDate: "Date Applied:", lblManType: "Activity Type:", lblManCost: "Total Cost Paid (₹):",
     optFoliar: "🌿 Foliar Spray (7 Drums)", optCopper: "⚠️ Standalone Copper Spray", optDrip: "💧 Drip Fertigation (3 Acres)",
     lblManChem1: "Primary Input:", lblManChem2: "Second Input (Optional):", lblManNotes: "Notes / Brand Used:",
     lblManShift: "Auto-adjust future schedule (+3d shift, 5d Copper cooldown, 10d Boron lock & IRAC/FRAC rotation)", btnSaveMan: "💾 Save Activity & Update Schedule",
     expTitle: "💰 Total Recorded Orchard Spend (3 Acres)", shopTitle: "Agro-Store Shopping List (3 Acres)", shopSub: "Skipped and completed items are excluded. Enter shed leftovers below.", btnCopy: "📲 Copy List",
-    brandCheckerTitle: "🧪 Agro-Store Brand & Tank-Mix Compatibility Checker",
-    brandCheckerSub: "Dealer offering a brand at the counter? Select 1 or 2 brands below to verify active salt, 21-day repeat-spray resistance, and drum mixing order:",
+    brandCheckerTitle: "🧪 Agro-Store Brand & Tank-Mix Compatibility Checker", brandCheckerSub: "Select 1 or 2 store brands below to verify active salt, 21-day repeat-spray resistance, and drum mixing order:",
     scoutTitle: "🔍 1-Tap Field Problem Reporter", scoutSub: "Confirms before adding a weather-smart spray card to your schedule (deletable anytime).",
     auditTitle: "👤 Recent Activity & User Tracking Log", masterTitle: "📅 Complete Orchard Schedule (Week 0 to Week 30)",
     modalTitle: "🏪 4-Check Agro-Store Brand Validator", lblBrandSearch: "🔍 What brand did the store dealer offer you?", userModalTitle: "👤 Manage App Users",
     delayModalTitle: "⏳ Delay / Reschedule Task", lblQuickDelay: "1. Shift Earlier (-), Later (+) or Pick Date:", btnOrigDate: "↺ Original Date", lblNewDate: "New Date:",
-    lblCascadeMode: "2. How should subsequent tasks update?",
-    casAllTitle: "🌊 Shift ALL subsequent tasks forward/backward (Recommended)", casAllSub: "Moves all following Sprays and Drips by the exact same days.",
+    lblCascadeMode: "2. How should subsequent tasks update?", casAllTitle: "🌊 Shift ALL subsequent tasks forward/backward (Recommended)", casAllSub: "Moves all following Sprays and Drips by the exact same days.",
     casTrackTitle: "🛤️ Shift ONLY same-type tasks (Drip or Spray)", casSingleTitle: "📌 Move ONLY this single task",
     lblDelayReason: "3. Reason:", rsnRain: "🌧️ Rain / Wet Soil", rsnPower: "⚡ No Power / Pump Issue", rsnLabor: "👷 Labor Unavailable", rsnStore: "🏪 Chemical Sourcing Delay",
-    btnConfirmDelay: "✅ Confirm New Date & Update Schedule",
-    rainModalTitle: "🌧️ Log Rain at Farm", rainModalSub: "Select how the orchard looked after rain, or enter exact mm:",
+    btnConfirmDelay: "✅ Confirm New Date & Update Schedule", rainModalTitle: "🌧️ Log Rain at Farm", rainModalSub: "Select how the orchard looked after rain, or enter exact mm:",
     rn1: "🌦️ Light Drizzle (~3 mm) — Top 1 cm damp, no drip pause", rn2: "🌧️ Moderate Rain (~10 mm) — Soil wet 3–4 inches deep",
     rn3: "⛈️ Heavy Downpour (~20 mm) — Water in furrows (Pause drip 48h + Copper)", rn4: "🌊 Very Heavy Storm (~35 mm) — Standing water near bunds",
     weekWord: "Week", preEthrelLabel: "📜 Week 0: Pre-Ethrel History (Before 15 Aug 2026)", dadWord: "DAD",
@@ -464,24 +516,24 @@ const I18N = {
   },
   KN: {
     appTitle: "🍎 ಹೊಸಹಳ್ಳಿ ದಾಳಿಂಬೆ ನಿರ್ವಹಣಾ ಟ್ರ್ಯಾಕರ್", appSub: "3 ಎಕರೆ • 1,500 ಗಿಡ (10×8) • ವಾರ 1 (ಎಥ್ರೆಲ್): 15 ಆಗಸ್ಟ್ 2026",
-    btnLogRain: "🌧️ ಮಳೆ ದಾಖಲಿಸಿ", tabTasks: "ವಾರದ ಕೆಲಸ", tabManual: "ಕೆಲಸ ಸೇರಿಸಿ", tabShop: "ಅಂಗಡಿ & ₹", tabScout: "ರೋಗ & ದಾಖಲೆ",
+    btnLogRain: "🌧️ ಮಳೆ ದಾಖಲಿಸಿ", tabTasks: "ಕೆಲಸಗಳು", tabAnalytics: "GDD & ಪೋಷಕಾಂಶ", tabManual: "ಕೆಲಸ ಸೇರಿಸಿ", tabShop: "ಅಂಗಡಿ & ₹", tabScout: "ರೋಗ/ದಾಖಲೆ",
+    gddCardTitle: "☀️ ಉಷ್ಣಾಂಶ ಬೆಳವಣಿಗೆ ದಿನಗಳು (Thermal GDD - Base 10°C)", riskCardTitle: "🦠 72-ಗಂಟೆಗಳ ಅಂಗಮಾರಿ ಮತ್ತು ಕೊಳೆ ರೋಗದ ಅಪಾಯ ಸೂಚ್ಯಂಕ",
+    npkLedgerTitle: "⚖️ ಪ್ರತಿ ಗಿಡಕ್ಕೆ ನೀಡಲಾದ ಒಟ್ಟು ಪೋಷಕಾಂಶಗಳ ಲೆಕ್ಕ (ಗ್ರಾಂ/ಗಿಡ - ಗುರಿ vs ನೀಡಿದ್ದು)",
+    npkLedgerSub: "ಇಲ್ಲಿಯವರೆಗೆ ಪೂರ್ಣಗೊಂಡ ಡ್ರಿಪ್ ಮತ್ತು ಸಿಂಪಡಣೆಗಳಿಂದ 1,500 ಗಿಡಗಳಿಗೆ ತಲುಪಿದ ನಿಖರ N, P, K, Ca, Mg ಪ್ರಮಾಣ.",
     manTitle: "➕ ಮಾಡಿದ ಸಿಂಪಡಣೆ / ಡ್ರಿಪ್ ಗೊಬ್ಬರ ದಾಖಲಿಸಿ", lblManDate: "ಮಾಡಿದ ದಿನಾಂಕ:", lblManType: "ಕೆಲಸದ ವಿಧ:", lblManCost: "ಒಟ್ಟು ಖರ್ಚು (₹):",
     optFoliar: "🌿 ಎಲೆ ಸಿಂಪಡಣೆ (7 ಡ್ರಮ್)", optCopper: "⚠️ ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಸಿಂಪಡಣೆ", optDrip: "💧 ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)",
     lblManChem1: "ಮೊದಲನೇ ಔಷಧಿ / ಗೊಬ್ಬರ:", lblManChem2: "ಎರಡನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಐಚ್ಛಿಕ):", lblManNotes: "ವಿವರ / ಕಂಪನಿ ಹೆಸರು:",
     lblManShift: "ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸಿ (+3 ದಿನ ಮುಂದೂಡಿಕೆ, 5 ದಿನ ಕಾಪರ್ ಅಂತರ, ಬೋರಾನ್ ಮಿತಿ)", btnSaveMan: "💾 ದಾಖಲಿಸಿ ಮತ್ತು ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ",
     expTitle: "💰 ಒಟ್ಟು ದಾಖಲಾದ ತೋಟದ ಖರ್ಚು (3 ಎಕರೆ)", shopTitle: "ಅಗ್ರೋ ಅಂಗಡಿ ಖರೀದಿ ಪಟ್ಟಿ (3 ಎಕರೆ)", shopSub: "ಪೂರ್ಣಗೊಂಡ ಮತ್ತು ಬಿಟ್ಟುಬಿಟ್ಟ ಔಷಧಿಗಳನ್ನು ಕೈಬಿಡಲಾಗಿದೆ. ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣ ನಮೂದಿಸಿ.", btnCopy: "📲 ಪಟ್ಟಿ ಕಾಪಿ ಮಾಡಿ",
-    brandCheckerTitle: "🧪 ಅಗ್ರೋ ಅಂಗಡಿ ಕಂಪನಿ ಹೆಸರು & ಮಿಶ್ರಣ ಪರೀಕ್ಷಕ (Brand Checker)",
-    brandCheckerSub: "ಅಂಗಡಿಯವರು ಕೊಡುವ ಕಂಪನಿ ಹೆಸರನ್ನು ಕೆಳಗೆ ಆರಿಸಿ — ಅದರ ಒಳಗಿರುವ ಲವಣಾಂಶ, ಹಿಂದಿನ 21 ದಿನಗಳಲ್ಲಿ ಸಿಂಪಡಿಸಿದೆಯೇ ಮತ್ತು ಒಟ್ಟಿಗೆ ಬೆರೆಸಬಹುದೇ ಎಂದು ತಕ್ಷಣ ತಿಳಿಯಿರಿ:",
+    brandCheckerTitle: "🧪 ಅಗ್ರೋ ಅಂಗಡಿ ಕಂಪನಿ ಹೆಸರು & ಮಿಶ್ರಣ ಪರೀಕ್ಷಕ", brandCheckerSub: "ಅಂಗಡಿಯವರು ಕೊಡುವ ಕಂಪನಿ ಹೆಸರನ್ನು ಕೆಳಗೆ ಆರಿಸಿ — ಲವಣಾಂಶ, 21 ದಿನದ ಪುನರಾವರ್ತನೆ ಮತ್ತು ಡ್ರಮ್ ಮಿಶ್ರಣ ಕ್ರಮ ತಿಳಿಯಿರಿ:",
     scoutTitle: "🔍 ತೋಟದ ರೋಗ / ಕೀಟ ವರದಿ ಮಾಡಿ", scoutSub: "ಕೆಳಗಿನ ಸಮಸ್ಯೆ ಒತ್ತಿರಿ. ದೃಢೀಕರಿಸಿದ ನಂತರ ಹವಾಮಾನ ಪರಿಶೀಲಿಸಿ ನಿಮ್ಮ ವೇಳಾಪಟ್ಟಿಗೆ ಸಿಂಪಡಣೆ ಸೇರಿಸುತ್ತದೆ.",
     auditTitle: "👤 ಯಾರು, ಯಾವಾಗ ಬದಲಾವಣೆ ಮಾಡಿದರು (ದಾಖಲೆ ಪಟ್ಟಿ)", masterTitle: "📅 ಪೂರ್ಣ ವೇಳಾಪಟ್ಟಿ (ವಾರ 0 ರಿಂದ ವಾರ 30 ರವರೆಗೆ)",
     modalTitle: "🏪 ಅಗ್ರೋ ಅಂಗಡಿ ಕಂಪನಿ ಹೆಸರು & ಪರ್ಯಾಯ ಪರೀಕ್ಷಕ", lblBrandSearch: "🔍 ಅಂಗಡಿಯವರು ಯಾವ ಕಂಪನಿಯ ಔಷಧಿ ಕೊಡುತ್ತಿದ್ದಾರೆ?", userModalTitle: "👤 ಬಳಕೆದಾರರ ಹೆಸರು ನಿರ್ವಹಿಸಿ",
     delayModalTitle: "⏳ ದಿನಾಂಕ ಬದಲಿಸಿ / ಮುಂದೂಡಿ", lblQuickDelay: "1. ದಿನಗಳನ್ನು ಹಿಂದೆ (-) / ಮುಂದೆ (+) ಮಾಡಿ ಅಥವಾ ದಿನಾಂಕ ಆರಿಸಿ:", btnOrigDate: "↺ ಮೂಲ ದಿನಾಂಕಕ್ಕೆ ತನ್ನಿ", lblNewDate: "ಹೊಸ ದಿನಾಂಕ:",
-    lblCascadeMode: "2. ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಹೇಗೆ ಬದಲಾಗಬೇಕು?",
-    casAllTitle: "🌊 ಮುಂದಿನ ಎಲ್ಲಾ ಸಿಂಪಡಣೆ ಮತ್ತು ಡ್ರಿಪ್ ಒಟ್ಟಿಗೆ ಬದಲಿಸಿ (ಶಿಫಾರಸು)", casAllSub: "ಮುಂದಿನ ಎಲ್ಲಾ ಕೆಲಸಗಳೂ ಅಷ್ಟೇ ದಿನ ಮುಂದೆ ಅಥವಾ ಹಿಂದೆ ಬರುತ್ತವೆ.",
+    lblCascadeMode: "2. ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಹೇಗೆ ಬದಲಾಗಬೇಕು?", casAllTitle: "🌊 ಮುಂದಿನ ಎಲ್ಲಾ ಸಿಂಪಡಣೆ ಮತ್ತು ಡ್ರಿಪ್ ಒಟ್ಟಿಗೆ ಬದಲಿಸಿ (ಶಿಫಾರಸು)", casAllSub: "ಮುಂದಿನ ಎಲ್ಲಾ ಕೆಲಸಗಳೂ ಅಷ್ಟೇ ದಿನ ಮುಂದೆ ಅಥವಾ ಹಿಂದೆ ಬರುತ್ತವೆ.",
     casTrackTitle: "🛤️ ಇದೇ ವಿಧದ ಕೆಲಸಗಳನ್ನು ಮಾತ್ರ ಬದಲಿಸಿ (ಡ್ರಿಪ್ ಅಥವಾ ಸಿಂಪಡಣೆ ಮಾತ್ರ)", casSingleTitle: "📌 ಈ ಒಂದು ಕೆಲಸವನ್ನು ಮಾತ್ರ ಬದಲಿಸಿ",
     lblDelayReason: "3. ಕಾರಣ:", rsnRain: "🌧️ ಮಳೆ / ಹಸಿ ಮಣ್ಣು", rsnPower: "⚡ ವಿದ್ಯುತ್ / ಮೋಟಾರ್ ಸಮಸ್ಯೆ", rsnLabor: "👷 ಕೂಲಿ ಕಾರ್ಮಿಕರ ಕೊರತೆ", rsnStore: "🏪 ಔಷಧಿ / ಗೊಬ್ಬರ ತರಲು ವಿಳಂಬ",
-    btnConfirmDelay: "✅ ಹೊಸ ದಿನಾಂಕ ಖಚಿತಪಡಿಸಿ & ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ",
-    rainModalTitle: "🌧️ ತೋಟದ ಮಳೆ ಪ್ರಮಾಣ ದಾಖಲಿಸಿ", rainModalSub: "ಮಳೆಯ ನಂತರ ತೋಟದ ಮಣ್ಣು ಹೇಗಿತ್ತು ಎಂದು ಆರಿಸಿ ಅಥವಾ ಮಿ.ಮೀ ನಮೂದಿಸಿ:",
+    btnConfirmDelay: "✅ ಹೊಸ ದಿನಾಂಕ ಖಚಿತಪಡಿಸಿ & ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ", rainModalTitle: "🌧️ ತೋಟದ ಮಳೆ ಪ್ರಮಾಣ ದಾಖಲಿಸಿ", rainModalSub: "ಮಳೆಯ ನಂತರ ತೋಟದ ಮಣ್ಣು ಹೇಗಿತ್ತು ಎಂದು ಆರಿಸಿ ಅಥವಾ ಮಿ.ಮೀ ನಮೂದಿಸಿ:",
     rn1: "🌦️ ತುಂತುರು ಮಳೆ (~3 ಮಿ.ಮೀ) — ಮೇಲ್ಮಣ್ಣು ಮಾತ್ರ ಹಸಿ", rn2: "🌧️ ಸಾಧಾರಣ ಮಳೆ (~10 ಮಿ.ಮೀ) — 3–4 ಇಂಚು ಮಣ್ಣು ಹಸಿ",
     rn3: "⛈️ ಜೋರು ಮಳೆ (~20 ಮಿ.ಮೀ) — ಸಾಲುಗಳಲ್ಲಿ ನೀರು ಹರಿದಿದೆ (48ಗಂ ಡ್ರಿಪ್ ನಿಲ್ಲಿಸಿ + ಕಾಪರ್)", rn4: "🌊 ಭಾರಿ ಮಳೆ (~35 ಮಿ.ಮೀ) — ಗಿಡದ ಬುಡದಲ್ಲಿ ನೀರು ನಿಂತಿದೆ",
     weekWord: "ವಾರ", preEthrelLabel: "📜 ವಾರ 0: ಎಥ್ರೆಲ್ ಮುಂಚಿನ ದಾಖಲೆಗಳು (15 ಆಗಸ್ಟ್ 2026 ಕ್ಕಿಂತ ಮೊದಲು)", dadWord: "ದಿನ (DAD)",
@@ -552,8 +604,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   applyEnvStyling();
   const todayDad = diffDaysYMD("2026-08-15", tStr);
   curWk = (todayDad >= 0 && todayDad <= 220) ? Math.floor(todayDad / 7) + 1 : 11;
+  await flushOutbox();
   await loadWeather();
-  setInterval(() => { if (wState.mode !== "SIM") loadWeather().then(render); }, 30 * 60 * 1000);
+  setInterval(() => { flushOutbox(); if (wState.mode !== "SIM") loadWeather().then(render); }, 25 * 60 * 1000);
   await loadDB();
   render();
 });
@@ -577,17 +630,39 @@ async function switchEnv(newEnv) { APP_ENV = newEnv; localStorage.setItem("h_env
 async function loadWeather() {
   try {
     const [r, rainRes] = await Promise.all([
-      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&current=temperature_2m,relative_humidity_2m,precipitation&hourly=precipitation_probability&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&past_days=2&forecast_days=2`),
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&current=temperature_2m,relative_humidity_2m,precipitation&hourly=precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&past_days=3&forecast_days=2`),
       sb.from("farm_rain_logs").select("*").eq("log_date", todayYMD()).maybeSingle()
     ]);
     const d = await r.json(), hr = new Date().getHours();
     farmRainToday = rainRes?.data || null;
-    const satRain = Number(((d.daily.precipitation_sum[1] || 0) + (d.daily.precipitation_sum[2] || 0)).toFixed(1));
+    const satRain24 = Number(((d.daily.precipitation_sum[2] || 0) + (d.daily.precipitation_sum[3] || 0)).toFixed(1));
+    const rain24 = farmRainToday ? Number(farmRainToday.rain_mm) : satRain24;
+    const rain72Sum = Number(((d.daily.precipitation_sum[1] || 0) + (d.daily.precipitation_sum[2] || 0) + rain24).toFixed(1));
+    const rhSlice = (d.hourly.relative_humidity_2m || []).slice(24, 96);
+    const rh72Avg = rhSlice.length ? Math.round(rhSlice.reduce((a, b) => a + b, 0) / rhSlice.length) : (d.current?.relative_humidity_2m || 60);
+
+    const tMax = d.daily.temperature_2m_max[3] || 30.5;
+    const tMin = d.daily.temperature_2m_min[3] || 18.2;
+    const prob4 = Math.max(...(d.hourly.precipitation_probability || []).slice(72 + hr, 76 + hr), 0);
+    const riskScore = computeDiseaseRiskScore(rh72Avg, tMax, tMin, rain72Sum, prob4);
+    const dailyGdd = Math.max(0, Number((((tMax + tMin) / 2) - 10.0).toFixed(2)));
+
+    if (navigator.onLine) {
+      await sb.from("weather_telemetry_history").upsert([{
+        log_date: todayYMD(), temp_max_c: tMax, temp_min_c: tMin, humidity_mean_pct: rh72Avg,
+        rain_mm: rain24, daily_gdd: dailyGdd, disease_risk_score: riskScore
+      }]);
+      await sb.rpc("run_daily_orchard_engine");
+      const { data: gddRows } = await sb.from("weather_telemetry_history").select("daily_gdd");
+      if (gddRows && gddRows.length) {
+        wState.cumulativeGdd = Math.round(gddRows.reduce((s, x) => s + Number(x.daily_gdd || 15), 0));
+      }
+    }
+
     wState = {
+      ...wState,
       tempNow: d.current?.temperature_2m ?? 29.5, humidity: d.current?.relative_humidity_2m ?? 55,
-      rain24: farmRainToday ? Number(farmRainToday.rain_mm) : satRain,
-      prob4: Math.max(...d.hourly.precipitation_probability.slice(48 + hr, 52 + hr), 0),
-      tMax: d.daily.temperature_2m_max[2] || 30.5, tMin: d.daily.temperature_2m_min[2] || 18.2,
+      rain24, prob4, tMax, tMin, rh72Avg, rain72Sum, riskScore,
       updatedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       mode: farmRainToday ? "FARM_LOGGED" : "LIVE"
     };
@@ -596,12 +671,113 @@ async function loadWeather() {
 }
 
 function updateWBar() {
-  const srcTag = wState.mode === "FARM_LOGGED" ? (LANG === "KN" ? " (🏡 ತೋಟದ ದಾಖಲೆ)" : " (🏡 Farm)") : "";
-  document.getElementById("wTemp").textContent = LANG === "KN" ? `🌡️ ಈಗ: ${wState.tempNow}°C (ಗರಿಷ್ಠ ${wState.tMax}° / ರಾತ್ರಿ ${wState.tMin}°)` : `🌡️ Now: ${wState.tempNow}°C (Max ${wState.tMax}° / Night ${wState.tMin}°)`;
+  const srcTag = wState.mode === "FARM_LOGGED" ? (LANG === "KN" ? " (🏡 ತೋಟ)" : " (🏡 Farm)") : "";
+  document.getElementById("wTemp").textContent = LANG === "KN" ? `🌡️ ಈಗ: ${wState.tempNow}°C (${wState.tMax}°/${wState.tMin}°)` : `🌡️ Now: ${wState.tempNow}°C (${wState.tMax}°/${wState.tMin}°)`;
   document.getElementById("wHum").textContent = LANG === "KN" ? `💧 ತೇವಾಂಶ: ${wState.humidity}%` : `💧 RH: ${wState.humidity}%`;
-  document.getElementById("wRain").textContent = LANG === "KN" ? `🌧️ 24ಗಂ ಮಳೆ: ${wState.rain24} ಮಿ.ಮೀ${srcTag}` : `🌧️ 24h Rain: ${wState.rain24} mm${srcTag}`;
-  document.getElementById("wProb").textContent = LANG === "KN" ? `☔ 4ಗಂ ಸಾಧ್ಯತೆ: ${wState.prob4}%` : `☔ 4h Prob: ${wState.prob4}%`;
+  document.getElementById("wRain").textContent = LANG === "KN" ? `🌧️ ಮಳೆ: ${wState.rain24}mm${srcTag}` : `🌧️ Rain: ${wState.rain24}mm${srcTag}`;
+
+  const rb = document.getElementById("wRiskBadge");
+  if (wState.riskScore >= 65) {
+    rb.textContent = LANG === "KN" ? `🦠 ರೋಗ ಅಪಾಯ: ಗರಿಷ್ಠ (${wState.riskScore}%)` : `🦠 Blight Risk: HIGH (${wState.riskScore}%)`;
+    rb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-600 text-white animate-pulse";
+  } else if (wState.riskScore >= 38) {
+    rb.textContent = LANG === "KN" ? `🦠 ರೋಗ ಅಪಾಯ: ಮಧ್ಯಮ (${wState.riskScore}%)` : `🦠 Blight Risk: MOD (${wState.riskScore}%)`;
+    rb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950";
+  } else {
+    rb.textContent = LANG === "KN" ? `🦠 ರೋಗ ಅಪಾಯ: ಕಡಿಮೆ (${wState.riskScore}%)` : `🦠 Blight Risk: LOW (${wState.riskScore}%)`;
+    rb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-700 text-white";
+  }
   document.getElementById("wUpdatedTime").textContent = `🔄 ${wState.updatedAt || ""}`;
+}
+
+function setWeather(m) {
+  if (m === "LIVE") { loadWeather().then(render); return; }
+  if (m === "RAIN") wState = { ...wState, rain24: 24.0, prob4: 25, riskScore: 78, mode: "SIM" };
+  if (m === "HIGH_RISK") wState = { ...wState, humidity: 86, rh72Avg: 85, rain72Sum: 12, riskScore: 84, mode: "SIM" };
+  if (m === "WARM") wState = { ...wState, tMax: 35.0, tMin: 19.6, mode: "SIM" };
+  updateWBar(); render();
+}
+
+function renderAnalyticsTab() {
+  const todayDad = Math.max(1, diffDaysYMD("2026-08-15", todayYMD()));
+  const expectedNormalGdd = Math.round(todayDad * 14.2);
+  const actualGdd = wState.cumulativeGdd || Math.round(todayDad * 15.1);
+  const thermalEquivalentDad = Math.round(actualGdd / 14.2);
+  const daysAhead = thermalEquivalentDad - todayDad;
+
+  document.getElementById("gddTotalValue").textContent = `${actualGdd.toLocaleString()} GDD`;
+  document.getElementById("gddComparisonText").innerHTML = LANG === "KN"
+    ? `ಕ್ಯಾಲೆಂಡರ್ ವಯಸ್ಸು: <b>${todayDad} ದಿನ (DAD)</b> • ಉಷ್ಣಾಂಶ ಜೈವಿಕ ವಯಸ್ಸು: <b>${thermalEquivalentDad} ದಿನಗಳಿಗೆ ಸಮ</b> (ಸಾಮಾನ್ಯ: ${expectedNormalGdd} GDD)`
+    : `Calendar Age: <b>${todayDad} DAD</b> • Biological Thermal Age: <b>${thermalEquivalentDad} GDD-Days</b> (Baseline: ${expectedNormalGdd} GDD)`;
+  document.getElementById("gddHarvestForecast").textContent = LANG === "KN"
+    ? (daysAhead > 0 ? `🔥 ಎಲ್ ನಿನೊ ಬಿಸಿಯಿಂದಾಗಿ ಕಾಯಿಗಳು ಕ್ಯಾಲೆಂಡರ್‌ಗಿಂತ ~${daysAhead} ದಿನ ಮುಂಚಿತವಾಗಿ ಮಾಗುತ್ತಿವೆ.` : `✅ ಕಾಯಿ ಬೆಳವಣಿಗೆ ಸಾಮಾನ್ಯ ವೇಳಾಪಟ್ಟಿಯಂತೆಯೇ ಇದೆ.`)
+    : (daysAhead > 0 ? `🔥 El Niño warmth is accelerating fruit maturity by ~${daysAhead} days ahead of calendar DAD.` : `✅ Crop thermal accumulation is tracking right on baseline schedule.`);
+
+  const scEl = document.getElementById("diseaseScoreValue");
+  scEl.textContent = `${wState.riskScore} / 100`;
+  scEl.className = wState.riskScore >= 65 ? "text-2xl font-extrabold text-red-600" : wState.riskScore >= 38 ? "text-2xl font-extrabold text-amber-600" : "text-2xl font-extrabold text-emerald-700";
+  document.getElementById("diseaseReasonText").innerHTML = LANG === "KN"
+    ? `72-ಗಂಟೆಗಳ ಸರಾಸರಿ ತೇವಾಂಶ: <b>${wState.rh72Avg}%</b> • 72ಗಂ ಮಳೆ: <b>${wState.rain72Sum} mm</b> • ತಾಪಮಾನ: <b>${wState.tMax}°C / ${wState.tMin}°C</b>`
+    : `72h Rolling Humidity: <b>${wState.rh72Avg}%</b> • 72h Rain: <b>${wState.rain72Sum} mm</b> • Temp Window: <b>${wState.tMax}°C / ${wState.tMin}°C</b>`;
+  document.getElementById("diseaseActionText").textContent = wState.riskScore >= 65
+    ? (LANG === "KN" ? "🚨 ಎಚ್ಚರಿಕೆ: ಅಂಗಮಾರಿ ಹರಡುವ ಸಾಧ್ಯತೆ ಹೆಚ್ಚು! ಸಿಂಪಡಣೆ ಅಂತರವನ್ನು 7 ದಿನದಿಂದ 4–5 ದಿನಕ್ಕೆ ಇಳಿಸಿ." : "🚨 HIGH RISK: Tighten bactericide/fungicide spray interval from 7 days to 4–5 days!")
+    : (LANG === "KN" ? "✅ ಪ್ರಸ್ತುತ ಹವಾಮಾನದಲ್ಲಿ 7 ದಿನಗಳ ಸಾಮಾನ್ಯ ಸಿಂಪಡಣೆ ವೇಳಾಪಟ್ಟಿ ಸಾಕು." : "✅ Standard 7-day prophylactic spray interval is sufficient.");
+
+  const deliveredGramsPerPlant = { N: 0, P: 0, K: 0, Ca: 0, Mg: 0 };
+  tasks.filter(t => t.status === "COMPLETED" && t.current_scheduled_date >= "2026-08-15").forEach(tk => {
+    (tk.resolved_recipe || []).forEach(it => {
+      if (it.item_status === "SKIPPED") return;
+      const c = catalog[it.input_id]; if (!c) return;
+      const defTotal = it.dose_per_liter ? (it.dose_per_liter * CFG.drumL * CFG.drums) : ((it.dose_per_acre || 0) * CFG.acres);
+      const totalUsed = it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : defTotal;
+      const totalGrams3Ac = (c.unit === "kg" || c.unit === "L") ? totalUsed * 1000 : totalUsed;
+      const gramsPerPlant = totalGrams3Ac / CFG.plants;
+      deliveredGramsPerPlant.N  += gramsPerPlant * ((Number(c.n_pct) || 0) / 100);
+      deliveredGramsPerPlant.P  += gramsPerPlant * ((Number(c.p_pct) || 0) / 100);
+      deliveredGramsPerPlant.K  += gramsPerPlant * ((Number(c.k_pct) || 0) / 100);
+      deliveredGramsPerPlant.Ca += gramsPerPlant * ((Number(c.ca_pct) || 0) / 100);
+      deliveredGramsPerPlant.Mg += gramsPerPlant * ((Number(c.mg_pct) || 0) / 100);
+    });
+  });
+
+  const progressRatio = Math.min(1, Math.max(0.1, todayDad / 200));
+  const seasonTargets = [
+    { key: "N",  labelEn: "Nitrogen (N) — Vegetative & Early Sizing", labelKn: "ಸಾರಜನಕ (N) — ಆರಂಭಿಕ ಬೆಳವಣಿಗೆ", targetToDate: Math.round(65 * Math.min(1, todayDad / 140)), color: "bg-sky-600" },
+    { key: "P",  labelEn: "Phosphorus (P₂O₅) — Flowering & Cell Division", labelKn: "ರಂಜಕ (P₂O₅) — ಹೂವು ಮತ್ತು ಕಾಯಿ ಬೆಳವಣಿಗೆ", targetToDate: Math.round(145 * progressRatio), color: "bg-amber-500" },
+    { key: "K",  labelEn: "Potassium (K₂O) — Fruit Weight, Brix & Redness", labelKn: "ಪೊಟ್ಯಾಷ್ (K₂O) — ತೂಕ, ಸಿಹಿ ಮತ್ತು ಕೆಂಪು ಬಣ್ಣ", targetToDate: Math.round(240 * progressRatio), color: "bg-rose-600" },
+    { key: "Ca", labelEn: "Calcium (Ca) — Rind Strength & Anti-Cracking", labelKn: "ಕ್ಯಾಲ್ಸಿಯಂ (Ca) — ಸಿಪ್ಪೆ ಗಟ್ಟಿತನ (ಸೀಳುವಿಕೆ ತಡೆ)", targetToDate: Math.round(45 * progressRatio), color: "bg-indigo-600" },
+    { key: "Mg", labelEn: "Magnesium (Mg) — Chlorophyll & Sugar Flow", labelKn: "ಮೆಗ್ನೀಸಿಯಮ್ (Mg) — ಎಲೆ ಹಸಿರು ಮತ್ತು ಸಿಹಿ", targetToDate: Math.round(25 * progressRatio), color: "bg-emerald-600" }
+  ];
+
+  document.getElementById("npkBarsContainer").innerHTML = seasonTargets.map(n => {
+    const actual = Number(deliveredGramsPerPlant[n.key].toFixed(1));
+    const target = Math.max(1, n.targetToDate);
+    const pct = Math.min(100, Math.round((actual / target) * 100));
+    return `<div>
+      <div class="flex justify-between font-bold mb-1">
+        <span>${LANG === "KN" ? n.labelKn : n.labelEn}</span>
+        <span>${actual} g / ${target} g per plant (${pct}%)</span>
+      </div>
+      <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+        <div class="${n.color} h-2.5 rounded-full" style="width:${pct}%"></div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function exportScheduleCSV() {
+  const headers = ["Week", "DAD", "Scheduled_Date", "Task_Type", "Stage", "Description", "Status", "Cost_Rs", "Updated_By"];
+  const rows = tasks.map(t => [
+    t.week_number, t.effective_dad, t.current_scheduled_date, t.task_type,
+    `"${(t.stage_name || "").replace(/"/g, '""')}"`,
+    `"${cleanHardcodedDayPrefix(t.target_description, false).replace(/"/g, '""')}"`,
+    t.status, t.cost_rs || 0, `"${t.updated_by || "System"}"`
+  ].join(","));
+  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+  const link = document.createElement("a");
+  link.setAttribute("href", encodeURI(csvContent));
+  link.setAttribute("download", `hosahalli_orchard_${APP_ENV}_${todayYMD()}.csv`);
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
 function openRainModal() {
@@ -613,9 +789,10 @@ async function saveFarmRain(mm, label) {
   const val = Math.max(0, Number(mm) || 0), tStr = todayYMD();
   farmRainToday = { log_date: tStr, rain_mm: val, rain_label: label, logged_by: activeUser };
   wState.rain24 = val; wState.mode = "FARM_LOGGED";
+  wState.riskScore = computeDiseaseRiskScore(wState.rh72Avg, wState.tMax, wState.tMin, val, wState.prob4);
   document.getElementById("rainModal").classList.add("hidden");
   updateWBar(); render();
-  await sb.from("farm_rain_logs").upsert([farmRainToday]);
+  await dbMutate({ table: "farm_rain_logs", type: "upsert", payload: [farmRainToday] });
   await logAudit("FARM_RAIN_LOGGED", `Logged ${val} mm (${label})`, `Date: ${tStr}`);
 
   if (val >= 15) {
@@ -634,8 +811,8 @@ async function saveFarmRain(mm, label) {
         custom_title_kn: `ಮಳೆಯ ನಂತರದ ತುರ್ತು ರಕ್ಷಣೆ (${val}ಮಿ.ಮೀ ಮಳೆ): ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ + ಬ್ರೊನೊಪಾಲ್`,
         updated_by: activeUser, updated_at: new Date().toISOString()
       };
-      const { data } = await sb.from("daily_task_queue").insert([payload]).select();
-      tasks.push({ ...(data?.[0] || { ...payload, id: "rain_" + Date.now() }), week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn });
+      const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
+      tasks.push({ ...(res.data?.[0] || { ...payload, id: "rain_" + Date.now() }), week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn });
       render();
     }
   }
@@ -643,16 +820,8 @@ async function saveFarmRain(mm, label) {
 
 async function clearFarmRain() {
   farmRainToday = null; document.getElementById("rainModal").classList.add("hidden");
-  await sb.from("farm_rain_logs").delete().eq("log_date", todayYMD());
+  await dbMutate({ table: "farm_rain_logs", type: "delete", matchCol: "log_date", matchVal: todayYMD() });
   await loadWeather(); render();
-}
-
-function setWeather(m) {
-  if (m === "LIVE") { loadWeather().then(render); return; }
-  if (m === "RAIN") wState = { ...wState, rain24: 24.0, prob4: 25, mode: "SIM" };
-  if (m === "HOLD") wState = { ...wState, rain24: 1.0, prob4: 80, mode: "SIM" };
-  if (m === "WARM") wState = { ...wState, tMax: 35.0, tMin: 19.6, mode: "SIM" };
-  updateWBar(); render();
 }
 
 function openNewChemModal() {
@@ -671,7 +840,7 @@ async function saveNewChemical() {
   brandsDir.push({ id: Date.now(), brand_name: nameEn, company_name: "Custom Store Brand", input_id: id, primary_use_en: category, primary_use_kn: category });
   document.getElementById("newChemModal").classList.add("hidden");
   populateManualSelects(); populateBrandCheckerDropdowns(); render();
-  await sb.from("inputs_catalog").insert([newChem]);
+  await dbMutate({ table: "inputs_catalog", type: "insert", payload: [newChem] });
   await logAudit("NEW_CHEMICAL_ADDED", `${nameEn} (${salt})`, `${dose} ${unit} via ${method}`);
 }
 
@@ -692,8 +861,8 @@ function renderUserModalList() {
 }
 async function addUser() {
   const inp = document.getElementById("newUserName"), name = inp.value.trim(); if (!name) return;
-  const { data } = await sb.from("app_users").insert([{ name }]).select();
-  usersList.push((data && data[0]) ? data[0] : { id: Date.now(), name });
+  const res = await dbMutate({ table: "app_users", type: "insert", payload: [{ name }] });
+  usersList.push((res.data && res.data[0]) ? res.data[0] : { id: Date.now(), name });
   activeUser = name; localStorage.setItem("h_user", name); inp.value = "";
   renderUserDropdown(); renderUserModalList();
 }
@@ -702,31 +871,30 @@ async function renameUser(id) {
   const u = usersList.find(x => x.id === id);
   if (u) { if (activeUser === u.name) activeUser = newName; u.name = newName; }
   renderUserDropdown(); renderUserModalList();
-  await sb.from("app_users").update({ name: newName }).eq("id", id);
+  await dbMutate({ table: "app_users", type: "update", payload: { name: newName }, matchCol: "id", matchVal: id });
 }
 async function deleteUser(id, name) {
   if (usersList.length <= 1) return;
   usersList = usersList.filter(u => u.id !== id);
   renderUserDropdown(); renderUserModalList();
-  await sb.from("app_users").delete().eq("id", id);
+  await dbMutate({ table: "app_users", type: "delete", matchCol: "id", matchVal: id });
 }
 function toggleLanguage() { LANG = LANG === "EN" ? "KN" : "EN"; localStorage.setItem("h_lang", LANG); render(); }
 
 async function logAudit(actionType, summary, details) {
   const entry = { env: APP_ENV, actor_name: activeUser, action_type: actionType, task_summary: summary, details, created_at: new Date().toISOString() };
   auditLogs.unshift(entry);
-  try { await sb.from("activity_audit_log").insert([entry]); } catch (e) {}
+  await dbMutate({ table: "activity_audit_log", type: "insert", payload: [entry] });
 }
 
 async function clearCurrentEnvAuditLog() {
   const msg = LANG === "KN" ? `${APP_ENV} ವಿಭಾಗದ ಹಿಂದಿನ ಬದಲಾವಣೆ ದಾಖಲೆಗಳನ್ನು ಅಳಿಸಿ ಹೊಸದಾಗಿ ಪ್ರಾರಂಭಿಸಲೇ?` : `Clear tracked activity history in ${APP_ENV} and start fresh?`;
   if (!confirm(msg)) return;
   auditLogs = []; render();
-  await sb.from("activity_audit_log").delete().eq("env", APP_ENV);
+  await dbMutate({ table: "activity_audit_log", type: "delete", matchCol: "env", matchVal: APP_ENV });
 }
 
 async function loadDB() {
-  const b = document.getElementById("syncBadge");
   try {
     const [cR, sR, bR, lR, qR, tR, aR, uR] = await Promise.all([
       sb.from("inputs_catalog").select("*"),
@@ -740,8 +908,7 @@ async function loadDB() {
     ]);
     if (cR.error) throw cR.error;
     cR.data.forEach(x => catalog[x.id] = x);
-    subs = sR.data || [];
-    brandsDir = bR.data || [];
+    subs = sR.data || []; brandsDir = bR.data || [];
     (lR.data || []).forEach(x => leftovers[x.input_id] = Number(x.leftover_qty));
     auditLogs = aR.data || []; templates = tR.data || [];
     if (uR.data && uR.data.length > 0) usersList = uR.data;
@@ -756,14 +923,12 @@ async function loadDB() {
         target_description_kn: q.custom_title_kn || ""
       };
     });
-    localStorage.setItem(`h_cache_v9_${APP_ENV}`, JSON.stringify({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList }));
-    b.textContent = `🟢 ${APP_ENV}`;
+    localStorage.setItem(`h_cache_v10_${APP_ENV}`, JSON.stringify({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList }));
   } catch (e) {
-    const c = localStorage.getItem(`h_cache_v9_${APP_ENV}`);
+    const c = localStorage.getItem(`h_cache_v10_${APP_ENV}`);
     if (c) ({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList } = JSON.parse(c));
-    b.textContent = "🟠 Offline";
   }
-  renderUserDropdown(); populateManualSelects(); populateBrandCheckerDropdowns();
+  updateSyncBadge(); renderUserDropdown(); populateManualSelects(); populateBrandCheckerDropdowns();
 }
 
 function populateManualSelects() {
@@ -784,30 +949,23 @@ function populateBrandCheckerDropdowns() {
   b2.innerHTML = `<option value="">-- ${LANG === "KN" ? "2ನೇ ಕಂಪನಿ ಹೆಸರು (ಬೆರೆಸಲು ಪರಿಶೀಲಿಸಿ)" : "Select 2nd Brand (Check Tank-Mix)"} --</option>` + opts;
 }
 
-// ============================================================================
-// 21-DAY REPEAT-SALT & IRAC/FRAC RESISTANCE DETECTOR
-// ============================================================================
 function checkRecentSprayResistance(inputId, refDateStr) {
-  const cat = catalog[inputId];
-  if (!cat) return null;
+  const cat = catalog[inputId]; if (!cat) return null;
   const recentCompleted = tasks.filter(t => t.status === "COMPLETED" && Math.abs(diffDaysYMD(t.current_scheduled_date, refDateStr)) <= 25);
   for (const t of recentCompleted) {
     for (const r of (t.resolved_recipe || [])) {
       if (r.item_status === "SKIPPED") continue;
-      const pastCat = catalog[r.input_id];
-      if (!pastCat) continue;
+      const pastCat = catalog[r.input_id]; if (!pastCat) continue;
       if (pastCat.id === cat.id && cat.category !== "FERTIGATION" && cat.category !== "BIOSTIMULANT") {
         return {
-          level: "EXACT_SALT",
-          msgEn: `⚠️ DUPLICATE SALT WARNING: You already sprayed this exact active chemical (${cat.active_ingredient}) on ${t.current_scheduled_date} (${t.target_description}). Repeating the same salt within 21 days builds pest/fungal resistance!`,
-          msgKn: `⚠️ ಒಂದೇ ಲವಣಾಂಶ ಎಚ್ಚರಿಕೆ: ನೀವು ಇದೇ ಲವಣಾಂಶವನ್ನು (${cat.active_ingredient}) ${t.current_scheduled_date} ರಂದು ಸಿಂಪಡಿಸಿದ್ದೀರಿ! ಪದೇ ಪದೇ ಒಂದೇ ಲವಣಾಂಶ ಬಳಸಿದರೆ ಕೀಟ/ರೋಗ ನಿಯಂತ್ರಣಕ್ಕೆ ಬರುವುದಿಲ್ಲ.`
+          msgEn: `⚠️ DUPLICATE SALT WARNING: You already sprayed this exact active chemical (${cat.active_ingredient}) on ${t.current_scheduled_date}. Repeating within 21 days builds resistance!`,
+          msgKn: `⚠️ ಒಂದೇ ಲವಣಾಂಶ ಎಚ್ಚರಿಕೆ: ನೀವು ಇದೇ ಲವಣಾಂಶವನ್ನು (${cat.active_ingredient}) ${t.current_scheduled_date} ರಂದು ಸಿಂಪಡಿಸಿದ್ದೀರಿ!`
         };
       }
       if (cat.irac_frac_group && pastCat.irac_frac_group === cat.irac_frac_group && cat.irac_frac_group !== "FRAC-M01" && cat.irac_frac_group !== "FRAC-M03") {
         return {
-          level: "SAME_GROUP",
-          msgEn: `⚠️ RESISTANCE GROUP ROTATION ALERT: ${cat.name_en} belongs to group ${cat.irac_frac_group}, which was recently sprayed on ${t.current_scheduled_date} (${pastCat.name_en}). Consider rotating to a different group.`,
-          msgKn: `⚠️ ಗುಂಪು ಬದಲಾವಣೆ ಸಲಹೆ: ಇದು ${cat.irac_frac_group} ಗುಂಪಿಗೆ ಸೇರಿದೆ (${t.current_scheduled_date} ರಂದು ಬಳಸಲಾಗಿದೆ). ಸಾಧ್ಯವಾದರೆ ಬೇರೆ ಗುಂಪಿನ ಔಷಧಿ ಬಳಸಿ.`
+          msgEn: `⚠️ RESISTANCE GROUP ROTATION ALERT: ${cat.name_en} is in group ${cat.irac_frac_group}, recently sprayed on ${t.current_scheduled_date} (${pastCat.name_en}).`,
+          msgKn: `⚠️ ಗುಂಪು ಬದಲಾವಣೆ ಸಲಹೆ: ಇದು ${cat.irac_frac_group} ಗುಂಪಿಗೆ ಸೇರಿದೆ (${t.current_scheduled_date} ರಂದು ಬಳಸಲಾಗಿದೆ).`
         };
       }
     }
@@ -816,37 +974,25 @@ function checkRecentSprayResistance(inputId, refDateStr) {
 }
 
 function runStandaloneBrandChecker() {
-  const id1 = document.getElementById("checkerBrand1").value;
-  const id2 = document.getElementById("checkerBrand2").value;
+  const id1 = document.getElementById("checkerBrand1").value, id2 = document.getElementById("checkerBrand2").value;
   const out = document.getElementById("standaloneCheckerResult");
   if (!id1 && !id2) { out.innerHTML = ""; return; }
-
   const htmlParts = [];
   [id1, id2].filter(Boolean).forEach(id => {
     const c = catalog[id]; if (!c) return;
-    const doseStr = c.base_dose_per_liter
-      ? `${Math.round(c.base_dose_per_liter * CFG.drumL)} ${c.unit} / 200L Drum (${Math.round(c.base_dose_per_liter * CFG.drumL * CFG.drums)} ${c.unit} for 3 Acres)`
-      : `${c.base_dose_per_acre} ${c.unit} / Acre (${(c.base_dose_per_acre * CFG.acres).toFixed(1)} ${c.unit} for 3 Acres)`;
+    const doseStr = c.base_dose_per_liter ? `${Math.round(c.base_dose_per_liter * CFG.drumL)} ${c.unit}/Drum` : `${c.base_dose_per_acre} ${c.unit}/Acre`;
     const resWarn = checkRecentSprayResistance(id, todayYMD());
-    htmlParts.push(`
-      <div class="p-2.5 bg-slate-50 border rounded-lg">
-        <div class="font-extrabold text-slate-900">${LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en} <span class="text-emerald-700">[${c.category}]</span></div>
-        <div class="text-slate-600">🧪 <b>Active Salt:</b> ${c.active_ingredient} ${c.irac_frac_group ? `(${c.irac_frac_group})` : ""}</div>
-        <div class="text-slate-700">⚖️ <b>Calibrated Dose:</b> ${doseStr}</div>
-        ${c.dealer_warning_en ? `<div class="text-amber-800 mt-1">💡 ${c.dealer_warning_en}</div>` : ""}
-        ${resWarn ? `<div class="p-2 mt-1 bg-amber-100 border border-amber-300 text-amber-950 rounded font-bold">${LANG === "KN" ? resWarn.msgKn : resWarn.msgEn}</div>` : `<div class="text-emerald-700 font-bold mt-0.5">✅ No repeat-salt conflict in past 21 days.</div>`}
-      </div>
-    `);
+    htmlParts.push(`<div class="p-2.5 bg-slate-50 border rounded-lg">
+      <div class="font-extrabold text-slate-900">${LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en} <span class="text-emerald-700">[${c.category}]</span></div>
+      <div class="text-slate-600">🧪 <b>Active Salt:</b> ${c.active_ingredient} • ⚖️ <b>Dose:</b> ${doseStr}</div>
+      ${resWarn ? `<div class="p-2 mt-1 bg-amber-100 border border-amber-300 text-amber-950 rounded font-bold">${LANG === "KN" ? resWarn.msgKn : resWarn.msgEn}</div>` : `<div class="text-emerald-700 font-bold mt-0.5">✅ No repeat-salt conflict in past 21 days.</div>`}
+    </div>`);
   });
-
   if (id1 && id2) {
     const comp = checkPairCompatibility(catalog[id1], catalog[id2]);
-    if (!comp.ok) {
-      htmlParts.push(`<div class="p-2.5 bg-red-100 border-2 border-red-400 text-red-950 rounded-lg font-extrabold">${LANG === "KN" ? comp.reasonKn : comp.reasonEn}</div>`);
-    } else {
-      const wales = getWalesMixingGuide([{ input_id: id1 }, { input_id: id2 }]);
-      htmlParts.push(`<div class="p-2.5 bg-emerald-50 border border-emerald-300 text-emerald-950 rounded-lg">✅ <b>Compatible Tank Mix!</b><br>${wales}${comp.cautionEn ? `<div class="mt-1 text-amber-900 font-semibold">${LANG === "KN" ? comp.cautionKn : comp.cautionEn}</div>` : ""}</div>`);
-    }
+    htmlParts.push(!comp.ok
+      ? `<div class="p-2.5 bg-red-100 border-2 border-red-400 text-red-950 rounded-lg font-extrabold">${LANG === "KN" ? comp.reasonKn : comp.reasonEn}</div>`
+      : `<div class="p-2.5 bg-emerald-50 border border-emerald-300 text-emerald-950 rounded-lg">✅ <b>Compatible Mix!</b><br>${getWalesMixingGuide([{ input_id: id1 }, { input_id: id2 }])}</div>`);
   }
   out.innerHTML = htmlParts.join("");
 }
@@ -860,12 +1006,13 @@ function prefillManualQty(slot) {
 }
 
 function goWeek(w) { curWk = Number(w); render(); }
-function stepWeek(d) { const maxWk = Math.max(30, ...tasks.map(t => Number(t.week_number) || 10)); curWk = Math.min(maxWk, Math.max(0, curWk + d)); render(); }
+function stepWeek(d) { const maxWk = Math.max(30, ...tasks.map(t => Number(t.week_number) || 11)); curWk = Math.min(maxWk, Math.max(0, curWk + d)); render(); }
 function showTab(t) {
-  ["TASKS", "MANUAL", "SHOP", "SCOUT"].forEach(k => {
+  ["TASKS", "ANALYTICS", "MANUAL", "SHOP", "SCOUT"].forEach(k => {
     document.getElementById(`panel_${k}`).classList.toggle("hidden", k !== t);
     document.getElementById(`tBtn_${k}`).className = k === t ? "py-2 rounded-lg bg-white text-emerald-900 shadow-sm" : "py-2 rounded-lg text-slate-600";
   });
+  if (t === "ANALYTICS") renderAnalyticsTab();
 }
 
 function refreshDynamicTaskWeeks() {
@@ -876,30 +1023,29 @@ function refreshDynamicTaskWeeks() {
 async function resetEntireScheduleToBaseline() {
   if (APP_ENV !== "DEV" || !confirm("Reset DEV environment back to clean baseline dates?")) return;
   await sb.from("daily_task_queue").delete().eq("env", "DEV").in("trigger_source", ["SCOUTING_CURATIVE", "SPLIT_REMAINDER"]);
-  await sb.from("daily_task_queue").delete().eq("env", "DEV").eq("trigger_source", "MANUAL_ENTRY").gte("originally_scheduled_date", "2026-10-18");
   const tMap = {}; templates.forEach(t => tMap[t.id] = t);
   const baselineTasks = tasks.filter(t => t.trigger_source === "BASELINE" && t.template_id);
   await Promise.all(baselineTasks.map(bt => {
-    const tmpl = tMap[bt.template_id];
-    let cleanRecipe = tmpl ? tmpl.recipe_items : bt.resolved_recipe, customEn = null, customKn = null;
-    const dyn = computeDynamicDadAndWeek(bt.originally_scheduled_date);
-    return sb.from("daily_task_queue").update({ current_scheduled_date: bt.originally_scheduled_date, effective_dad: dyn.dad, status: "PENDING", delay_reason: null, resolved_recipe: cleanRecipe, custom_title_en: customEn, custom_title_kn: customKn, updated_by: activeUser, updated_at: new Date().toISOString() }).eq("id", bt.id);
+    const tmpl = tMap[bt.template_id], dyn = computeDynamicDadAndWeek(bt.originally_scheduled_date);
+    return sb.from("daily_task_queue").update({ current_scheduled_date: bt.originally_scheduled_date, effective_dad: dyn.dad, status: "PENDING", delay_reason: null, resolved_recipe: tmpl ? tmpl.recipe_items : bt.resolved_recipe, updated_by: activeUser, updated_at: new Date().toISOString() }).eq("id", bt.id);
   }));
   await loadDB(); curWk = 11; render();
 }
 
 function render() {
   refreshDynamicTaskWeeks();
+  renderAnalyticsTab();
   const L = I18N[LANG];
   document.getElementById("langBtn").textContent = LANG === "EN" ? "ಕನ್ನಡ" : "English";
   [
-    "appTitle","appSub","btnLogRain","tabTasks","tabManual","tabShop","tabScout","manTitle","lblManDate","lblManType","lblManCost","optFoliar","optCopper","optDrip",
-    "lblManChem1","lblManChem2","lblManNotes","lblManShift","btnSaveMan","expTitle","shopTitle","shopSub","btnCopy","brandCheckerTitle","brandCheckerSub","scoutTitle","scoutSub","auditTitle","masterTitle",
-    "modalTitle","lblBrandSearch","userModalTitle","delayModalTitle","lblQuickDelay","btnOrigDate","lblNewDate","lblCascadeMode","casAllTitle","casAllSub","casTrackTitle","casSingleTitle",
+    "appTitle","appSub","btnLogRain","tabTasks","tabAnalytics","tabManual","tabShop","tabScout","gddCardTitle","riskCardTitle","npkLedgerTitle","npkLedgerSub",
+    "manTitle","lblManDate","lblManType","lblManCost","optFoliar","optCopper","optDrip","lblManChem1","lblManChem2","lblManNotes","lblManShift","btnSaveMan",
+    "expTitle","shopTitle","shopSub","btnCopy","brandCheckerTitle","brandCheckerSub","scoutTitle","scoutSub","auditTitle","masterTitle","modalTitle","lblBrandSearch",
+    "userModalTitle","delayModalTitle","lblQuickDelay","btnOrigDate","lblNewDate","lblCascadeMode","casAllTitle","casAllSub","casTrackTitle","casSingleTitle",
     "lblDelayReason","rsnRain","rsnPower","rsnLabor","rsnStore","btnConfirmDelay","rainModalTitle","rainModalSub","rn1","rn2","rn3","rn4"
   ].forEach(k => { const el = document.getElementById(`ui_${k}`); if (el && L[k]) el.textContent = L[k]; });
 
-  updateWBar(); populateManualSelects(); populateBrandCheckerDropdowns();
+  updateWBar();
 
   const sel = document.getElementById("wkSelect"), loc = LANG === "KN" ? "kn-IN" : "en-IN";
   sel.innerHTML = `<option value="0" ${curWk === 0 ? "selected" : ""}>${L.preEthrelLabel}</option>`;
@@ -907,7 +1053,7 @@ function render() {
   for (let w = 1; w <= maxWk; w++) {
     const { start, dadStart, dadEnd } = getWeekStartAndEndDates(w);
     const dt = start.toLocaleDateString(loc, { day: "2-digit", month: "short" });
-    const tag = w <= 9 ? "✅" : w === 11 ? "📍" : "";
+    const tag = w <= 10 ? "✅" : w === 11 ? "📍" : "";
     sel.innerHTML += `<option value="${w}" ${w === curWk ? "selected" : ""}>${tag} ${L.weekWord} ${w}: ${dt} (${dadStart}–${dadEnd}d)</option>`;
   }
 
@@ -924,9 +1070,9 @@ function render() {
   }
 
   const dad1 = curWk === 0 ? -10 : (curWk - 1) * 7, al = [];
-  if (wState.rain24 > 15) al.push({ c: "bg-red-50 border-red-300 text-red-900", t: LANG === "KN" ? `🌧️ ತುರ್ತು ಮಳೆ ಎಚ್ಚರಿಕೆ (${wState.rain24} ಮಿ.ಮೀ ಮಳೆ)` : `🌧️ Heavy Rain Override (${wState.rain24}mm in 24h)`, d: LANG === "KN" ? "ಮುಂದಿನ 48 ಗಂಟೆ ಡ್ರಿಪ್ ಗೊಬ್ಬರ ನಿಲ್ಲಿಸಿ. ಎಲೆ ಒಣಗಿದ ತಕ್ಷಣ ಪ್ರತ್ಯೇಕ ಕಾಪರ್ (300g/ಡ್ರಮ್) + ಬ್ರೊನೊಪಾಲ್ (100g/ಡ್ರಮ್) ಸಿಂಪಡಿಸಿ." : "Pause drip fertigation for 48 hrs. Spray Standalone Copper (300g/drum) + Bronopol (100g/drum) once foliage dries." });
+  if (wState.riskScore >= 65) al.push({ c: "bg-rose-50 border-rose-300 text-rose-950", t: LANG === "KN" ? `🦠 72ಗಂ ರೋಗ ಅಪಾಯ ಸೂಚ್ಯಂಕ ಗರಿಷ್ಠವಾಗಿದೆ (${wState.riskScore}/100)` : `🦠 72-Hour Disease Infection Index is HIGH (${wState.riskScore}/100)`, d: LANG === "KN" ? "ಹೆಚ್ಚಿನ ತೇವಾಂಶ ಮತ್ತು ಉಷ್ಣಾಂಶದಿಂದಾಗಿ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಅಂಗಮಾರಿ ಹರಡುವ ಸಾಧ್ಯತೆ ಇದೆ. ಸಿಂಪಡಣೆ ಅಂತರವನ್ನು 4–5 ದಿನಕ್ಕೆ ಇಳಿಸಿ." : "High rolling humidity & warm temps favor Bacterial Blight spread. Tighten bactericide/fungicide intervals to 4–5 days." });
+  if (wState.rain24 > 15) al.push({ c: "bg-red-50 border-red-300 text-red-900", t: LANG === "KN" ? `🌧️ ತುರ್ತು ಮಳೆ ಎಚ್ಚರಿಕೆ (${wState.rain24} ಮಿ.ಮೀ ಮಳೆ)` : `🌧️ Heavy Rain Override (${wState.rain24}mm in 24h)`, d: LANG === "KN" ? "ಮುಂದಿನ 48 ಗಂಟೆ ಡ್ರಿಪ್ ಗೊಬ್ಬರ ನಿಲ್ಲಿಸಿ. ಎಲೆ ಒಣಗಿದ ತಕ್ಷಣ ಪ್ರತ್ಯೇಕ ಕಾಪರ್ + ಬ್ರೊನೊಪಾಲ್ ಸಿಂಪಡಿಸಿ." : "Pause drip fertigation for 48 hrs. Spray Standalone Copper (300g/drum) + Bronopol (100g/drum) once foliage dries." });
   if (wState.prob4 > 60) al.push({ c: "bg-amber-50 border-amber-300 text-amber-900", t: LANG === "KN" ? "⛈️ ಸಿಂಪಡಣೆ ತಡೆಹಿಡಿಯಿರಿ (4 ಗಂಟೆಯಲ್ಲಿ ಮಳೆ ಸಾಧ್ಯತೆ >60%)" : "⛈️ Spray Hold (>60% Rain Prob in next 4h)", d: LANG === "KN" ? "ಈಗ ಎಲೆ ಸಿಂಪಡಣೆ ಮಾಡಬೇಡಿ. ಮುಂದಿನ ಶುಭ್ರ ಬೆಳಿಗ್ಗೆ ಸಿಂಪಡಿಸಿ." : "Hold foliar spray now to prevent wash-off; shift to next clear morning." });
-  if (dad1 >= 140) al.push({ c: "bg-purple-50 border-purple-300 text-purple-900", t: LANG === "KN" ? "🔴 >140 ದಿನ: ಸಾರಜನಕ ಮುಕ್ತ ಮತ್ತು ಕೆಂಪು ಬಣ್ಣದ ಹಂತ" : "🔴 >140 DAD Zero-Nitrogen & Red Color Rule", d: LANG === "KN" ? (wState.tMin > 18 ? "ರಾತ್ರಿ ಉಷ್ಣಾಂಶ >18°C ಇರುವುದರಿಂದ ಕೆಂಪು ಬಣ್ಣಕ್ಕಾಗಿ 00:00:50 (SOP) ಪ್ರಮಾಣವನ್ನು +15% ಹೆಚ್ಚಿಸಲಾಗಿದೆ." : "ಕಟಾವಿನವರೆಗೆ ಯಾವುದೇ ಸಾರಜನಕ ಗೊಬ್ಬರ ಬಳಸಬೇಡಿ.") : (wState.tMin > 18 ? "Warm El Niño nights (>18°C): 00:00:50 (SOP) dose automatically boosted +15%." : "Strict Zero-Nitrogen lock active till harvest.") });
   document.getElementById("alertsBox").innerHTML = al.map(a => `<div class="p-3 rounded-xl border ${a.c} text-xs"><div class="font-bold">${a.t}</div><div>${a.d}</div></div>`).join("");
 
   const sopMult = (dad1 >= 140 && wState.tMin > 18) ? 1.15 : 1.0, pTasks = document.getElementById("panel_TASKS");
@@ -1051,7 +1197,7 @@ function render() {
   document.getElementById("auditLogBox").innerHTML = auditLogs.map(a => {
     const dt = new Date(a.created_at).toLocaleString(loc, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
     return `<div class="py-2 flex justify-between gap-2"><div><b>👤 ${a.actor_name}</b> — <span class="font-semibold text-emerald-800">${a.action_type}</span>: ${a.task_summary} <span class="text-slate-500">${a.details || ""}</span></div><div class="text-slate-400 shrink-0">${dt}</div></div>`;
-  }).join("") || `<div class="py-2 text-slate-400">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಬದಲಾವಣೆ ದಾಖಲಾಗಿಲ್ಲ (ಹೊಸದಾಗಿ ಪ್ರಾರಂಭವಾಗಿದೆ)." : "No activity logged yet in this environment (Fresh start)."}</div>`;
+  }).join("") || `<div class="py-2 text-slate-400">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಬದಲಾವಣೆ ದಾಖಲಾಗಿಲ್ಲ." : "No activity logged yet in this environment."}</div>`;
 
   document.getElementById("allWeeksBody").innerHTML = tasks.map(t => {
     const desc = cleanHardcodedDayPrefix(LANG === "KN" ? (t.target_description_kn || t.target_description) : t.target_description, LANG === "KN");
@@ -1065,14 +1211,9 @@ function render() {
   }).join("");
 }
 
-// ============================================================================
-// 4-CHECK STORE COUNTER BRAND VALIDATOR & SWAP MODAL
-// ============================================================================
 function openSwap(taskId, idx, id) {
   const c = catalog[id]; if (!c) return;
   activeSwapContext = { taskId, itemIdx: idx, primaryInputId: id };
-
-  // Populate Brand Selector inside Modal
   const bSel = document.getElementById("modalBrandSelect");
   const list = brandsDir.length > 0 ? brandsDir : Object.values(catalog).map(x => ({ brand_name: x.popular_brands || x.name_en, company_name: x.category, input_id: x.id, primary_use_en: x.active_ingredient, primary_use_kn: x.name_kn }));
   bSel.innerHTML = `<option value="">-- ${LANG === "KN" ? "ಅಂಗಡಿಯ ಕಂಪನಿ ಹೆಸರು ಆರಿಸಿ (85+ Brands)" : "Select Any Store Brand to Verify (85+ Brands)"} --</option>` +
@@ -1088,14 +1229,13 @@ function openSwap(taskId, idx, id) {
   if (c.procurement_criticality === "CRITICAL_MUST_SOURCE" && directSubs.length === 0) {
     h += `<div class="p-3 bg-amber-50 border border-amber-300 text-amber-950 rounded-lg font-bold">🔴 ${LANG === "KN" ? `ಇದು ಕಡ್ಡಾಯವಾಗಿ ಬೇಕಾದ ಪೋಷಕಾಂಶ (${dispName}). ಇದೇ ಲವಣಾಂಶ (${c.active_ingredient}) ಇರುವ ಬೇರೆ ಕಂಪನಿ ಕೇಳಿ.` : `CRITICAL INPUT: Ask for another brand with exact salt (${c.active_ingredient}).`}</div>`;
   } else {
-    h += `<div class="font-bold text-slate-700 pt-1">${LANG === "KN" ? "ಅನುಮೋದಿತ ಪರ್ಯಾಯಗಳು:" : "Recommended Alternatives:"}</div>`;
     directSubs.forEach(s => {
       const sc = catalog[s.substitute_input_id]; if (!sc) return;
       h += `<div class="p-2.5 border-2 border-emerald-200 bg-emerald-50 rounded-lg flex justify-between items-center gap-2"><div><div class="font-bold text-sm">${LANG === "KN" ? (sc.name_kn || sc.name_en) : sc.name_en}</div><div class="text-[11px] text-slate-600">🏷️ ${sc.popular_brands || sc.active_ingredient}</div><div class="text-emerald-900 font-semibold">${s.adjustment_note_en || ""}</div></div><button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg shrink-0">${LANG === "KN" ? "ಬಳಸಿ" : "Swap"}</button></div>`;
     });
     sameCat.forEach(sc => {
       const doseInfo = sc.base_dose_per_liter ? `${sc.base_dose_per_liter * CFG.drumL} ${sc.unit}/Drum` : `${sc.base_dose_per_acre} ${sc.unit}/Acre`;
-      h += `<div class="p-2 border border-slate-200 bg-slate-50 rounded-lg flex justify-between items-center gap-2"><div><b>${LANG === "KN" ? (sc.name_kn || sc.name_en) : sc.name_en}</b> • ${doseInfo}<br><span class="text-slate-500 text-[11px]">🏷️ ${sc.popular_brands || sc.active_ingredient}</span></div><button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="bg-slate-700 text-white font-bold px-2.5 py-1 rounded-lg shrink-0">${LANG === "KN" ? "ಬಳಸಿ" : "Swap"}</button></div>`;
+      h += `<div class="p-2 border border-slate-200 bg-slate-50 rounded-lg flex justify-between items-center gap-2"><div><b>${LANG === "KN" ? (sc.name_kn || sc.name_en) : sc.name_en}</b> • ${doseInfo}</div><button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="bg-slate-700 text-white font-bold px-2.5 py-1 rounded-lg shrink-0">${LANG === "KN" ? "ಬಳಸಿ" : "Swap"}</button></div>`;
     });
   }
   document.getElementById("swapModalContent").innerHTML = h;
@@ -1106,70 +1246,40 @@ function evaluateDealerBrandInModal() {
   const candidateId = document.getElementById("modalBrandSelect").value;
   const out = document.getElementById("modalBrandAuditResult");
   if (!candidateId) { out.innerHTML = ""; return; }
-
   const { taskId, itemIdx, primaryInputId } = activeSwapContext;
-  const tk = tasks.find(x => x.id === taskId);
-  const primaryCat = catalog[primaryInputId];
-  const candCat = catalog[candidateId];
+  const tk = tasks.find(x => x.id === taskId), primaryCat = catalog[primaryInputId], candCat = catalog[candidateId];
   if (!tk || !primaryCat || !candCat) return;
 
   const checks = [];
-  // Check 1: Target Function Match
-  if (candCat.category === primaryCat.category) {
-    checks.push(`<div class="text-emerald-800 font-bold">✅ Check 1 (Target Function): Matches required category (${candCat.category}).</div>`);
-  } else {
-    checks.push(`<div class="p-2 bg-red-100 border border-red-300 text-red-950 rounded font-bold">❌ Check 1 (Wrong Category!): Scheduled item is a <b>${primaryCat.category}</b>, but this store brand is a <b>${candCat.category}</b> (${candCat.active_ingredient}). Do NOT replace ${primaryCat.name_en} with this!</div>`);
-  }
+  checks.push(candCat.category === primaryCat.category
+    ? `<div class="text-emerald-800 font-bold">✅ Check 1 (Target Function): Matches required category (${candCat.category}).</div>`
+    : `<div class="p-2 bg-red-100 border border-red-300 text-red-950 rounded font-bold">❌ Check 1 (Wrong Category!): Scheduled item is a <b>${primaryCat.category}</b>, but this brand is a <b>${candCat.category}</b>!</div>`);
 
-  // Check 2: 21-Day Repeat Salt & IRAC/FRAC Resistance
   const resWarn = checkRecentSprayResistance(candidateId, tk.current_scheduled_date);
-  if (resWarn) {
-    checks.push(`<div class="p-2 bg-amber-100 border border-amber-300 text-amber-950 rounded font-bold">${LANG === "KN" ? resWarn.msgKn : resWarn.msgEn}</div>`);
-  } else {
-    checks.push(`<div class="text-emerald-800 font-bold">✅ Check 2 (Anti-Resistance): Not sprayed in the past 21 days (${candCat.irac_frac_group || "Safe"}).</div>`);
-  }
+  checks.push(resWarn
+    ? `<div class="p-2 bg-amber-100 border border-amber-300 text-amber-950 rounded font-bold">${LANG === "KN" ? resWarn.msgKn : resWarn.msgEn}</div>`
+    : `<div class="text-emerald-800 font-bold">✅ Check 2 (Anti-Resistance): Not sprayed in past 21 days (${candCat.irac_frac_group || "Safe"}).</div>`);
 
-  // Check 3: Tank-Mix Compatibility with other items in the same task card
   const otherItems = (tk.resolved_recipe || []).filter((_, i) => i !== itemIdx);
   let compatOk = true;
   otherItems.forEach(o => {
     const comp = checkPairCompatibility(candCat, catalog[o.input_id]);
-    if (!comp.ok) {
-      compatOk = false;
-      checks.push(`<div class="p-2 bg-red-100 border border-red-300 text-red-950 rounded font-bold">${LANG === "KN" ? comp.reasonKn : comp.reasonEn}</div>`);
-    } else if (comp.cautionEn) {
-      checks.push(`<div class="p-2 bg-amber-50 border border-amber-200 text-amber-900 rounded">${LANG === "KN" ? comp.cautionKn : comp.cautionEn}</div>`);
-    }
+    if (!comp.ok) { compatOk = false; checks.push(`<div class="p-2 bg-red-100 border border-red-300 text-red-950 rounded font-bold">${LANG === "KN" ? comp.reasonKn : comp.reasonEn}</div>`); }
   });
-  if (compatOk) {
-    checks.push(`<div class="text-emerald-800 font-bold">✅ Check 3 (Drum Compatibility): Safe to mix with the other item(s) on this card.</div>`);
-  }
+  if (compatOk) checks.push(`<div class="text-emerald-800 font-bold">✅ Check 3 (Drum Compatibility): Safe to mix with the other item(s) on this card.</div>`);
 
-  // Check 4: Exact Calibrated Dose & 1-Tap Swap Button
-  const doseInfo = candCat.base_dose_per_liter
-    ? `${Math.round(candCat.base_dose_per_liter * CFG.drumL)} ${candCat.unit} per 200L Drum (${Math.round(candCat.base_dose_per_liter * CFG.drumL * CFG.drums)} ${candCat.unit} for 3 Acres)`
-    : `${candCat.base_dose_per_acre} ${candCat.unit} per Acre (${(candCat.base_dose_per_acre * CFG.acres).toFixed(1)} ${candCat.unit} for 3 Acres)`;
-
-  checks.push(`
-    <div class="p-2.5 bg-white border border-indigo-200 rounded-lg flex items-center justify-between gap-2 mt-1">
-      <div>
-        <div class="font-extrabold text-slate-900">${LANG === "KN" ? (candCat.name_kn || candCat.name_en) : candCat.name_en}</div>
-        <div class="text-indigo-900 font-bold">⚖️ ${doseInfo}</div>
-      </div>
-      <button onclick="doSwap('${taskId}',${itemIdx},'${candCat.id}')" class="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold px-3 py-2 rounded-lg shrink-0 shadow">
-        ✅ ${LANG === "KN" ? "ಇದನ್ನು ಬಳಸಿ" : "Use This Brand"}
-      </button>
-    </div>
-  `);
-
+  const doseInfo = candCat.base_dose_per_liter ? `${Math.round(candCat.base_dose_per_liter * CFG.drumL)} ${candCat.unit}/Drum` : `${candCat.base_dose_per_acre} ${candCat.unit}/Acre`;
+  checks.push(`<div class="p-2.5 bg-white border border-indigo-200 rounded-lg flex items-center justify-between gap-2 mt-1">
+    <div><div class="font-extrabold text-slate-900">${LANG === "KN" ? (candCat.name_kn || candCat.name_en) : candCat.name_en}</div><div class="text-indigo-900 font-bold">⚖️ ${doseInfo}</div></div>
+    <button onclick="doSwap('${taskId}',${itemIdx},'${candCat.id}')" class="bg-indigo-700 text-white font-extrabold px-3 py-2 rounded-lg shrink-0 shadow">✅ Use Brand</button>
+  </div>`);
   out.innerHTML = checks.join("");
 }
 
 async function saveTaskCost(taskId, val) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
-  tk.cost_rs = Math.max(0, Number(val) || 0); tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
-  render();
-  await sb.from("daily_task_queue").update({ cost_rs: tk.cost_rs, updated_by: activeUser, updated_at: tk.updated_at }).eq("id", taskId);
+  tk.cost_rs = Math.max(0, Number(val) || 0); tk.updated_by = activeUser; tk.updated_at = new Date().toISOString(); render();
+  await dbMutate({ table: "daily_task_queue", type: "update", payload: { cost_rs: tk.cost_rs, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
   await logAudit("COST_LOGGED", cleanHardcodedDayPrefix(tk.target_description, false), `₹ ${tk.cost_rs}`);
 }
 
@@ -1177,7 +1287,7 @@ async function updateItemQty(taskId, idx, newVal, suggestedTotal3Ac) {
   const tk = tasks.find(x => x.id === taskId); if (!tk || !tk.resolved_recipe[idx]) return;
   tk.resolved_recipe[idx].actual_total_3ac = Math.max(0, Number(newVal) || 0);
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString(); render();
-  await sb.from("daily_task_queue").update({ resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }).eq("id", taskId);
+  await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
 }
 
 async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
@@ -1194,11 +1304,11 @@ async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
     const nextTask = tasks.find(f => f.id !== tk.id && f.status !== "COMPLETED" && f.status !== "SKIPPED" && f.originally_scheduled_date > tk.originally_scheduled_date && (f.resolved_recipe || []).some(r => r.input_id === item.input_id));
     if (nextTask) {
       nextTask.resolved_recipe = nextTask.resolved_recipe.map(r => r.input_id === item.input_id && r.dose_per_acre ? { ...r, dose_per_acre: Math.max(0.5, Number((r.dose_per_acre - diffPerAcre).toFixed(2))) } : r);
-      await sb.from("daily_task_queue").update({ resolved_recipe: nextTask.resolved_recipe }).eq("id", nextTask.id);
+      await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: nextTask.resolved_recipe }, matchCol: "id", matchVal: nextTask.id });
     }
   }
   render();
-  await sb.from("daily_task_queue").update({ status: tk.status, resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }).eq("id", taskId);
+  await dbMutate({ table: "daily_task_queue", type: "update", payload: { status: tk.status, resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
   await logAudit(`ITEM_${newStatus}`, `${catalog[item.input_id]?.name_en || item.input_id} (${item.actual_total_3ac})`, `Date: ${tk.current_scheduled_date}`);
 }
 
@@ -1208,13 +1318,13 @@ async function splitRemainingItemsToTomorrow(taskId) {
   const pendingItems = tk.resolved_recipe.filter(r => !r.item_status || r.item_status === "PENDING");
   if (!pendingItems.length || !doneItems.length) return;
   tk.resolved_recipe = doneItems; tk.status = "COMPLETED"; tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
-  await sb.from("daily_task_queue").update({ status: "COMPLETED", resolved_recipe: doneItems, updated_by: activeUser, updated_at: tk.updated_at }).eq("id", taskId);
+  await dbMutate({ table: "daily_task_queue", type: "update", payload: { status: "COMPLETED", resolved_recipe: doneItems, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
 
   const nextDateStr = addDaysYMD(tk.current_scheduled_date, 1), dyn = computeDynamicDadAndWeek(nextDateStr);
   const remEn = pendingItems.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + "), remKn = pendingItems.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ");
   const payload = { env: APP_ENV, originally_scheduled_date: nextDateStr, current_scheduled_date: nextDateStr, effective_dad: dyn.dad, task_type: tk.task_type, trigger_source: "SPLIT_REMAINDER", status: "PENDING", resolved_recipe: pendingItems, custom_title_en: `Remaining Split Task: ${remEn}`, custom_title_kn: `ಬಾಕಿ ಉಳಿದ ಕೆಲಸ: ${remKn}`, updated_by: activeUser, updated_at: new Date().toISOString() };
-  const { data } = await sb.from("daily_task_queue").insert([payload]).select();
-  tasks.push({ ...(data?.[0] || { ...payload, id: "split_" + Date.now() }), week_number: dyn.week, stage_name: tk.stage_name, target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn });
+  const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
+  tasks.push({ ...(res.data?.[0] || { ...payload, id: "split_" + Date.now() }), week_number: dyn.week, stage_name: tk.stage_name, target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn });
   render();
 }
 
@@ -1222,7 +1332,7 @@ async function markWholeCard(taskId, st) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
   tk.status = st; tk.resolved_recipe = (tk.resolved_recipe || []).map(r => ({ ...r, item_status: st }));
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString(); render();
-  await sb.from("daily_task_queue").update({ status: st, resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }).eq("id", taskId);
+  await dbMutate({ table: "daily_task_queue", type: "update", payload: { status: st, resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
   await logAudit(st, cleanHardcodedDayPrefix(tk.target_description, false), `Date: ${tk.current_scheduled_date}`);
 }
 
@@ -1285,7 +1395,7 @@ async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
   refreshDynamicTaskWeeks(); curWk = tk.week_number; render();
   await Promise.all(tasksToUpdateInDB.map(u => {
     const dyn = computeDynamicDadAndWeek(u.current_scheduled_date);
-    return sb.from("daily_task_queue").update({ current_scheduled_date: u.current_scheduled_date, effective_dad: dyn.dad, status: u.status, delay_reason: u.delay_reason || null, updated_by: activeUser, updated_at: u.updated_at }).eq("id", u.id);
+    return dbMutate({ table: "daily_task_queue", type: "update", payload: { current_scheduled_date: u.current_scheduled_date, effective_dad: dyn.dad, status: u.status, delay_reason: u.delay_reason || null, updated_by: activeUser, updated_at: u.updated_at }, matchCol: "id", matchVal: u.id });
   }));
   await logAudit(deltaDays > 0 ? "CASCADE_DELAY" : "CASCADE_SHIFT_BACK", cleanHardcodedDayPrefix(tk.target_description, false), `Shifted ${deltaDays > 0 ? '+' + deltaDays : deltaDays}d to ${newDateStr} (${cascadeMode}: ${tasksToUpdateInDB.length} tasks)`);
 }
@@ -1308,7 +1418,7 @@ async function resetCardWithCascade(taskId) {
   } else {
     tk.status = "PENDING"; tk.updated_by = activeUser; tk.updated_at = new Date().toISOString(); render();
   }
-  await sb.from("daily_task_queue").update({ status: "PENDING", resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }).eq("id", taskId);
+  await dbMutate({ table: "daily_task_queue", type: "update", payload: { status: "PENDING", resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
 }
 
 async function doSwap(taskId, idx, newId) {
@@ -1317,7 +1427,7 @@ async function doSwap(taskId, idx, newId) {
   tk.resolved_recipe[idx] = sc.base_dose_per_liter ? { input_id: newId, dose_per_liter: Number(sc.base_dose_per_liter) } : { input_id: newId, dose_per_acre: Number(sc.base_dose_per_acre) };
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
   document.getElementById("swapModal").classList.add("hidden"); render();
-  await sb.from("daily_task_queue").update({ resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }).eq("id", taskId);
+  await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
   await logAudit("SWAPPED_CHEMICAL", cleanHardcodedDayPrefix(tk.target_description, false), `${oldId} → ${sc.name_en}`);
 }
 
@@ -1325,7 +1435,7 @@ async function deleteCustomTask(id) {
   if (!confirm(LANG === "KN" ? "ಈ ಕೆಲಸವನ್ನು ವೇಳಾಪಟ್ಟಿಯಿಂದ ಅಳಿಸಲು ಖಚಿತವೇ?" : "Delete this task card from the schedule?")) return;
   const tk = tasks.find(x => x.id === id);
   tasks = tasks.filter(x => x.id !== id); render();
-  await sb.from("daily_task_queue").delete().eq("id", id);
+  await dbMutate({ table: "daily_task_queue", type: "delete", matchCol: "id", matchVal: id });
   if (tk) await logAudit("DELETED_TASK", tk.target_description, "");
 }
 
@@ -1335,8 +1445,8 @@ async function addScoutingTask(code) {
   const rainShift = (wState.prob4 > 60 || wState.rain24 > 15);
   const dateStr = rainShift ? addDaysYMD(todayYMD(), 1) : todayYMD(), dyn = computeDynamicDadAndWeek(dateStr);
   const payload = { env: APP_ENV, originally_scheduled_date: dateStr, current_scheduled_date: dateStr, effective_dad: dyn.dad, task_type: iss.taskType, trigger_source: "SCOUTING_CURATIVE", status: "PENDING", resolved_recipe: iss.recipe, custom_title_en: `${iss.enDesc} (${rainShift ? "Shifted to tomorrow due to rain" : "Scheduled for immediate application"})`, custom_title_kn: `${iss.knDesc} (${rainShift ? "ಮಳೆ ಕಾರಣ ನಾಳೆಗೆ ನಿಗದಿಪಡಿಸಲಾಗಿದೆ" : "ಇಂದೇ ಸಿಂಪಡಿಸಲು ನಿಗದಿಪಡಿಸಲಾಗಿದೆ"})`, updated_by: activeUser, updated_at: new Date().toISOString() };
-  const { data } = await sb.from("daily_task_queue").insert([payload]).select();
-  tasks.push({ ...(data?.[0] || { ...payload, id: "local_" + Date.now() }), week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn });
+  const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
+  tasks.push({ ...(res.data?.[0] || { ...payload, id: "local_" + Date.now() }), week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn });
   await logAudit("SCOUTING_ADDED", iss.enTitle, `Scheduled for ${dateStr}`);
   curWk = dyn.week; showTab("TASKS"); render();
 }
@@ -1348,7 +1458,6 @@ async function saveManualActivity() {
   const costRs = Number(document.getElementById("manCost").value) || 0, notes = document.getElementById("manNotes").value.trim(), autoShift = document.getElementById("manShiftCheck").checked;
   if (!dateStr || !chem1) return;
 
-  // Check pair compatibility before saving manual tank mix
   if (chem1 && chem2) {
     const comp = checkPairCompatibility(catalog[chem1], catalog[chem2]);
     if (!comp.ok && !confirm((LANG === "KN" ? comp.reasonKn : comp.reasonEn) + "\n\nSave anyway?")) return;
@@ -1361,8 +1470,8 @@ async function saveManualActivity() {
   const titleKn = `ದಾಖಲಿಸಿದ ಕೆಲಸ (${dateStr}): ${pairs.map(p => `${catalog[p.id]?.name_kn || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
 
   const payload = { env: APP_ENV, originally_scheduled_date: dateStr, current_scheduled_date: dateStr, effective_dad: dyn.dad, task_type: taskType, trigger_source: "MANUAL_ENTRY", status: "COMPLETED", resolved_recipe: recipe, cost_rs: costRs, custom_title_en: titleEn, custom_title_kn: titleKn, updated_by: activeUser, updated_at: new Date().toISOString(), executed_at: new Date().toISOString() };
-  const { data } = await sb.from("daily_task_queue").insert([payload]).select();
-  const inserted = (data && data[0]) ? data[0] : { ...payload, id: "man_" + Date.now() };
+  const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
+  const inserted = (res.data && res.data[0]) ? res.data[0] : { ...payload, id: "man_" + Date.now() };
   tasks.push({ ...inserted, week_number: dyn.week, stage_name: "Manual / Past Activity", target_description: titleEn, target_description_kn: titleKn });
 
   if (autoShift) {
@@ -1375,7 +1484,7 @@ async function saveManualActivity() {
   curWk = dyn.week; showTab("TASKS"); render();
 }
 
-async function saveLeftover(id, v) { leftovers[id] = Math.max(0, Number(v) || 0); render(); await sb.from("shed_leftovers").upsert({ input_id: id, leftover_qty: leftovers[id] }); }
+async function saveLeftover(id, v) { leftovers[id] = Math.max(0, Number(v) || 0); render(); await dbMutate({ table: "shed_leftovers", type: "upsert", payload: { input_id: id, leftover_qty: leftovers[id] } }); }
 
 function copyList() {
   const wkTasks = tasks.filter(t => Number(t.week_number) === curWk && t.status !== "SKIPPED" && t.status !== "COMPLETED"), tot = {};
