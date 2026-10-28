@@ -76,7 +76,7 @@
     </div>
 
     <div id="alertsBox" class="space-y-2 mb-3"></div>
-    <div id="sameDayMergeBanner" class="mb-3"></div>
+    <div id="sameDayMergeBanner" class="mb-3 space-y-2"></div>
 
     <div class="grid grid-cols-5 gap-1 bg-slate-200 p-1 rounded-xl mb-3 text-[10px] sm:text-xs font-bold">
       <button onclick="showTab('TASKS')" id="tBtn_TASKS" class="py-2 rounded-lg bg-white text-emerald-900 shadow-sm">📋 <span id="ui_tabTasks">Tasks</span></button>
@@ -93,7 +93,7 @@
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 class="font-extrabold text-sm sm:text-base text-slate-900" id="ui_riskCardTitle">🛡️ 6-Threat Orchard Risk Radar (Select Multiple to Combine Spray)</h2>
-            <p class="text-xs text-slate-500" id="ui_riskCardSub">Tick multiple threats below and tap 'Smart Combine &amp; Queue' to merge compatible chemicals into a single 7-drum spray (auto-adjusts for 5-day Copper cooldown &amp; shifts future tasks):</p>
+            <p class="text-xs text-slate-500" id="ui_riskCardSub">Tick unqueued threats below and tap 'Smart Combine &amp; Queue' (caps at 2 synergistic pesticides, respects 5d Copper cooldown &amp; deduplicates upcoming baseline sprays):</p>
           </div>
           <button onclick="queueCombinedSelectedRisks()" id="btnCombineRadar" class="hidden bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow">
             🧪 Smart Combine &amp; Queue Selected
@@ -211,7 +211,7 @@
         <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div>
             <h2 id="ui_scoutTitle" class="font-bold text-sm">🔍 Field Problem Reporter (Multi-Select &amp; Smart Combine)</h2>
-            <p id="ui_scoutSub" class="text-xs text-slate-500">Tick multiple problems to merge them into one tank-mix spray, or tap Queue on any single issue.</p>
+            <p id="ui_scoutSub" class="text-xs text-slate-500">Tick multiple problems to merge them into one synergistic spray, or tap Queue on any single issue.</p>
           </div>
           <button onclick="queueCombinedSelectedRisks()" id="btnCombineScout" class="hidden bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow">
             🧪 Smart Combine &amp; Queue Selected
@@ -577,6 +577,36 @@ function getCumulativeNutrientsPerPlant() {
   return del;
 }
 
+// ============================================================================
+// DETECT IF A THREAT IS ALREADY QUEUED IN UPCOMING 8 DAYS
+// ============================================================================
+function getQueuedTaskCoveringIssue(code) {
+  const tStr = todayYMD();
+  const upcomingSprays = tasks.filter(t =>
+    (t.status === "PENDING" || t.status === "DELAYED") &&
+    diffDaysYMD(tStr, t.current_scheduled_date) >= 0 &&
+    diffDaysYMD(tStr, t.current_scheduled_date) <= 8
+  );
+
+  for (const tk of upcomingSprays) {
+    const ids = (tk.resolved_recipe || []).map(r => r.input_id);
+    if (code === "BLIGHT_SPOT" && ids.some(id => catalog[id]?.is_copper_compound)) return tk;
+    // Note: Spinetoram (INS_SPINETORAM) or Benevia (INS_CYANTRANILIPROLE) covers BOTH Thrips AND Borer!
+    if (code === "THRIPS_SCAR" && ids.some(id => ["INS_SPINETORAM", "INS_SPINOSAD", "INS_CYANTRANILIPROLE", "INS_EXPONUS"].includes(id))) {
+      if (tk.trigger_source === "SCOUTING_CURATIVE" || diffDaysYMD(tStr, tk.current_scheduled_date) <= 4) return tk;
+    }
+    if (code === "FRUIT_BORER" && ids.some(id => ["INS_CHLORANTRANILIPROLE", "INS_SPINETORAM", "INS_CYANTRANILIPROLE", "INS_EXPONUS"].includes(id))) {
+      if (tk.trigger_source === "SCOUTING_CURATIVE" || diffDaysYMD(tStr, tk.current_scheduled_date) <= 4) return tk;
+    }
+    if (code === "MEALYBUG" && ids.some(id => ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN"].includes(id))) return tk;
+    if (code === "FRUIT_ROT" && ids.some(id => ["FUN_FLUXA_PYRA", "FUN_AZOXY_TEBU", "FUN_DIFENOCONAZOLE", "FUN_CABRIO_TOP"].includes(id))) return tk;
+    if (code === "CRACKING" && ids.some(id => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC"].includes(id))) {
+      if (tk.trigger_source === "SCOUTING_CURATIVE" || diffDaysYMD(tStr, tk.current_scheduled_date) <= 4) return tk;
+    }
+  }
+  return null;
+}
+
 function computeAllSixRisks() {
   const tStr = todayYMD();
   const todayDad = Math.max(1, diffDaysYMD("2026-08-15", tStr));
@@ -694,9 +724,143 @@ function getWalesMixingGuide(recipeItems) {
 }
 
 // ============================================================================
-// MULTI-SELECT SMART COMBINER + COPPER COOLDOWN + AUTO-CASCADE SCHEDULER
+// AGRONOMIC SYNERGY OPTIMIZER (CAPS DRUM AT MAX 2 PESTICIDES + DEDUPLICATES NOV 3)
 // ============================================================================
+function buildSynergisticFoliarRecipe(foliarIssues) {
+  const codes = new Set(foliarIssues.map(x => x.code));
+  const outRecipe = [];
+
+  // Synergy 1: Spinetoram 11.7% SC (Delegate/Largo) covers BOTH Thrips AND Fruit Borer!
+  if (codes.has("THRIPS_SCAR") && codes.has("FRUIT_BORER")) {
+    outRecipe.push({ input_id: "INS_SPINETORAM", dose_per_liter: 0.8 });
+  } else if (codes.has("THRIPS_SCAR")) {
+    outRecipe.push({ input_id: "INS_SPINETORAM", dose_per_liter: 0.8 });
+  } else if (codes.has("FRUIT_BORER")) {
+    outRecipe.push({ input_id: "INS_CHLORANTRANILIPROLE", dose_per_liter: 0.3 });
+  }
+
+  // Synergy 2: If Mealybug is selected alongside Thrips/Borer, add ONLY Spirotetramat (Movento 1.0 ml/L) so we don't exceed 2 insecticides!
+  if (codes.has("MEALYBUG")) {
+    if (outRecipe.length > 0) {
+      outRecipe.push({ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 });
+    } else {
+      outRecipe.push({ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 }, { input_id: "INS_BUPROFEZIN", dose_per_liter: 1.5 });
+    }
+  }
+
+  // Synergy 3: Fungal Fruit Rot (Merivon 0.6 ml/L)
+  if (codes.has("FRUIT_ROT") && outRecipe.length < 2) {
+    outRecipe.push({ input_id: "FUN_FLUXA_PYRA", dose_per_liter: 0.6 });
+  }
+
+  // Synergy 4: Anti-Cracking Foliar Nutrient (Chelated Ca-B 1.5 ml/L)
+  if (codes.has("CRACKING")) {
+    outRecipe.push({ input_id: "MIC_CA_B_LIQUID", dose_per_liter: 1.5 });
+    if (outRecipe.length < 3) outRecipe.push({ input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 });
+  }
+
+  return outRecipe;
+}
+
+// Automatically shifts & deduplicates any upcoming baseline foliar spray within 7 days (e.g., Nov 3 Spinetoram + Ca-B)
+async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, curativeRecipe, curativeTaskId) {
+  const curativeInputIds = new Set(curativeRecipe.map(r => r.input_id));
+  const curativeGroups = new Set(curativeRecipe.map(r => catalog[r.input_id]?.irac_frac_group).filter(Boolean));
+
+  const nextBaselineSpray = tasks.find(t =>
+    t.id !== curativeTaskId &&
+    (t.status === "PENDING" || t.status === "DELAYED") &&
+    t.trigger_source === "BASELINE" &&
+    t.task_type === "FOLIAR_SPRAY" &&
+    diffDaysYMD(curativeDateStr, t.current_scheduled_date) >= 0 &&
+    diffDaysYMD(curativeDateStr, t.current_scheduled_date) <= 6
+  );
+
+  if (!nextBaselineSpray) return;
+
+  // 1. Shift baseline spray so it sits at least +6 days after the Curative Spray (e.g., Oct 30 -> Nov 5)
+  const targetShiftDate = addDaysYMD(curativeDateStr, 6);
+  if (nextBaselineSpray.current_scheduled_date < targetShiftDate) {
+    await applyScheduleShift(nextBaselineSpray, targetShiftDate, "TRACK", "CURATIVE_COOLDOWN");
+  }
+
+  // 2. Strip or replace any duplicate active salt/group (like Spinetoram on Nov 3) while keeping Chelated Ca-B!
+  const beforeLen = (nextBaselineSpray.resolved_recipe || []).length;
+  let deduplicated = (nextBaselineSpray.resolved_recipe || []).filter(r => {
+    const rCat = catalog[r.input_id];
+    if (!rCat) return true;
+    if (rCat.category === "BIOSTIMULANT" || rCat.category === "FERTIGATION") return true; // Always keep Ca-B / Nutrients!
+    if (curativeInputIds.has(r.input_id)) return false;
+    if (rCat.irac_frac_group && curativeGroups.has(rCat.irac_frac_group)) return false;
+    return true;
+  });
+
+  // If Spinetoram was removed from Nov 3, pair the remaining Chelated Ca-B with Orthosilicic Acid for rind anti-cracking!
+  if (deduplicated.length < beforeLen) {
+    if (!deduplicated.some(r => r.input_id === "BIO_ORTHOSILICIC") && catalog["BIO_ORTHOSILICIC"]) {
+      deduplicated.push({ input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 });
+    }
+    const newNamesEn = deduplicated.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + ");
+    const newNamesKn = deduplicated.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ");
+    nextBaselineSpray.resolved_recipe = deduplicated;
+    nextBaselineSpray.custom_title_en = `Foliar (Auto-Deduplicated after ${curativeDateStr} Spray): ${newNamesEn}`;
+    nextBaselineSpray.custom_title_kn = `ಎಲೆ ಸಿಂಪಡಣೆ (${curativeDateStr} ಸಿಂಪಡಣೆ ನಂತರ ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ): ${newNamesKn}`;
+    nextBaselineSpray.target_description = nextBaselineSpray.custom_title_en;
+    nextBaselineSpray.target_description_kn = nextBaselineSpray.custom_title_kn;
+
+    await dbMutate({
+      table: "daily_task_queue", type: "update",
+      payload: {
+        resolved_recipe: nextBaselineSpray.resolved_recipe,
+        custom_title_en: nextBaselineSpray.custom_title_en,
+        custom_title_kn: nextBaselineSpray.custom_title_kn,
+        updated_by: activeUser, updated_at: new Date().toISOString()
+      },
+      matchCol: "id", matchVal: nextBaselineSpray.id
+    });
+  }
+}
+
+// 1-Click Optimizer for the existing 4-chemical Oct 30 card + Nov 3 card in DEV
+async function optimizeExistingOverloadedCurativeAndNov3() {
+  const overloaded = tasks.find(t =>
+    t.status === "PENDING" &&
+    t.trigger_source === "SCOUTING_CURATIVE" &&
+    t.task_type === "FOLIAR_SPRAY" &&
+    (t.resolved_recipe || []).length >= 3
+  );
+  if (!overloaded) return;
+
+  // Trim 4 insecticides down to the 2 synergistic ones: Spinetoram (Thrips+Borer) + Spirotetramat (Mealybug)
+  overloaded.resolved_recipe = [
+    { input_id: "INS_SPINETORAM", dose_per_liter: 0.8 },
+    { input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 }
+  ];
+  overloaded.custom_title_en = `Synergistic Curative Spray [Thrips + Borer + Mealybug]: Spinetoram 11.7% SC + Spirotetramat 15.31% OD (Auto-scheduled after Oct 25 Copper)`;
+  overloaded.custom_title_kn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ [ಥ್ರಿಪ್ಸ್ + ಹುಳು + ತಿಗಣೆ]: ಸ್ಪೈನೆಟೊರಾಮ್ + ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ (ಅಕ್ಟೋಬರ್ 25ರ ಕಾಪರ್ ನಂತರ 5 ದಿನಗಳ ಅಂತರ)`;
+  overloaded.target_description = overloaded.custom_title_en;
+  overloaded.target_description_kn = overloaded.custom_title_kn;
+  overloaded.updated_by = activeUser;
+  overloaded.updated_at = new Date().toISOString();
+
+  await dbMutate({
+    table: "daily_task_queue", type: "update",
+    payload: {
+      resolved_recipe: overloaded.resolved_recipe,
+      custom_title_en: overloaded.custom_title_en,
+      custom_title_kn: overloaded.custom_title_kn,
+      updated_by: activeUser, updated_at: overloaded.updated_at
+    },
+    matchCol: "id", matchVal: overloaded.id
+  });
+
+  await reconcileUpcomingBaselineFoliarAfterCurative(overloaded.current_scheduled_date, overloaded.resolved_recipe, overloaded.id);
+  await logAudit("OPTIMIZED_TANK_MIX", "Trimmed 4-insecticide spray to 2 synergistic molecules & deduplicated Nov 3 baseline spray", "");
+  render();
+}
+
 function toggleRiskSelection(code) {
+  if (getQueuedTaskCoveringIssue(code)) return; // Already queued!
   if (selectedRiskCodes.has(code)) selectedRiskCodes.delete(code);
   else selectedRiskCodes.add(code);
   render();
@@ -718,7 +882,6 @@ function updateCombineButtonsUI() {
   });
 }
 
-// Computes earliest safe date for a Foliar Spray (respecting Rain + 5-day Copper cooldown!)
 function getEarliestSafeFoliarDate(isCopperSpray) {
   let targetStr = todayYMD();
   const notesEn = [], notesKn = [];
@@ -729,7 +892,6 @@ function getEarliestSafeFoliarDate(isCopperSpray) {
     notesKn.push("ಮಳೆ ಕಾರಣ +1 ದಿನ");
   }
 
-  // If queuing a non-Copper foliar spray, check if Copper was applied within last 5 days!
   if (!isCopperSpray) {
     const recentCopper = tasks.filter(t =>
       t.status === "COMPLETED" &&
@@ -742,7 +904,7 @@ function getEarliestSafeFoliarDate(isCopperSpray) {
         const safeAfterCopper = addDaysYMD(recentCopper.current_scheduled_date, 5);
         targetStr = safeAfterCopper;
         notesEn.push(`Auto-scheduled on ${safeAfterCopper} for 5-day Copper cooldown after ${recentCopper.current_scheduled_date}`);
-        notesKn.push(`${recentCopper.current_scheduled_date} ರ ಕಾಪರ್ ಸಿಂಪಡಣೆಯ 5 ದಿನಗಳ ಅಂತರಕ್ಕಾಗಿ ${safeAfterCopper} ಕ್ಕೆ ನಿಗದಿಪಡಿಸಲಾಗಿದೆ`);
+        notesKn.push(`${recentCopper.current_scheduled_date} ರ ಕಾಪರ್ ನಂತರ 5 ದಿನಗಳ ಅಂತರಕ್ಕಾಗಿ ${safeAfterCopper} ಕ್ಕೆ ನಿಗದಿಪಡಿಸಲಾಗಿದೆ`);
       }
     }
   }
@@ -750,59 +912,49 @@ function getEarliestSafeFoliarDate(isCopperSpray) {
 }
 
 async function queueCombinedSelectedRisks(codesArrayOverride) {
-  const codes = codesArrayOverride || Array.from(selectedRiskCodes);
+  const rawCodes = codesArrayOverride || Array.from(selectedRiskCodes);
+  const codes = rawCodes.filter(c => !getQueuedTaskCoveringIssue(c));
   if (!codes.length) return;
 
   const selectedIssues = codes.map(c => SCOUT_ISSUES.find(x => x.code === c)).filter(Boolean);
   if (!selectedIssues.length) return;
 
-  // Separate Standalone Copper (Blight) from Tank-Mixable Foliar Sprays
   const copperIssues = selectedIssues.filter(x => x.taskType === "STANDALONE_COPPER");
   const foliarIssues = selectedIssues.filter(x => x.taskType !== "STANDALONE_COPPER");
 
   const namesList = selectedIssues.map(x => LANG === "KN" ? x.shortKn : x.shortEn).join(" + ");
   const confirmMsg = LANG === "KN"
     ? `'${namesList}' ಸಮಸ್ಯೆಗಳಿಗೆ ಸಂಯೋಜಿತ ಸಿಂಪಡಣೆಯನ್ನು ವೇಳಾಪಟ್ಟಿಗೆ ಸೇರಿಸಿ, ಮುಂದಿನ ಸಿಂಪಡಣೆಗಳನ್ನು ಹೊಂದಿಸಲೇ?`
-    : `Smart-combine and queue spray for '${namesList}' (and auto-adjust conflicting upcoming sprays)?`;
+    : `Smart-combine and queue synergistic spray for '${namesList}' (and auto-deduplicate/shift upcoming baseline sprays)?`;
   if (!confirm(confirmMsg)) return;
 
   let targetWeekToOpen = curWk;
 
-  // 1. Handle Tank-Mixable Foliar Issues (Thrips, Borer, Mealybug, Rot, Cracking)
   if (foliarIssues.length > 0) {
     const safeSlot = getEarliestSafeFoliarDate(false);
-    let foliarDateStr = safeSlot.dateStr;
+    const foliarDateStr = safeSlot.dateStr;
+    const synergisticRecipe = buildSynergisticFoliarRecipe(foliarIssues);
 
-    // Deduplicate & merge recipe items (respecting compatibility)
-    const mergedRecipe = [];
-    foliarIssues.forEach(iss => {
-      iss.recipe.forEach(rItem => {
-        if (!mergedRecipe.some(m => m.input_id === rItem.input_id)) {
-          const isCompatWithAll = mergedRecipe.every(m => checkPairCompatibility(catalog[m.input_id], catalog[rItem.input_id]).ok);
-          if (isCompatWithAll) mergedRecipe.push({ ...rItem });
-        }
-      });
-    });
+    const titleEn = `Synergistic Curative Spray [${foliarIssues.map(x => x.shortEn).join(" + ")}]: ${synergisticRecipe.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + ")} (${safeSlot.noteEn})`;
+    const titleKn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ [${foliarIssues.map(x => x.shortKn).join(" + ")}]: ${synergisticRecipe.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ")} (${safeSlot.noteKn})`;
 
-    const titleEn = `Combined Curative Spray [${foliarIssues.map(x => x.shortEn).join(" + ")}]: ${mergedRecipe.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + ")} (${safeSlot.noteEn})`;
-    const titleKn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ [${foliarIssues.map(x => x.shortKn).join(" + ")}]: ${mergedRecipe.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ")} (${safeSlot.noteKn})`;
-
-    // Check if there is ALREADY a pending SCOUTING_CURATIVE foliar card on foliarDateStr or todayYMD() to merge into!
     const existingCurative = tasks.find(t =>
       t.status === "PENDING" &&
       t.trigger_source === "SCOUTING_CURATIVE" &&
       t.task_type === "FOLIAR_SPRAY" &&
-      (t.current_scheduled_date === foliarDateStr || t.current_scheduled_date === todayYMD())
+      diffDaysYMD(todayYMD(), t.current_scheduled_date) >= 0 &&
+      diffDaysYMD(todayYMD(), t.current_scheduled_date) <= 7
     );
 
+    let activeCurativeTask = existingCurative;
     if (existingCurative) {
-      mergedRecipe.forEach(newItem => {
-        if (!existingCurative.resolved_recipe.some(x => x.input_id === newItem.input_id)) {
+      synergisticRecipe.forEach(newItem => {
+        if (!existingCurative.resolved_recipe.some(x => x.input_id === newItem.input_id) && existingCurative.resolved_recipe.length < 3) {
           existingCurative.resolved_recipe.push(newItem);
         }
       });
       existingCurative.current_scheduled_date = foliarDateStr;
-      existingCurative.custom_title_en = `Combined Curative Spray: ${existingCurative.resolved_recipe.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + ")} (${safeSlot.noteEn})`;
+      existingCurative.custom_title_en = `Synergistic Curative Spray: ${existingCurative.resolved_recipe.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + ")} (${safeSlot.noteEn})`;
       existingCurative.custom_title_kn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ: ${existingCurative.resolved_recipe.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ")} (${safeSlot.noteKn})`;
       existingCurative.updated_by = activeUser;
       existingCurative.updated_at = new Date().toISOString();
@@ -831,28 +983,19 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
       const payload = {
         env: APP_ENV, originally_scheduled_date: foliarDateStr, current_scheduled_date: foliarDateStr,
         effective_dad: dyn.dad, task_type: "FOLIAR_SPRAY", trigger_source: "SCOUTING_CURATIVE", status: "PENDING",
-        resolved_recipe: mergedRecipe, custom_title_en: titleEn, custom_title_kn: titleKn,
+        resolved_recipe: synergisticRecipe, custom_title_en: titleEn, custom_title_kn: titleKn,
         updated_by: activeUser, updated_at: new Date().toISOString()
       };
       const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
       const inserted = res.data?.[0] || { ...payload, id: "comb_" + Date.now() };
-      tasks.push({ ...inserted, week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: titleEn, target_description_kn: titleKn });
+      activeCurativeTask = { ...inserted, week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: titleEn, target_description_kn: titleKn };
+      tasks.push(activeCurativeTask);
     }
 
-    // Auto-adjust downstream BASELINE foliar sprays if they fall within 4 days of this curative spray!
-    const nextBaselineSpray = tasks.find(t =>
-      (t.status === "PENDING" || t.status === "DELAYED") &&
-      t.trigger_source === "BASELINE" &&
-      (t.task_type === "FOLIAR_SPRAY" || t.task_type === "STANDALONE_COPPER") &&
-      diffDaysYMD(foliarDateStr, t.current_scheduled_date) >= 0 &&
-      diffDaysYMD(foliarDateStr, t.current_scheduled_date) < 5
-    );
-    if (nextBaselineSpray) {
-      await applyScheduleShift(nextBaselineSpray, addDaysYMD(foliarDateStr, 5), "TRACK", "CURATIVE_COOLDOWN");
-    }
+    // Automatically shift & deduplicate upcoming baseline foliar spray (e.g., Nov 3 Spinetoram + Ca-B)!
+    await reconcileUpcomingBaselineFoliarAfterCurative(foliarDateStr, activeCurativeTask.resolved_recipe, activeCurativeTask.id);
   }
 
-  // 2. Handle Standalone Copper Issue (if Blight was also selected, space it 5 days apart from Foliar!)
   if (copperIssues.length > 0) {
     const baseDate = foliarIssues.length > 0 ? addDaysYMD(getEarliestSafeFoliarDate(false).dateStr, 5) : getEarliestSafeFoliarDate(true).dateStr;
     const dyn = computeDynamicDadAndWeek(baseDate);
@@ -871,28 +1014,28 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
   }
 
   selectedRiskCodes.clear();
-  await logAudit("SMART_COMBINED_SPRAY", `Queued combined spray for: ${namesList}`, "");
+  await logAudit("SMART_COMBINED_SPRAY", `Queued synergistic spray for: ${namesList}`, "");
   curWk = targetWeekToOpen;
   showTab("TASKS");
   render();
 }
 
-// Single-button tap routes through the exact same smart combiner & cooldown engine!
 async function addScoutingTask(code) {
+  const existing = getQueuedTaskCoveringIssue(code);
+  if (existing) {
+    curWk = existing.week_number;
+    showTab("TASKS");
+    render();
+    return;
+  }
   await queueCombinedSelectedRisks([code]);
 }
 
-// 1-Tap Merger for any duplicate same-day FOLIAR_SPRAY cards already created earlier today!
 async function mergeDuplicateSpraysInCurrentWeek() {
-  const wkSprays = tasks.filter(t =>
-    Number(t.week_number) === curWk &&
-    t.status === "PENDING" &&
-    t.task_type === "FOLIAR_SPRAY"
-  );
+  const wkSprays = tasks.filter(t => Number(t.week_number) === curWk && t.status === "PENDING" && t.task_type === "FOLIAR_SPRAY");
   if (wkSprays.length < 2) return;
 
-  const primary = wkSprays[0];
-  const others = wkSprays.slice(1);
+  const primary = wkSprays[0], others = wkSprays.slice(1);
   const safeSlot = getEarliestSafeFoliarDate(false);
   const targetDateStr = safeSlot.dateStr > primary.current_scheduled_date ? safeSlot.dateStr : primary.current_scheduled_date;
 
@@ -920,7 +1063,6 @@ async function mergeDuplicateSpraysInCurrentWeek() {
   primary.updated_by = activeUser;
   primary.updated_at = new Date().toISOString();
 
-  // Remove the redundant duplicate cards
   const otherIds = others.map(o => o.id);
   tasks = tasks.filter(t => !otherIds.includes(t.id));
 
@@ -937,21 +1079,7 @@ async function mergeDuplicateSpraysInCurrentWeek() {
   for (const oid of otherIds) {
     await dbMutate({ table: "daily_task_queue", type: "delete", matchCol: "id", matchVal: oid });
   }
-
-  // Cascade downstream baseline spray if within 4 days
-  const nextBaselineSpray = tasks.find(t =>
-    (t.status === "PENDING" || t.status === "DELAYED") &&
-    t.id !== primary.id &&
-    t.trigger_source === "BASELINE" &&
-    t.task_type === "FOLIAR_SPRAY" &&
-    diffDaysYMD(targetDateStr, t.current_scheduled_date) >= 0 &&
-    diffDaysYMD(targetDateStr, t.current_scheduled_date) < 5
-  );
-  if (nextBaselineSpray) {
-    await applyScheduleShift(nextBaselineSpray, addDaysYMD(targetDateStr, 5), "TRACK", "CURATIVE_COOLDOWN");
-  }
-
-  await logAudit("MERGED_SPRAY_CARDS", chemNamesEn, `Combined ${wkSprays.length} sprays onto ${targetDateStr}`);
+  await reconcileUpcomingBaselineFoliarAfterCurative(targetDateStr, primary.resolved_recipe, primary.id);
   render();
 }
 
@@ -961,7 +1089,7 @@ const I18N = {
     btnLogRain: "🌧️ Log Farm Rain", tabTasks: "Tasks", tabAnalytics: "Risk & NPK", tabManual: "Log Work", tabShop: "Store & ₹", tabScout: "Scout/Log",
     gddCardTitle: "☀️ Thermal Growing Degree Days (GDD Base 10°C)",
     riskCardTitle: "🛡️ 6-Threat Orchard Risk Radar (Select Multiple to Combine Spray)",
-    riskCardSub: "Tick multiple threats below and tap 'Smart Combine & Queue' to merge compatible chemicals into a single 7-drum spray (auto-adjusts for 5-day Copper cooldown & shifts future tasks):",
+    riskCardSub: "Tick unqueued threats below and tap 'Smart Combine & Queue' (caps at 2 synergistic pesticides, respects 5d Copper cooldown & deduplicates upcoming baseline sprays):",
     npkLedgerTitle: "⚖️ Cumulative Elemental Nutrient Ledger (Grams / Plant Delivered vs. Target)",
     npkLedgerSub: "Calculated across 1,500 plants from all COMPLETED applications so far vs. ICAR-NRCP target curve for today's DAD.",
     manTitle: "➕ Record Manual or Past Spray / Drip", lblManDate: "Date Applied:", lblManType: "Activity Type:", lblManCost: "Total Cost Paid (₹):",
@@ -970,7 +1098,7 @@ const I18N = {
     lblManShift: "Auto-adjust future schedule (+3d shift, 5d Copper cooldown, 10d Boron lock & IRAC/FRAC rotation)", btnSaveMan: "💾 Save Activity & Update Schedule",
     expTitle: "💰 Total Recorded Orchard Spend (3 Acres)", shopTitle: "Agro-Store Shopping List (3 Acres)", shopSub: "Skipped and completed items are excluded. Enter shed leftovers below.", btnCopy: "📲 Copy List",
     brandCheckerTitle: "🧪 Agro-Store Brand & Tank-Mix Compatibility Checker", brandCheckerSub: "Select 1 or 2 store brands below to verify active salt, 21-day repeat-spray resistance, and drum mixing order:",
-    scoutTitle: "🔍 Field Problem Reporter (Multi-Select & Smart Combine)", scoutSub: "Tick multiple problems to merge them into one tank-mix spray, or tap Queue on any single issue.",
+    scoutTitle: "🔍 Field Problem Reporter (Multi-Select & Smart Combine)", scoutSub: "Tick multiple problems to merge them into one synergistic spray, or tap Queue on any single issue.",
     auditTitle: "👤 Recent Activity & User Tracking Log", masterTitle: "📅 Complete Orchard Schedule (Week 0 to Week 30)",
     modalTitle: "🏪 4-Check Agro-Store Brand Validator", lblBrandSearch: "🔍 What brand did the store dealer offer you?", userModalTitle: "👤 Manage App Users",
     delayModalTitle: "⏳ Delay / Reschedule Task", lblQuickDelay: "1. Shift Earlier (-), Later (+) or Pick Date:", btnOrigDate: "↺ Original Date", lblNewDate: "New Date:",
@@ -993,7 +1121,7 @@ const I18N = {
     btnLogRain: "🌧️ ಮಳೆ ದಾಖಲಿಸಿ", tabTasks: "ಕೆಲಸಗಳು", tabAnalytics: "ರೋಗ ಅಪಾಯ & NPK", tabManual: "ಕೆಲಸ ಸೇರಿಸಿ", tabShop: "ಅಂಗಡಿ & ₹", tabScout: "ರೋಗ/ದಾಖಲೆ",
     gddCardTitle: "☀️ ಉಷ್ಣಾಂಶ ಬೆಳವಣಿಗೆ ದಿನಗಳು (Thermal GDD - Base 10°C)",
     riskCardTitle: "🛡️ 6-ರೋಗ/ಕೀಟಗಳ ಅಪಾಯ ರೇಡಾರ್ (ಒಟ್ಟಿಗೆ ಸೇರಿಸಲು ಕಾರ್ಡ್‌ಗಳನ್ನು ಆರಿಸಿ)",
-    riskCardSub: "ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಸಮಸ್ಯೆಗಳನ್ನು ಟಿಕ್ ಮಾಡಿ 'Smart Combine' ಒತ್ತಿದರೆ ಹೊಂದಾಣಿಕೆಯಾಗುವ ಔಷಧಿಗಳನ್ನು ಒಂದೇ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್‌ಗೆ ಸೇರಿಸುತ್ತದೆ:",
+    riskCardSub: "ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಸಮಸ್ಯೆಗಳನ್ನು ಟಿಕ್ ಮಾಡಿ 'Smart Combine' ಒತ್ತಿದರೆ ಗರಿಷ್ಠ 2 ಸೂಕ್ತ ಔಷಧಿಗಳನ್ನು ಒಂದೇ ಸಿಂಪಡಣೆಗೆ ಸೇರಿಸುತ್ತದೆ:",
     npkLedgerTitle: "⚖️ ಪ್ರತಿ ಗಿಡಕ್ಕೆ ನೀಡಲಾದ ಒಟ್ಟು ಪೋಷಕಾಂಶಗಳ ಲೆಕ್ಕ (ಗ್ರಾಂ/ಗಿಡ - ಗುರಿ vs ನೀಡಿದ್ದು)",
     npkLedgerSub: "ಇಲ್ಲಿಯವರೆಗೆ ಪೂರ್ಣಗೊಂಡ ಡ್ರಿಪ್ ಮತ್ತು ಸಿಂಪಡಣೆಗಳಿಂದ 1,500 ಗಿಡಗಳಿಗೆ ತಲುಪಿದ ನಿಖರ N, P, K, Ca, Mg ಪ್ರಮಾಣ.",
     manTitle: "➕ ಮಾಡಿದ ಸಿಂಪಡಣೆ / ಡ್ರಿಪ್ ಗೊಬ್ಬರ ದಾಖಲಿಸಿ", lblManDate: "ಮಾಡಿದ ದಿನಾಂಕ:", lblManType: "ಕೆಲಸದ ವಿಧ:", lblManCost: "ಒಟ್ಟು ಖರ್ಚು (₹):",
@@ -1360,18 +1488,27 @@ function renderAnalyticsTab() {
   const risks = computeAllSixRisks();
   document.getElementById("multiRiskGrid").innerHTML = SCOUT_ISSUES.map(iss => {
     const rObj = risks[iss.code] || { score: 20, whyEn: "", whyKn: "" };
-    const sc = rObj.score, isChecked = selectedRiskCodes.has(iss.code);
+    const sc = rObj.score, queuedTask = getQueuedTaskCoveringIssue(iss.code);
+    const isChecked = selectedRiskCodes.has(iss.code);
     const isHigh = sc >= 65, isMod = sc >= 40 && sc < 65;
     const badgeCls = isHigh ? "bg-red-600 text-white" : isMod ? "bg-amber-400 text-slate-950" : "bg-emerald-600 text-white";
     const barCls = isHigh ? "bg-red-600" : isMod ? "bg-amber-500" : "bg-emerald-600";
-    const cardBorder = isChecked ? "border-2 border-indigo-600 bg-indigo-50/50" : isHigh ? "border-red-300 bg-red-50/40" : isMod ? "border-amber-200 bg-amber-50/30" : "border-slate-200 bg-slate-50";
+    const cardBorder = queuedTask ? "border-emerald-400 bg-emerald-50/40" : isChecked ? "border-2 border-indigo-600 bg-indigo-50/50" : isHigh ? "border-red-300 bg-red-50/40" : isMod ? "border-amber-200 bg-amber-50/30" : "border-slate-200 bg-slate-50";
     const levelWord = isHigh ? (LANG === "KN" ? "ಗರಿಷ್ಠ" : "HIGH") : isMod ? (LANG === "KN" ? "ಮಧ್ಯಮ" : "MOD") : (LANG === "KN" ? "ಕಡಿಮೆ" : "LOW");
+
+    const actionBtnHtml = queuedTask
+      ? `<button onclick="event.stopPropagation();goWeek(${queuedTask.week_number});showTab('TASKS');" class="shrink-0 bg-emerald-700 text-white font-extrabold px-2.5 py-1 rounded text-[10px] shadow-sm">
+           ✅ ${LANG === "KN" ? `${queuedTask.current_scheduled_date} ಕ್ಕೆ ಸೇರಿಸಲಾಗಿದೆ (ನೋಡಿ)` : `Queued for ${queuedTask.current_scheduled_date} (View)`}
+         </button>`
+      : `<button onclick="event.stopPropagation();addScoutingTask('${iss.code}')" class="shrink-0 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 font-bold px-2 py-1 rounded text-[10px] shadow-sm">
+           ➕ ${LANG === "KN" ? "ಸಿಂಪಡಣೆ ಸೇರಿಸಿ" : "Queue Spray"}
+         </button>`;
 
     return `<div onclick="toggleRiskSelection('${iss.code}')" class="cursor-pointer p-3 rounded-xl border ${cardBorder} space-y-1.5 flex flex-col justify-between">
       <div>
         <div class="flex items-center justify-between gap-1">
           <label class="flex items-center gap-2 font-extrabold text-slate-900 cursor-pointer">
-            <input type="checkbox" ${isChecked ? "checked" : ""} onclick="event.stopPropagation();toggleRiskSelection('${iss.code}')" class="w-4 h-4 accent-indigo-600" />
+            ${queuedTask ? `<span class="text-emerald-700">☑️</span>` : `<input type="checkbox" ${isChecked ? "checked" : ""} onclick="event.stopPropagation();toggleRiskSelection('${iss.code}')" class="w-4 h-4 accent-indigo-600" />`}
             <span>${LANG === "KN" ? iss.knTitle : iss.enTitle}</span>
           </label>
           <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${badgeCls}">${levelWord} • ${sc}%</span>
@@ -1383,9 +1520,7 @@ function renderAnalyticsTab() {
       </div>
       <div class="pt-1.5 border-t border-slate-200/80 flex items-center justify-between gap-2">
         <span class="text-[10px] text-slate-500 truncate">${LANG === "KN" ? iss.knDesc : iss.enDesc}</span>
-        <button onclick="event.stopPropagation();addScoutingTask('${iss.code}')" class="shrink-0 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 font-bold px-2 py-1 rounded text-[10px] shadow-sm">
-          ➕ ${LANG === "KN" ? "ಸಿಂಪಡಣೆ ಸೇರಿಸಿ" : "Queue Spray"}
-        </button>
+        ${actionBtnHtml}
       </div>
     </div>`;
   }).join("");
@@ -1542,9 +1677,9 @@ async function loadDB() {
         target_description_kn: q.custom_title_kn || ""
       };
     });
-    localStorage.setItem(`h_cache_v13_${APP_ENV}`, JSON.stringify({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList }));
+    localStorage.setItem(`h_cache_v14_${APP_ENV}`, JSON.stringify({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList }));
   } catch (e) {
-    const c = localStorage.getItem(`h_cache_v13_${APP_ENV}`);
+    const c = localStorage.getItem(`h_cache_v14_${APP_ENV}`);
     if (c) ({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList } = JSON.parse(c));
   }
   updateSyncBadge(); renderUserDropdown(); populateManualSelects(); populateBrandCheckerDropdowns();
@@ -1651,7 +1786,7 @@ async function resetEntireScheduleToBaseline() {
   const baselineTasks = tasks.filter(t => t.trigger_source === "BASELINE" && t.template_id);
   await Promise.all(baselineTasks.map(bt => {
     const tmpl = tMap[bt.template_id], dyn = computeDynamicDadAndWeek(bt.originally_scheduled_date);
-    return sb.from("daily_task_queue").update({ current_scheduled_date: bt.originally_scheduled_date, effective_dad: dyn.dad, status: "PENDING", delay_reason: null, resolved_recipe: tmpl ? tmpl.recipe_items : bt.resolved_recipe, updated_by: activeUser, updated_at: new Date().toISOString() }).eq("id", bt.id);
+    return sb.from("daily_task_queue").update({ current_scheduled_date: bt.originally_scheduled_date, effective_dad: dyn.dad, status: "PENDING", delay_reason: null, resolved_recipe: tmpl ? tmpl.recipe_items : bt.resolved_recipe, custom_title_en: null, custom_title_kn: null, updated_by: activeUser, updated_at: new Date().toISOString() }).eq("id", bt.id);
   }));
   await loadDB(); curWk = 11; render();
 }
@@ -1694,38 +1829,65 @@ function render() {
     document.getElementById("dadTitle").textContent = `${dadStart}–${dadEnd} ${L.dadWord} • ${LANG === "KN" ? (STAGE_KN[rawStage] || rawStage) : rawStage}`;
   }
 
-  // If 2+ pending Foliar Sprays exist in this week (like Thrips + Borer added earlier), show 1-Click Merge Banner!
+  // Banners for Duplicate Same-Week Sprays OR 4-Chemical Overloaded Card
   const pendingWkFoliars = wkTasks.filter(t => t.status === "PENDING" && t.task_type === "FOLIAR_SPRAY");
-  const mergeBannerEl = document.getElementById("sameDayMergeBanner");
+  const overloadedCurative = tasks.find(t => t.status === "PENDING" && t.trigger_source === "SCOUTING_CURATIVE" && t.task_type === "FOLIAR_SPRAY" && (t.resolved_recipe || []).length >= 3);
+  const mergeBanners = [];
+
+  if (overloadedCurative) {
+    mergeBanners.push(`<div class="p-3 rounded-xl bg-amber-50 border-2 border-amber-400 text-amber-950 text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm">
+      <div>
+        <div class="font-extrabold">⚖️ ${LANG === "KN" ? "4 ಕೀಟನಾಶಕಗಳ ಮಿಶ್ರಣ ಪತ್ತೆಯಾಗಿದೆ — 2 ಸಿನರ್ಜಿಸ್ಟಿಕ್ ಔಷಧಿಗಳಿಗೆ ಇಳಿಸಿ!" : "4-Insecticide Tank Mix Detected on " + overloadedCurative.current_scheduled_date + "!"}</div>
+        <div class="text-[11px] text-amber-900">${LANG === "KN" ? "ಸ್ಪೈನೆಟೊರಾಮ್ (ಥ್ರಿಪ್ಸ್+ಹುಳು) + ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ (ತಿಗಣೆ) ಸಾಕು; ನವೆಂಬರ್ 3ರ ಸಿಂಪಡಣೆಯನ್ನೂ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸುತ್ತದೆ." : "Spinetoram covers BOTH Thrips & Borer. Tap below to trim to 2 synergistic insecticides (Spinetoram + Spirotetramat) and auto-shift/deduplicate Nov 3!"}</div>
+      </div>
+      <button onclick="optimizeExistingOverloadedCurativeAndNov3()" class="bg-amber-600 hover:bg-amber-700 text-white font-extrabold px-3 py-2 rounded-lg shadow shrink-0">
+        ✨ ${LANG === "KN" ? "ಅಕ್ಟೋಬರ್ 30 & ನವೆಂಬರ್ 3 ಹೊಂದಿಸಿ" : "Optimize Oct 30 & Update Nov 3"}
+      </button>
+    </div>`);
+  }
+
   if (pendingWkFoliars.length >= 2) {
-    mergeBannerEl.innerHTML = `<div class="p-3 rounded-xl bg-indigo-50 border-2 border-indigo-300 text-indigo-950 text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm">
+    mergeBanners.push(`<div class="p-3 rounded-xl bg-indigo-50 border-2 border-indigo-300 text-indigo-950 text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm">
       <div>
         <div class="font-extrabold">🔗 ${LANG === "KN" ? `${pendingWkFoliars.length} ಪ್ರತ್ಯೇಕ ಎಲೆ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್‌ಗಳಿವೆ — ಒಂದೇ ಡ್ರಮ್ ಮಿಶ್ರಣಕ್ಕೆ ಸೇರಿಸಿ!` : `${pendingWkFoliars.length} Separate Pending Foliar Sprays Found in This Week!`}</div>
-        <div class="text-[11px] text-indigo-800">${LANG === "KN" ? "ಅವುಗಳನ್ನು ಒಂದೇ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್ ಆಗಿ ವಿಲೀನಗೊಳಿಸಿ (ಮತ್ತು ಅಕ್ಟೋಬರ್ 25ರ ಕಾಪರ್ ನಂತರ 5 ದಿನಗಳ ಅಂತರಕ್ಕೆ ಹೊಂದಿಸಿ)." : "Tap Merge to combine compatible chemicals into 1 single tank-mix card and align with your 5-day Copper cooldown."}</div>
+        <div class="text-[11px] text-indigo-800">${LANG === "KN" ? "ಅವುಗಳನ್ನು ಒಂದೇ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್ ಆಗಿ ವಿಲೀನಗೊಳಿಸಿ." : "Tap Merge to combine compatible chemicals into 1 single tank-mix card."}</div>
       </div>
       <button onclick="mergeDuplicateSpraysInCurrentWeek()" class="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold px-3 py-2 rounded-lg shadow shrink-0">
         🔗 ${LANG === "KN" ? "ಸಿಂಪಡಣೆಗಳನ್ನು ಒಂದೇ ಕಾರ್ಡ್ ಮಾಡಿ" : "Merge Sprays Into 1 Card"}
       </button>
-    </div>`;
-  } else {
-    mergeBannerEl.innerHTML = "";
+    </div>`);
   }
+  document.getElementById("sameDayMergeBanner").innerHTML = mergeBanners.join("");
 
-  // Consolidated High-Risk Banner with 1-Click Combine Button
+  // Consolidated High-Risk Banner (Checks if already queued!)
   const risks = computeAllSixRisks();
   const dad1 = curWk === 0 ? -10 : (curWk - 1) * 7, al = [];
   const highRiskIssues = SCOUT_ISSUES.filter(iss => (risks[iss.code]?.score || 0) >= 65);
   if (highRiskIssues.length > 0) {
     const names = highRiskIssues.map(iss => `${LANG === "KN" ? iss.knTitle : iss.enTitle} (${risks[iss.code].score}%)`).join(" • ");
-    const codesArrStr = JSON.stringify(highRiskIssues.map(x => x.code)).replace(/"/g, "'");
+    const unqueuedHigh = highRiskIssues.filter(iss => !getQueuedTaskCoveringIssue(iss.code));
+    const firstQueuedTask = getQueuedTaskCoveringIssue(highRiskIssues[0].code);
+
+    let actionBtnHtml = "";
+    if (unqueuedHigh.length === 0 && firstQueuedTask) {
+      actionBtnHtml = `<button onclick="goWeek(${firstQueuedTask.week_number});showTab('TASKS');" class="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold px-3 py-1.5 rounded-lg shadow shrink-0">
+        ✅ ${LANG === "KN" ? `${firstQueuedTask.current_scheduled_date} ಕ್ಕೆ ಸಿಂಪಡಣೆ ಸೇರಿಸಲಾಗಿದೆ (ನೋಡಿ)` : `Spray Queued for ${firstQueuedTask.current_scheduled_date} (View Card)`}
+      </button>`;
+    } else {
+      const codesArrStr = JSON.stringify(unqueuedHigh.map(x => x.code)).replace(/"/g, "'");
+      actionBtnHtml = `<button onclick="queueCombinedSelectedRisks(${codesArrStr})" class="bg-rose-700 hover:bg-rose-800 text-white font-extrabold px-3 py-1.5 rounded-lg shadow shrink-0">
+        🧪 ${LANG === "KN" ? "ಸಂಯೋಜಿತ ಸಿಂಪಡಣೆ ಸೇರಿಸಿ" : `Combine & Queue 1 Spray (${unqueuedHigh.length})`}
+      </button>`;
+    }
+
     al.push({
-      c: "bg-rose-50 border-rose-300 text-rose-950",
+      c: unqueuedHigh.length === 0 ? "bg-emerald-50 border-emerald-300 text-emerald-950" : "bg-rose-50 border-rose-300 text-rose-950",
       t: LANG === "KN" ? `🚨 ಹೆಚ್ಚಿನ ಅಪಾಯ ಎಚ್ಚರಿಕೆ (${highRiskIssues.length}): ${names}` : `🚨 High Risk Alerts (${highRiskIssues.length}): ${names}`,
       d: `<div class="flex flex-wrap items-center justify-between gap-2 mt-1">
-            <span>${LANG === "KN" ? "ಈ ಎಲ್ಲಾ ಸಮಸ್ಯೆಗಳಿಗೆ ಹೊಂದಾಣಿಕೆಯಾಗುವ ಔಷಧಿಗಳನ್ನು ಒಂದೇ ಸಿಂಪಡಣೆಯಾಗಿ ಸೇರಿಸಬಹುದು." : "You can combine compatible treatments for these alerts into a single tank-mix spray card."}</span>
-            <button onclick="queueCombinedSelectedRisks(${codesArrStr})" class="bg-rose-700 hover:bg-rose-800 text-white font-extrabold px-3 py-1.5 rounded-lg shadow shrink-0">
-              🧪 ${LANG === "KN" ? "ಎಲ್ಲವನ್ನೂ ಒಂದೇ ಸಿಂಪಡಣೆಯಾಗಿ ಸೇರಿಸಿ" : "Combine & Queue 1 Spray"}
-            </button>
+            <span>${unqueuedHigh.length === 0
+              ? (LANG === "KN" ? "ಈ ಅಪಾಯಗಳಿಗೆ ಈಗಾಗಲೇ ತುರ್ತು ಸಿಂಪಡಣೆಯನ್ನು ವೇಳಾಪಟ್ಟಿಗೆ ಸೇರಿಸಲಾಗಿದೆ." : "A curative spray covering these threats is already queued in your schedule.")
+              : (LANG === "KN" ? "ಗರಿಷ್ಠ 2 ಸೂಕ್ತ ಔಷಧಿಗಳನ್ನು ಒಳಗೊಂಡ ಒಂದೇ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್ ಸೇರಿಸಿ." : "Combine into a single 2-chemical synergistic spray (auto-updates upcoming Nov 3 spray).")}</span>
+            ${actionBtnHtml}
           </div>`
     });
   }
@@ -1846,17 +2008,22 @@ function render() {
     </div>`;
   }).join("") || `<div class="py-3 text-xs text-slate-500">${LANG === "KN" ? "ಈ ವಾರ ಯಾವುದೇ ಖರೀದಿ ಅಗತ್ಯವಿಲ್ಲ." : "No pending inputs needed for this week."}</div>`;
 
-  // Scouting Grid with Multi-Select Checkboxes & Live Risk %
+  // Scouting Grid with Queued State Detection
   document.getElementById("scoutGrid").innerHTML = SCOUT_ISSUES.map(iss => {
     const rObj = risks[iss.code] || { score: 20, whyEn: "", whyKn: "" };
-    const sc = rObj.score, isChecked = selectedRiskCodes.has(iss.code);
+    const sc = rObj.score, queuedTask = getQueuedTaskCoveringIssue(iss.code);
+    const isChecked = selectedRiskCodes.has(iss.code);
     const badgeCls = sc >= 65 ? "bg-red-600 text-white" : sc >= 40 ? "bg-amber-400 text-slate-950" : "bg-emerald-600 text-white";
-    const borderCls = isChecked ? "border-2 border-indigo-600 bg-indigo-50/70" : "border-rose-200 bg-rose-50/70 hover:bg-rose-100";
+    const borderCls = queuedTask ? "border-emerald-400 bg-emerald-50/60" : isChecked ? "border-2 border-indigo-600 bg-indigo-50/70" : "border-rose-200 bg-rose-50/70 hover:bg-rose-100";
+
+    const btnHtml = queuedTask
+      ? `<button onclick="event.stopPropagation();goWeek(${queuedTask.week_number});showTab('TASKS');" class="bg-emerald-700 text-white font-extrabold px-2 py-0.5 rounded text-[10px] shrink-0">✅ Queued (${queuedTask.current_scheduled_date})</button>`
+      : `<button onclick="event.stopPropagation();addScoutingTask('${iss.code}')" class="bg-white border border-rose-300 text-rose-900 font-bold px-2 py-0.5 rounded text-[10px] shrink-0">➕ Queue</button>`;
 
     return `<div onclick="toggleRiskSelection('${iss.code}')" class="cursor-pointer p-3 rounded-xl border ${borderCls} text-rose-950 text-left shadow-sm flex flex-col justify-between gap-1.5">
       <div class="w-full flex items-center justify-between gap-1">
         <label class="flex items-center gap-1.5 font-extrabold cursor-pointer">
-          <input type="checkbox" ${isChecked ? "checked" : ""} onclick="event.stopPropagation();toggleRiskSelection('${iss.code}')" class="w-4 h-4 accent-indigo-600" />
+          ${queuedTask ? `<span class="text-emerald-700">☑️</span>` : `<input type="checkbox" ${isChecked ? "checked" : ""} onclick="event.stopPropagation();toggleRiskSelection('${iss.code}')" class="w-4 h-4 accent-indigo-600" />`}
           <span>${LANG === "KN" ? iss.knTitle : iss.enTitle}</span>
         </label>
         <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${badgeCls}">Risk: ${sc}%</span>
@@ -1864,7 +2031,7 @@ function render() {
       <div class="font-normal text-[11px] text-rose-800">${LANG === "KN" ? iss.knDesc : iss.enDesc}</div>
       <div class="font-normal text-[10px] text-slate-600 border-t border-rose-200/60 pt-1.5 w-full flex items-center justify-between gap-1">
         <span class="truncate">${LANG === "KN" ? rObj.whyKn : rObj.whyEn}</span>
-        <button onclick="event.stopPropagation();addScoutingTask('${iss.code}')" class="bg-white border border-rose-300 text-rose-900 font-bold px-2 py-0.5 rounded text-[10px] shrink-0">➕ Queue</button>
+        ${btnHtml}
       </div>
     </div>`;
   }).join("");
