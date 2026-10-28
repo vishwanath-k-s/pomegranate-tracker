@@ -829,6 +829,71 @@ function getQueuedTaskCoveringIssue(code) {
   return null;
 }
 
+// === START OF COMBINED BLOCK (computeAllSixRisks -> setWeather) ===
+
+function computeInstantRisksForDay(daySnap, todayDad, caDeficit, hadPyrethroidOrOP25d, shieldsActiveOnDay) {
+  const { rh72Avg, tMax, tMin, rain24, rain72Sum, prob4 } = daySnap;
+  const tempSwing = Number((tMax - tMin).toFixed(1));
+
+  let blight = rh72Avg >= 80 ? 45 : rh72Avg >= 70 ? 30 : rh72Avg >= 60 ? 18 : 8;
+  blight += (tMax >= 25 && tMax <= 33 && tMin >= 18) ? 25 : 12;
+  blight += rain72Sum >= 15 ? 30 : rain72Sum >= 3 ? 18 : prob4 >= 60 ? 12 : 0;
+  if (shieldsActiveOnDay.copper) blight -= 20;
+
+  let rot = rh72Avg >= 82 ? 45 : rh72Avg >= 72 ? 30 : rh72Avg >= 62 ? 16 : 6;
+  rot += (tMax >= 22 && tMax <= 30) ? 20 : 10;
+  rot += rain72Sum >= 10 ? 25 : rain72Sum >= 2 ? 14 : prob4 >= 60 ? 10 : 0;
+  if (todayDad >= 90) rot += 10;
+  if (shieldsActiveOnDay.fungicide) rot -= 20;
+
+  let thrips = rh72Avg <= 50 ? 42 : rh72Avg <= 62 ? 30 : rh72Avg <= 72 ? 18 : 8;
+  thrips += tMax >= 31 ? 25 : tMax >= 28 ? 16 : 8;
+  thrips += rain72Sum === 0 ? 15 : rain72Sum >= 10 ? -15 : 0;
+  thrips += todayDad <= 115 ? 15 : 5;
+  if (shieldsActiveOnDay.insecticide) thrips -= 20;
+
+  let borer = (todayDad >= 30 && todayDad <= 125) ? 35 : 12;
+  borer += (tMax >= 27 && tMax <= 33) ? 22 : 10;
+  borer += (rh72Avg >= 55 && rh72Avg <= 78) ? 15 : 8;
+  borer += shieldsActiveOnDay.insecticide ? -20 : 18;
+
+  let mealy = tMax >= 31 ? 25 : tMax >= 28 ? 16 : 8;
+  mealy += tMin >= 18.5 ? 15 : 6;
+  mealy += rain72Sum < 5 ? 15 : 0;
+  if (hadPyrethroidOrOP25d) mealy += 25;
+  if (shieldsActiveOnDay.mealy) mealy -= 25;
+
+  let crack = tempSwing >= 13.0 ? 30 : tempSwing >= 11.0 ? 20 : 10;
+  crack += tMax >= 33 ? 25 : tMax >= 30.5 ? 15 : 8;
+  crack += rain24 >= 10 ? 25 : 0;
+  if (caDeficit) crack += 22;
+  if (shieldsActiveOnDay.calciumFoliar) crack -= 18;
+
+  const clamp = v => Math.min(100, Math.max(5, Math.round(v)));
+  return {
+    BLIGHT_SPOT: clamp(blight),
+    FRUIT_ROT:   clamp(rot),
+    THRIPS_SCAR: clamp(thrips),
+    FRUIT_BORER: clamp(borer),
+    MEALYBUG:    clamp(mealy),
+    CRACKING:    clamp(crack)
+  };
+}
+
+function wasThreatTreatedSince(code, spikeDateStr) {
+  return tasks.some(t => {
+    if (t.status !== "COMPLETED" || t.current_scheduled_date < spikeDateStr) return false;
+    const ids = (t.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").map(r => r.input_id);
+    if (code === "BLIGHT_SPOT") return ids.some(id => catalog[id]?.is_copper_compound || id === "BAC_H2O2" || id === "BAC_BRONOPOL");
+    if (code === "FRUIT_ROT")   return ids.some(id => catalog[id]?.category === "FUNGICIDE");
+    if (code === "THRIPS_SCAR") return ids.some(id => catalog[id]?.category === "INSECTICIDE");
+    if (code === "FRUIT_BORER") return ids.some(id => catalog[id]?.category === "INSECTICIDE");
+    if (code === "MEALYBUG")    return ids.some(id => ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_THIAMETHOXAM", "INS_FENPYROXIMATE", "INS_ABAMECTIN", "INS_SPIROMESIFEN"].includes(id));
+    if (code === "CRACKING")    return ids.some(id => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC", "WSF_CALCIUM_NITRATE", "MIC_CHELATED_CA", "MIC_BORON_20"].includes(id));
+    return false;
+  });
+}
+
 function computeAllSixRisks() {
   const tStr = todayYMD();
   const todayDad = Math.max(1, diffDaysYMD("2026-08-15", tStr));
@@ -848,6 +913,14 @@ function computeAllSixRisks() {
     const d = diffDaysYMD(t.current_scheduled_date, tStr);
     return d >= 0 && d <= 7 && (t.resolved_recipe || []).some(r => catalog[r.input_id]?.category === "INSECTICIDE");
   });
+  const hadMealySpray10d = doneTasks.some(t => {
+    const d = diffDaysYMD(t.current_scheduled_date, tStr);
+    return d >= 0 && d <= 10 && (t.resolved_recipe || []).some(r => ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN"].includes(r.input_id));
+  });
+  const hadCaFoliar7d = doneTasks.some(t => {
+    const d = diffDaysYMD(t.current_scheduled_date, tStr);
+    return d >= 0 && d <= 7 && (t.resolved_recipe || []).some(r => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC"].includes(r.input_id));
+  });
   const hadPyrethroidOrOP25d = doneTasks.some(t => {
     const d = diffDaysYMD(t.current_scheduled_date, tStr);
     return d >= 0 && d <= 25 && (t.resolved_recipe || []).some(r => {
@@ -857,55 +930,72 @@ function computeAllSixRisks() {
     });
   });
 
-  let blight = rh72Avg >= 80 ? 45 : rh72Avg >= 70 ? 30 : rh72Avg >= 60 ? 18 : 8;
-  blight += (tMax >= 25 && tMax <= 33 && tMin >= 18) ? 25 : 12;
-  blight += rain72Sum >= 15 ? 30 : rain72Sum >= 3 ? 18 : prob4 >= 60 ? 12 : 0;
-  if (hadCopper6d) blight -= 20;
-  blight = Math.min(100, Math.max(5, Math.round(blight)));
-
-  let rot = rh72Avg >= 82 ? 45 : rh72Avg >= 72 ? 30 : rh72Avg >= 62 ? 16 : 6;
-  rot += (tMax >= 22 && tMax <= 30) ? 20 : 10;
-  rot += rain72Sum >= 10 ? 25 : rain72Sum >= 2 ? 14 : prob4 >= 60 ? 10 : 0;
-  if (todayDad >= 90) rot += 10;
-  if (hadFungicide7d) rot -= 20;
-  rot = Math.min(100, Math.max(5, Math.round(rot)));
-
-  let thrips = rh72Avg <= 50 ? 42 : rh72Avg <= 62 ? 30 : rh72Avg <= 72 ? 18 : 8;
-  thrips += tMax >= 31 ? 25 : tMax >= 28 ? 16 : 8;
-  thrips += rain72Sum === 0 ? 15 : rain72Sum >= 10 ? -15 : 0;
-  thrips += todayDad <= 115 ? 15 : 5;
-  if (hadInsecticide7d) thrips -= 20;
-  thrips = Math.min(100, Math.max(5, Math.round(thrips)));
-
-  let borer = (todayDad >= 30 && todayDad <= 125) ? 35 : 12;
-  borer += (tMax >= 27 && tMax <= 33) ? 22 : 10;
-  borer += (rh72Avg >= 55 && rh72Avg <= 78) ? 15 : 8;
-  borer += hadInsecticide7d ? -20 : 18;
-  borer = Math.min(100, Math.max(5, Math.round(borer)));
-
-  let mealy = tMax >= 31 ? 25 : tMax >= 28 ? 16 : 8;
-  mealy += tMin >= 18.5 ? 15 : 6;
-  mealy += rain72Sum < 5 ? 15 : 0;
-  if (hadPyrethroidOrOP25d) mealy += 25;
-  mealy = Math.min(100, Math.max(5, Math.round(mealy)));
-
   const delNpk = getCumulativeNutrientsPerPlant();
   const targetCaToDate = Math.max(1, Math.round(45 * Math.min(1, Math.max(0.1, todayDad / 200))));
   const caDeficit = (delNpk.Ca / targetCaToDate) < 0.70;
 
-  let crack = tempSwing >= 13.0 ? 30 : tempSwing >= 11.0 ? 20 : 10;
-  crack += tMax >= 33 ? 25 : tMax >= 30.5 ? 15 : 8;
-  crack += rain24 >= 10 ? 25 : 0;
-  if (caDeficit) crack += 22;
-  crack = Math.min(100, Math.max(5, Math.round(crack)));
+  const shieldsToday = {
+    copper: hadCopper6d,
+    fungicide: hadFungicide7d,
+    insecticide: hadInsecticide7d,
+    mealy: hadMealySpray10d,
+    calciumFoliar: hadCaFoliar7d
+  };
+
+  const inst = computeInstantRisksForDay(wState, todayDad, caDeficit, hadPyrethroidOrOP25d, shieldsToday);
+  const DECAY_PER_DAY = { BLIGHT_SPOT: 6, FRUIT_ROT: 7, THRIPS_SCAR: 8, FRUIT_BORER: 8, MEALYBUG: 7, CRACKING: 10 };
+  const carryoverInfo = {};
+  const pastDaysArr = Array.isArray(wState.history6d) ? wState.history6d : [];
+
+  Object.keys(inst).forEach(code => {
+    let bestCarryScore = inst[code];
+    let peakDayAgo = 0;
+    let peakRawScore = inst[code];
+
+    pastDaysArr.forEach(pastDay => {
+      const daysAgo = diffDaysYMD(pastDay.dateStr, tStr);
+      if (daysAgo <= 0 || daysAgo > 6) return;
+      if (wasThreatTreatedSince(code, pastDay.dateStr)) return;
+      if (code === "THRIPS_SCAR" && rain24 >= 15) return;
+
+      const pastRisks = computeInstantRisksForDay(pastDay, todayDad - daysAgo, caDeficit, hadPyrethroidOrOP25d, shieldsToday);
+      const rawPastScore = pastRisks[code] || 0;
+      const decayedScore = Math.round(rawPastScore - (daysAgo * DECAY_PER_DAY[code]));
+
+      if (decayedScore > bestCarryScore) {
+        bestCarryScore = decayedScore;
+        peakDayAgo = daysAgo;
+        peakRawScore = rawPastScore;
+      }
+    });
+
+    carryoverInfo[code] = {
+      finalScore: Math.min(100, Math.max(5, bestCarryScore)),
+      instantScore: inst[code],
+      isCarryover: bestCarryScore > inst[code] + 3,
+      peakDayAgo,
+      peakRawScore
+    };
+  });
+
+  const withCarryWhy = (code, baseEn, baseKn) => {
+    const ci = carryoverInfo[code];
+    if (!ci.isCarryover) return { score: ci.finalScore, whyEn: baseEn, whyKn: baseKn };
+    const boost = ci.finalScore - ci.instantScore;
+    return {
+      score: ci.finalScore,
+      whyEn: `🧬 Latent Carryover (+${boost}%): Peaked at ${ci.peakRawScore}% (${ci.peakDayAgo}d ago) with no spray since! • Today weather: ${ci.instantScore}%`,
+      whyKn: `🧬 ಹಿಂದಿನ ಸೋಂಕಿನ ಪ್ರಭಾವ (+${boost}%): ${ci.peakDayAgo} ದಿನದ ಹಿಂದೆ ${ci.peakRawScore}% ಇತ್ತು (ಇನ್ನೂ ಸಿಂಪಡಿಸಿಲ್ಲ)! • ಇಂದಿನ ಹವೆ: ${ci.instantScore}%`
+    };
+  };
 
   return {
-    BLIGHT_SPOT: { score: blight, whyEn: `72h RH: ${rh72Avg}% • Rain: ${rain72Sum}mm ${hadCopper6d ? "• 🛡️ Copper shield active (-20%)" : ""}`, whyKn: `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಮಳೆ: ${rain72Sum}mm ${hadCopper6d ? "• 🛡️ ಕಾಪರ್ ರಕ್ಷಣೆ ಇದೆ (-20%)" : ""}` },
-    FRUIT_ROT:   { score: rot,    whyEn: `72h RH: ${rh72Avg}% • Temp: ${tMax}°C ${hadFungicide7d ? "• 🛡️ Fungicide active (-20%)" : ""}`, whyKn: `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಉಷ್ಣಾಂಶ: ${tMax}°C ${hadFungicide7d ? "• 🛡️ ಶಿಲೀಂಧ್ರನಾಶಕ ರಕ್ಷಣೆ ಇದೆ (-20%)" : ""}` },
-    THRIPS_SCAR: { score: thrips, whyEn: `${rh72Avg <= 60 ? "Dry air speeds thrips" : "Mod RH"} (${rh72Avg}%) • ${rain72Sum === 0 ? "0mm rain (+15%)" : "Rain wash-off"}`, whyKn: `ತೇವಾಂಶ: ${rh72Avg}% • ${rain72Sum === 0 ? "ಮಳೆ ಇಲ್ಲದ ಒಣ ಹವೆ (+15%)" : "ಮಳೆಯಿಂದ ಕಡಿಮೆ"}` },
-    FRUIT_BORER: { score: borer,  whyEn: `Sizing stage (${todayDad} DAD: +35%) • ${hadInsecticide7d ? "🛡️ Spray active (-20%)" : ">7d since last insecticide (+18%)"}`, whyKn: `ಕಾಯಿ ಬೆಳವಣಿಗೆ ಹಂತ (${todayDad} DAD) • ${hadInsecticide7d ? "🛡️ ಸಿಂಪಡಣೆ ರಕ್ಷಣೆ ಇದೆ" : ">7 ದಿನದಿಂದ ಕೀಟನಾಶಕ ಸಿಂಪಡಿಸಿಲ್ಲ (+18%)"}` },
-    MEALYBUG:    { score: mealy,  whyEn: `Max ${tMax}°C / Night ${tMin}°C ${hadPyrethroidOrOP25d ? "• ⚠️ +25% Reeva-5/Asataf resurgence watch" : ""}`, whyKn: `ಗರಿಷ್ಠ ${tMax}°C ${hadPyrethroidOrOP25d ? "• ⚠️ ರೀವಾ-5/ಅಸಟಾಫ್ ನಂತರ ನುಸಿ/ತಿಗಣೆ ಎಚ್ಚರಿಕೆ (+25%)" : ""}` },
-    CRACKING:    { score: crack,  whyEn: `Day-Night Swing: ${tempSwing}°C ${caDeficit ? "• ⚠️ Low Rind Calcium reserve (+22%)" : "• ✅ Good Ca reserve"}`, whyKn: `ಹಗಲು-ರಾತ್ರಿ ವ್ಯತ್ಯಾಸ: ${tempSwing}°C ${caDeficit ? "• ⚠️ ಕ್ಯಾಲ್ಸಿಯಂ ಕೊರತೆ (+22%)" : ""}` }
+    BLIGHT_SPOT: withCarryWhy("BLIGHT_SPOT", `72h RH: ${rh72Avg}% • Rain: ${rain72Sum}mm ${hadCopper6d ? "• 🛡️ Copper shield active (-20%)" : ""}`, `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಮಳೆ: ${rain72Sum}mm ${hadCopper6d ? "• 🛡️ ಕಾಪರ್ ರಕ್ಷಣೆ ಇದೆ (-20%)" : ""}`),
+    FRUIT_ROT:   withCarryWhy("FRUIT_ROT",   `72h RH: ${rh72Avg}% • Temp: ${tMax}°C ${hadFungicide7d ? "• 🛡️ Fungicide active (-20%)" : ""}`, `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಉಷ್ಣಾಂಶ: ${tMax}°C ${hadFungicide7d ? "• 🛡️ ಶಿಲೀಂಧ್ರನಾಶಕ ರಕ್ಷಣೆ ಇದೆ (-20%)" : ""}`),
+    THRIPS_SCAR: withCarryWhy("THRIPS_SCAR", `${rh72Avg <= 60 ? "Dry air speeds thrips" : "Mod RH"} (${rh72Avg}%) • ${rain72Sum === 0 ? "0mm rain (+15%)" : "Rain wash-off"}`, `ತೇವಾಂಶ: ${rh72Avg}% • ${rain72Sum === 0 ? "ಮಳೆ ಇಲ್ಲದ ಒಣ ಹವೆ (+15%)" : "ಮಳೆಯಿಂದ ಕಡಿಮೆ"}`),
+    FRUIT_BORER: withCarryWhy("FRUIT_BORER", `Sizing stage (${todayDad} DAD: +35%) • ${hadInsecticide7d ? "🛡️ Spray active (-20%)" : ">7d since last insecticide (+18%)"}`, `ಕಾಯಿ ಬೆಳವಣಿಗೆ ಹಂತ (${todayDad} DAD) • ${hadInsecticide7d ? "🛡️ ಸಿಂಪಡಣೆ ರಕ್ಷಣೆ ಇದೆ" : ">7 ದಿನದಿಂದ ಕೀಟನಾಶಕ ಸಿಂಪಡಿಸಿಲ್ಲ (+18%)"}`),
+    MEALYBUG:    withCarryWhy("MEALYBUG",    `Max ${tMax}°C / Night ${tMin}°C ${hadPyrethroidOrOP25d ? "• ⚠️ +25% Reeva-5/Asataf resurgence watch" : ""}`, `ಗರಿಷ್ಠ ${tMax}°C ${hadPyrethroidOrOP25d ? "• ⚠️ ರೀವಾ-5/ಅಸಟಾಫ್ ನಂತರ ನುಸಿ/ತಿಗಣೆ ಎಚ್ಚರಿಕೆ (+25%)" : ""}`),
+    CRACKING:    withCarryWhy("CRACKING",    `Day-Night Swing: ${tempSwing}°C ${caDeficit ? "• ⚠️ Low Rind Calcium reserve (+22%)" : "• ✅ Good Ca reserve"}`, `ಹಗಲು-ರಾತ್ರಿ ವ್ಯತ್ಯಾಸ: ${tempSwing}°C ${caDeficit ? "• ⚠️ ಕ್ಯಾಲ್ಸಿಯಂ ಕೊರತೆ (+22%)" : ""}`)
   };
 }
 
@@ -1011,10 +1101,11 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
     if (!deduplicated.some(r => r.input_id === "BIO_ORTHOSILICIC") && catalog["BIO_ORTHOSILICIC"]) {
       deduplicated.push({ input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 });
     }
-    const newNamesEn = deduplicated.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ");
+    const newNamesEn = deduplicated.map(r => getSaltOnlyTitle(catalog[r.input_id], "EN") || r.input_id).join(" + ");
+    const newNamesKn = deduplicated.map(r => getSaltOnlyTitle(catalog[r.input_id], "KN") || r.input_id).join(" + ");
     nextBaselineSpray.resolved_recipe = deduplicated;
     nextBaselineSpray.custom_title_en = `Foliar (Auto-Deduplicated after ${curativeDateStr} Spray): ${newNamesEn}`;
-    nextBaselineSpray.custom_title_kn = `ಎಲೆ ಸಿಂಪಡಣೆ (${curativeDateStr} ಸಿಂಪಡಣೆ ನಂತರ ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ): ${newNamesEn}`;
+    nextBaselineSpray.custom_title_kn = `ಎಲೆ ಸಿಂಪಡಣೆ (${curativeDateStr} ಸಿಂಪಡಣೆ ನಂತರ ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ): ${newNamesKn}`;
     nextBaselineSpray.target_description = nextBaselineSpray.custom_title_en;
     nextBaselineSpray.target_description_kn = nextBaselineSpray.custom_title_kn;
 
@@ -1045,7 +1136,7 @@ async function optimizeExistingOverloadedCurativeAndNov3() {
     { input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 }
   ];
   overloaded.custom_title_en = `Synergistic Curative Spray [Thrips + Borer + Mealybug]: Spinetoram 11.7% SC + Spirotetramat 15.31% OD`;
-  overloaded.custom_title_kn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ [ಥ್ರಿಪ್ಸ್ + ಹುಳು + ತಿಗಣೆ]: ಸ್ಪೈನೆಟೊರಾಮ್ 11.7% SC + ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ 15.31% OD`;
+  overloaded.custom_title_kn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ [ಥ್ರಿಪ್ಸ್ + ಕೊರಕ ಹುಳು + ತಿಗಣೆ]: ಸ್ಪೈನೆಟೊರಾಮ್ 11.7% SC + ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ 15.31% OD`;
   overloaded.target_description = overloaded.custom_title_en;
   overloaded.target_description_kn = overloaded.custom_title_kn;
   overloaded.updated_by = activeUser;
@@ -1143,8 +1234,8 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
     const foliarDateStr = safeSlot.dateStr;
     const synergisticRecipe = buildSynergisticFoliarRecipe(foliarIssues);
 
-    const titleEn = `Synergistic Curative Spray [${foliarIssues.map(x => x.shortEn).join(" + ")}]: ${synergisticRecipe.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ")}`;
-    const titleKn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ [${foliarIssues.map(x => x.shortKn).join(" + ")}]: ${synergisticRecipe.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ")}`;
+    const titleEn = `Synergistic Curative Spray [${foliarIssues.map(x => x.shortEn).join(" + ")}]: ${synergisticRecipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "EN") || r.input_id).join(" + ")}`;
+    const titleKn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ [${foliarIssues.map(x => x.shortKn).join(" + ")}]: ${synergisticRecipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "KN") || r.input_id).join(" + ")}`;
 
     const existingCurative = tasks.find(t =>
       t.status === "PENDING" &&
@@ -1162,8 +1253,8 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
         }
       });
       existingCurative.current_scheduled_date = foliarDateStr;
-      existingCurative.custom_title_en = `Synergistic Curative Spray: ${existingCurative.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ")}`;
-      existingCurative.custom_title_kn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ: ${existingCurative.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ")}`;
+      existingCurative.custom_title_en = `Synergistic Curative Spray: ${existingCurative.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "EN") || r.input_id).join(" + ")}`;
+      existingCurative.custom_title_kn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ: ${existingCurative.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "KN") || r.input_id).join(" + ")}`;
       existingCurative.updated_by = activeUser;
       existingCurative.updated_at = new Date().toISOString();
 
@@ -1257,13 +1348,14 @@ async function mergeDuplicateSpraysInCurrentWeek() {
   });
 
   const dyn = computeDynamicDadAndWeek(targetDateStr);
-  const chemNamesEn = primary.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ");
+  const chemNamesEn = primary.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "EN") || r.input_id).join(" + ");
+  const chemNamesKn = primary.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "KN") || r.input_id).join(" + ");
 
   primary.current_scheduled_date = targetDateStr;
   primary.effective_dad = dyn.dad;
   primary.week_number = dyn.week;
   primary.custom_title_en = `Merged Tank-Mix Foliar Spray: ${chemNamesEn}`;
-  primary.custom_title_kn = `ಒಟ್ಟುಗೂಡಿಸಿದ ಎಲೆ ಸಿಂಪಡಣೆ: ${chemNamesEn}`;
+  primary.custom_title_kn = `ಒಟ್ಟುಗೂಡಿಸಿದ ಎಲೆ ಸಿಂಪಡಣೆ: ${chemNamesKn}`;
   primary.target_description = primary.custom_title_en;
   primary.target_description_kn = primary.custom_title_kn;
   primary.updated_by = activeUser;
@@ -1414,7 +1506,6 @@ function translateDescToKn(desc) {
   ];
   let out = desc;
   map.forEach(([en, kn]) => { out = out.replaceAll(en, kn); });
-  // Also replace any English Salt / Chemical names inside dynamically generated titles with Kannada Salt names!
   Object.values(catalog).forEach(c => {
     const knSalt = KN_SALT_ONLY_MAP[c.id] || c.name_kn;
     if (knSalt) {
@@ -1467,26 +1558,49 @@ async function switchEnv(newEnv) { APP_ENV = newEnv; localStorage.setItem("h_env
 async function loadWeather() {
   try {
     const [r, rainRes] = await Promise.all([
-      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&current=temperature_2m,relative_humidity_2m,precipitation&hourly=precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&past_days=3&forecast_days=2`),
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&current=temperature_2m,relative_humidity_2m,precipitation&hourly=precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&past_days=7&forecast_days=2`),
       sb.from("farm_rain_logs").select("*").eq("log_date", todayYMD()).maybeSingle()
     ]);
     const d = await r.json(), hr = new Date().getHours();
     farmRainToday = rainRes?.data || null;
-    const satRain24 = Number(((d.daily.precipitation_sum[2] || 0) + (d.daily.precipitation_sum[3] || 0)).toFixed(1));
-    const rain24 = farmRainToday ? Number(farmRainToday.rain_mm) : satRain24;
-    const rain72Sum = Number(((d.daily.precipitation_sum[1] || 0) + (d.daily.precipitation_sum[2] || 0) + rain24).toFixed(1));
-    const rhSlice = (d.hourly.relative_humidity_2m || []).slice(24, 96);
-    const rh72Avg = rhSlice.length ? Math.round(rhSlice.reduce((a, b) => a + b, 0) / rhSlice.length) : (d.current?.relative_humidity_2m || 60);
 
-    const tMax = d.daily.temperature_2m_max[3] || 30.5;
-    const tMin = d.daily.temperature_2m_min[3] || 18.2;
-    const prob4 = Math.max(...(d.hourly.precipitation_probability || []).slice(72 + hr, 76 + hr), 0);
+    const todayIdx = 7;
+    const satRain24 = Number(((d.daily.precipitation_sum[todayIdx - 1] || 0) + (d.daily.precipitation_sum[todayIdx] || 0)).toFixed(1));
+    const rain24 = farmRainToday ? Number(farmRainToday.rain_mm) : satRain24;
+    const rain72Sum = Number(((d.daily.precipitation_sum[todayIdx - 2] || 0) + (d.daily.precipitation_sum[todayIdx - 1] || 0) + rain24).toFixed(1));
+
+    const rhAll = d.hourly.relative_humidity_2m || [];
+    const rhSliceToday = rhAll.slice((todayIdx - 2) * 24, (todayIdx + 1) * 24);
+    const rh72Avg = rhSliceToday.length ? Math.round(rhSliceToday.reduce((a, b) => a + b, 0) / rhSliceToday.length) : (d.current?.relative_humidity_2m || 60);
+
+    const tMax = d.daily.temperature_2m_max[todayIdx] || 30.5;
+    const tMin = d.daily.temperature_2m_min[todayIdx] || 18.2;
+    const prob4 = Math.max(...(d.hourly.precipitation_probability || []).slice(todayIdx * 24 + hr, todayIdx * 24 + hr + 4), 0);
     const dailyGdd = Math.max(0, Number((((tMax + tMin) / 2) - 10.0).toFixed(2)));
+
+    const history6d = [];
+    for (let idx = 2; idx < todayIdx; idx++) {
+      const daysAgo = todayIdx - idx;
+      const dateStr = addDaysYMD(todayYMD(), -daysAgo);
+      const slice = rhAll.slice((idx - 2) * 24, (idx + 1) * 24);
+      const dayRh72 = slice.length ? Math.round(slice.reduce((a, b) => a + b, 0) / slice.length) : 65;
+      const dayRain24 = Number(((d.daily.precipitation_sum[idx - 1] || 0) + (d.daily.precipitation_sum[idx] || 0)).toFixed(1));
+      const dayRain72 = Number(((d.daily.precipitation_sum[idx - 2] || 0) + (d.daily.precipitation_sum[idx - 1] || 0) + (d.daily.precipitation_sum[idx] || 0)).toFixed(1));
+      history6d.push({
+        dateStr,
+        rh72Avg: dayRh72,
+        tMax: d.daily.temperature_2m_max[idx] || 30.0,
+        tMin: d.daily.temperature_2m_min[idx] || 18.5,
+        rain24: dayRain24,
+        rain72Sum: dayRain72,
+        prob4: 0
+      });
+    }
 
     wState = {
       ...wState,
       tempNow: d.current?.temperature_2m ?? 29.5, humidity: d.current?.relative_humidity_2m ?? 55,
-      rain24, prob4, tMax, tMin, rh72Avg, rain72Sum,
+      rain24, prob4, tMax, tMin, rh72Avg, rain72Sum, history6d,
       updatedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       mode: farmRainToday ? "FARM_LOGGED" : "LIVE"
     };
@@ -1539,11 +1653,23 @@ function updateWBar() {
 
 function setWeather(m) {
   if (m === "LIVE") { loadWeather().then(render); return; }
-  if (m === "RAIN") wState = { ...wState, rain24: 24.0, rain72Sum: 28.0, rh72Avg: 84, prob4: 25, mode: "SIM" };
-  if (m === "HIGH_BLIGHT") wState = { ...wState, humidity: 86, rh72Avg: 86, rain72Sum: 12, tMax: 29.5, tMin: 20.0, mode: "SIM" };
-  if (m === "DRY_PEST") wState = { ...wState, tempNow: 34.0, humidity: 40, rh72Avg: 42, rain24: 0, rain72Sum: 0, tMax: 34.5, tMin: 19.0, mode: "SIM" };
+  if (m === "RAIN") wState = { ...wState, rain24: 24.0, rain72Sum: 28.0, rh72Avg: 84, prob4: 25, history6d: [], mode: "SIM" };
+  if (m === "HIGH_BLIGHT") wState = { ...wState, humidity: 86, rh72Avg: 86, rain72Sum: 12, tMax: 29.5, tMin: 20.0, history6d: [], mode: "SIM" };
+  if (m === "DRY_PEST") wState = { ...wState, tempNow: 34.0, humidity: 40, rh72Avg: 42, rain24: 0, rain72Sum: 0, tMax: 34.5, tMin: 19.0, history6d: [], mode: "SIM" };
+  if (m === "PAST_BLIGHT_NOW_SUNNY") {
+    wState = {
+      ...wState,
+      tempNow: 31.0, humidity: 48, rh72Avg: 50, rain24: 0, rain72Sum: 0, tMax: 31.5, tMin: 18.0, prob4: 0,
+      history6d: [
+        { dateStr: addDaysYMD(todayYMD(), -2), rh72Avg: 86, tMax: 29.0, tMin: 20.5, rain24: 18.0, rain72Sum: 22.0, prob4: 80 }
+      ],
+      mode: "SIM"
+    };
+  }
   updateWBar(); render();
 }
+
+// === END OF COMBINED BLOCK ===
 
 function openNewChemModal() {
   populateKnownSaltsDatalist();
