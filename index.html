@@ -1051,10 +1051,25 @@ function checkPairCompatibility(catA, catB) {
   return { ok: true };
 }
 
+function getFormulationCode(cat) {
+  if (!cat) return "SC";
+  if (cat.formulation_type && cat.formulation_type !== "SC") return cat.formulation_type;
+  const str = `${cat.active_ingredient || ""} ${cat.name_en || ""}`;
+  if (cat.category === "FERTIGATION" || /\bWSF\b/i.test(str)) return "WSF";
+  const m = str.match(/\b(WG|WDG|DF|WP|SP|OD|SL|EC|SC|L)\b/i);
+  if (m) {
+    const code = m[1].toUpperCase();
+    if (code === "WDG") return "WG";
+    if (code === "L") return "SL";
+    return code;
+  }
+  return cat.formulation_type || (cat.unit === "g" || cat.unit === "kg" ? "WP" : "SC");
+}
+
 function getWalesMixingGuide(recipeItems) {
   if (!recipeItems || recipeItems.length < 2) return "";
-  const sorted = [...recipeItems].map(r => catalog[r.input_id]).filter(Boolean).sort((a, b) => (WALES_ORDER[a.formulation_type || "SC"] || 3) - (WALES_ORDER[b.formulation_type || "SC"] || 3));
-  const steps = sorted.map((c, i) => `<b>${i + 1}.</b> ${getSaltOnlyTitle(c)} <span class="text-slate-500">[${c.formulation_type || "SC"}]</span>`).join(" → ");
+  const sorted = [...recipeItems].map(r => catalog[r.input_id]).filter(Boolean).sort((a, b) => (WALES_ORDER[getFormulationCode(a)] || 3) - (WALES_ORDER[getFormulationCode(b)] || 3));
+  const steps = sorted.map((c, i) => `<b>${i + 1}.</b> ${getSaltOnlyTitle(c)} <span class="text-slate-500">[${getFormulationCode(c)}]</span>`).join(" → ");
   return LANG === "KN" ? `🪣 <b>ಡ್ರಮ್ ಬೆರೆಸುವ ಕ್ರಮ (W-A-L-E-S):</b> ${steps}` : `🪣 <b>Drum Mixing Order (W-A-L-E-S):</b> ${steps}`;
 }
 
@@ -2759,10 +2774,10 @@ function runEnterpriseQASuite() {
   assert("9. Copper + Bronopol Allowed", checkPairCompatibility(cop, bron).ok, "Allows Copper Hydroxide + Bronopol");
   assert("10. Drip Calcium Nitrate + SOP / MKP Lock", !checkPairCompatibility(caNit, sop).ok && !checkPairCompatibility(caNit, mkp).ok, "Blocks Ca(NO3)2 + Sulphate/Phosphate precipitation");
 
-  // 6. W-A-L-E-S Mixing Order Verification
+  // 6. W-A-L-E-S Mixing Order Verification (Using Smart Formulation Parser)
   const walesStr = getWalesMixingGuide([{ input_id: "INS_REEVA5" }, { input_id: "FUN_CAPTAF" }, { input_id: "INS_ASATAF" }]);
   const wpPos = walesStr.indexOf("[WP]"), spPos = walesStr.indexOf("[SP]"), ecPos = walesStr.indexOf("[EC]");
-  assert("11. W-A-L-E-S Mixing Sequence (WP → SP → EC)", wpPos < spPos && spPos < ecPos, "Sorts Wettable Powder (1st) -> Soluble Powder (2nd) -> EC Liquid (Last)");
+  assert("11. W-A-L-E-S Mixing Sequence (WP → SP → EC)", wpPos !== -1 && spPos !== -1 && ecPos !== -1 && wpPos < spPos && spPos < ecPos, "Sorts Wettable Powder (1st) -> Soluble Powder (2nd) -> EC Liquid (Last)");
 
   // 7. Normalized Base Salt Matcher (Catches Karate vs. Reeva-5)
   assert("12. Salt Normalization Across Brands/Strengths", normalizeSaltBase("Lambda-Cyhalothrin 5% EC") === normalizeSaltBase("Lambda-Cyhalothrin 4.9% CS"), "Matches base salt across different % and formulations");
@@ -2775,29 +2790,60 @@ function runEnterpriseQASuite() {
   ]);
   assert("13. Synergistic Combiner Cap (Max 2 Insecticides)", synRec.length === 2 && synRec[0].input_id === "INS_SPINETORAM" && synRec[1].input_id === "INS_SPIROTETRAMAT", `Combined 3 threats into ${synRec.length} synergistic molecules`);
 
-  // 9. Latent Biological Carryover Hysteresis Verification
-  const savedW = { ...wState };
+  // 9A. Untreated Latent Biological Carryover Hysteresis (Isolated from past DB sprays)
+  const savedW = { ...wState }, savedTasks = tasks;
+  const twoDaysAgoStr = addDaysYMD(todayYMD(), -2);
+  tasks = [];
   wState = {
     ...wState, tempNow: 31, humidity: 45, rh72Avg: 48, rain24: 0, rain72Sum: 0, tMax: 31, tMin: 18, prob4: 0,
-    history6d: [{ dateStr: addDaysYMD(todayYMD(), -2), rh72Avg: 88, tMax: 28, tMin: 20, rain24: 20, rain72Sum: 25, prob4: 80 }]
+    history6d: [{ dateStr: twoDaysAgoStr, rh72Avg: 88, tMax: 28, tMin: 20, rain24: 20, rain72Sum: 25, prob4: 80 }]
   };
-  const carryRisks = computeAllSixRisks();
-  wState = savedW;
-  assert("14. Latent Biological Carryover (Sunny After Rain)", carryRisks.FRUIT_ROT.score >= 70 && carryRisks.FRUIT_ROT.whyEn.includes("Latent Carryover"), `Rot held at ${carryRisks.FRUIT_ROT.score}% despite 48% RH today`);
+  const untreatedCarry = computeAllSixRisks();
+
+  // 9B. Treated Carryover Reset (Simulate completing a Fungicide spray yesterday -> resets Rot carryover!)
+  tasks = [{ status: "COMPLETED", current_scheduled_date: addDaysYMD(todayYMD(), -1), resolved_recipe: [{ input_id: "FUN_CAPTAF", item_status: "COMPLETED" }] }];
+  const treatedCarry = computeAllSixRisks();
+  wState = savedW; tasks = savedTasks;
+
+  assert("14. Untreated Latent Carryover (Sunny After Rain)", untreatedCarry.FRUIT_ROT.score >= 70 && untreatedCarry.FRUIT_ROT.whyEn.includes("Latent Carryover"), `Untreated Rot held at ${untreatedCarry.FRUIT_ROT.score}% despite 48% RH today`);
+  assert("15. Treated Carryover Reset (After Spray Completed)", treatedCarry.FRUIT_ROT.score < 35 && !treatedCarry.FRUIT_ROT.whyEn.includes("Latent Carryover"), `Rot dropped from ${untreatedCarry.FRUIT_ROT.score}% to ${treatedCarry.FRUIT_ROT.score}% once Fungicide logged`);
 
   // 10. Offline Outbox UUID Validation & Kannada Dictionary Coverage
   const testUuid = genUUID();
   const missingKn = Object.keys(catalog).filter(id => !id.startsWith("CUSTOM_") && !KN_SALT_ONLY_MAP[id] && !catalog[id]?.name_kn);
-  assert("15. Offline Outbox RFC-4122 UUID Generator", /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(testUuid), `Generated valid UUID: ${testUuid.slice(0, 18)}...`);
-  assert("16. 100% Kannada Salt Dictionary Coverage", missingKn.length === 0, `${Object.keys(catalog).length} catalog items verified in Kannada`);
+  assert("16. Offline Outbox RFC-4122 UUID Generator", /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(testUuid), `Generated valid UUID: ${testUuid.slice(0, 18)}...`);
+  assert("17. 100% Kannada Salt Dictionary Coverage", missingKn.length === 0, `${Object.keys(catalog).length} catalog items verified in Kannada`);
 
+  // Sort any failed tests to the very top and render a scrollable On-Screen QA Card
+  const sortedResults = [...results].sort((a, b) => Number(a.pass) - Number(b.pass));
   const passed = results.filter(r => r.pass).length;
-  const reportText = [
-    `🧪 ENTERPRISE QA & MATH AUDIT: ${passed} / ${results.length} PASSED`,
-    "--------------------------------------------------------",
-    ...results.map(r => `${r.pass ? "✅ PASS" : "❌ FAIL"} | ${r.name}\n   ↳ ${r.detail}`)
-  ].join("\n");
-  alert(reportText);
+  const allPass = passed === results.length;
+
+  const bannerEl = document.getElementById("sameDayMergeBanner");
+  bannerEl.innerHTML = `
+    <div class="bg-slate-900 text-white rounded-2xl p-4 shadow-xl border-2 ${allPass ? 'border-emerald-400' : 'border-rose-500'} space-y-2.5 text-xs">
+      <div class="flex items-center justify-between border-b border-slate-700 pb-2">
+        <div>
+          <span class="px-2 py-0.5 rounded-full font-extrabold ${allPass ? 'bg-emerald-500 text-slate-950' : 'bg-rose-600 text-white'}">
+            ${allPass ? '✅ ALL ' + passed + '/' + results.length + ' PASSED' : '⚠️ ' + passed + '/' + results.length + ' PASSED'}
+          </span>
+          <span class="font-extrabold text-sm ml-2">Enterprise QA, Math &amp; Edge-Case Suite</span>
+        </div>
+        <button onclick="render()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-2.5 py-1 rounded-lg">✕ Close</button>
+      </div>
+      <div class="max-h-80 overflow-y-auto divide-y divide-slate-800 space-y-1.5 pr-1">
+        ${sortedResults.map(r => `
+          <div class="pt-1.5 flex items-start justify-between gap-2">
+            <div>
+              <div class="font-bold ${r.pass ? 'text-emerald-400' : 'text-rose-400'}">${r.pass ? '✅ PASS' : '❌ FAIL'} — ${r.name}</div>
+              <div class="text-[11px] text-slate-300">${r.detail}</div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 async function confirmDelayModal() {
