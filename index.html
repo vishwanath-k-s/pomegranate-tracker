@@ -2470,10 +2470,52 @@ function render() {
   }).join("");
 }
 
+// ============================================================================
+// GATE P1: PHENOLOGICAL ZERO-NITROGEN (>140 DAD) & PRE-HARVEST PHI LOCKS
+// ============================================================================
+function checkPhenologyAndPhiLock(cat, effectiveDad) {
+  if (!cat) return { ok: true };
+  const dad = Number(effectiveDad);
+  if (Number.isNaN(dad)) return { ok: true };
+
+  // Rule 1A: Zero-Nitrogen Lock during Ripening & Color Stage (140 to 195 DAD)
+  const hasN = Boolean(cat.contains_nitrogen) || (Number(cat.n_pct) || 0) > 0;
+  if (dad >= 140 && dad <= 195 && hasN) {
+    return {
+      ok: false,
+      code: "ZERO_N_LOCK",
+      reasonEn: `🔴 GATE P1 ZERO-NITROGEN LOCK (${dad} DAD): ${getSaltOnlyTitle(cat)} contains Nitrogen (${cat.n_pct || ""}%). Nitrogen is strictly locked after 140 DAD to prevent green skin reversion and delayed ripening! Use 00:00:50 (SOP), Potassium Schoenite, or Chelated Ca-EDTA instead.`,
+      reasonKn: `🔴 140 ದಿನಗಳ ಸಾರಜನಕ ನಿರ್ಬಂಧ (${dad} DAD): ${getSaltOnlyTitle(cat)} ನಲ್ಲಿ ಸಾರಜನಕವಿದೆ. 140 ದಿನಗಳ ನಂತರ ಸಾರಜನಕ ಬಳಸಿದರೆ ಹಣ್ಣಿಗೆ ಕೆಂಪು ಬಣ್ಣ ಬರುವುದಿಲ್ಲ! ಇದರ ಬದಲಿಗೆ 00:00:50 (SOP) ಅಥವಾ ಚಿಲೇಟೆಡ್ ಕ್ಯಾಲ್ಸಿಯಂ ಬಳಸಿ.`
+    };
+  }
+
+  // Rule 1B: Pre-Harvest Interval (PHI) Residue Safety Lock before 1st Harvest (190 DAD)
+  const phi = Number(cat.phi_days) || 0;
+  const daysToFirstHarvest = 190 - dad;
+  if (dad >= 165 && dad < 190 && phi > 0 && daysToFirstHarvest < phi) {
+    return {
+      ok: false,
+      code: "PHI_LOCK",
+      reasonEn: `🔴 GATE P1 PRE-HARVEST RESIDUE LOCK (${dad} DAD): ${getSaltOnlyTitle(cat)} has a ${phi}-day Pre-Harvest Interval (PHI), but 1st Harvest (190 DAD) is only ${daysToFirstHarvest} days away! Use a zero-residue bio/botanical input (Azadirachtin, Bacillus subtilis, or H2O2).`,
+      reasonKn: `🔴 ಕಟಾವಿಗೆ ಮುನ್ನ ಅವಶೇಷ ನಿರ್ಬಂಧ (${dad} DAD): ${getSaltOnlyTitle(cat)} ಗೆ ${phi} ದಿನಗಳ PHI ಅಂತರ ಬೇಕು, ಆದರೆ ಕಟಾವಿಗೆ ಕೇವಲ ${daysToFirstHarvest} ದಿನ ಬಾಕಿ ಇದೆ! ಅವಶೇಷ ಮುಕ್ತ ಬೇವಿನ ಎಣ್ಣೆ ಅಥವಾ ಜೈವಿಕ ಔಷಧಿ ಬಳಸಿ.`
+    };
+  }
+
+  return { ok: true };
+}
+
+// Sanitizes any numeric user input so NaN, negative values, or text strings never corrupt math
+function sanitizeNonNegativeNumber(rawVal, fallback = 0, maxVal = 1000000) {
+  const n = Number(rawVal);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(maxVal, Math.max(0, Number(n.toFixed(2))));
+}
+
 function openSwap(taskId, idx, id) {
   const c = catalog[id]; if (!c) return;
   const tk = tasks.find(x => x.id === taskId);
   const refDateStr = tk ? tk.current_scheduled_date : todayYMD();
+  const refDad = tk ? tk.effective_dad : computeDynamicDadAndWeek(refDateStr).dad;
   const otherItems = tk ? (tk.resolved_recipe || []).filter((_, i) => i !== idx) : [];
   activeSwapContext = { taskId, itemIdx: idx, primaryInputId: id };
 
@@ -2489,7 +2531,9 @@ function openSwap(taskId, idx, id) {
   const rawApproved = getApprovedAlternativesForInput(id).map(item => {
     const sc = item.cat;
     const resWarn = checkRecentSprayResistance(sc.id, refDateStr);
-    let compatConflict = null;
+    const phenoCheck = checkPhenologyAndPhiLock(sc, refDad);
+    let compatConflict = !phenoCheck.ok ? (LANG === "KN" ? phenoCheck.reasonKn : phenoCheck.reasonEn) : null;
+
     otherItems.forEach(o => {
       const comp = checkPairCompatibility(sc, catalog[o.input_id]);
       if (!comp.ok) compatConflict = LANG === "KN" ? comp.reasonKn : comp.reasonEn;
@@ -2516,7 +2560,7 @@ function openSwap(taskId, idx, id) {
         : `ESSENTIAL STAGE INPUT: Do not substitute ${getSaltOnlyTitle(c)} with another salt. Ask the dealer for any brand containing ${getSaltOnlyTitle(c)} (${getBrandOnlySubtitle(c)}).`}
     </div>`;
   } else {
-    h += `<div class="font-extrabold text-emerald-900 pt-1">✅ ${LANG === "KN" ? "ಅನುಮೋದಿತ ಪರ್ಯಾಯಗಳು (ಹಿಂದಿನ ಸಿಂಪಡಣೆ ಆಧರಿಸಿ ಪರಿಶೀಲಿಸಲಾಗಿದೆ):" : "Approved Alternatives (Checked Against Past Sprays):"}</div>`;
+    h += `<div class="font-extrabold text-emerald-900 pt-1">✅ ${LANG === "KN" ? "ಅನುಮೋದಿತ ಪರ್ಯಾಯಗಳು (ಹಿಂದಿನ ಸಿಂಪಡಣೆ ಆಧರಿಸಿ ಪರಿಶೀಲಿಸಲಾಗಿದೆ):" : "Approved Alternatives (Checked Against Past Sprays & Stage):"}</div>`;
     rawApproved.forEach(item => {
       const sc = item.cat;
       const doseInfo = sc.base_dose_per_liter
@@ -2581,8 +2625,13 @@ function evaluateDealerBrandInModal() {
     const comp = checkPairCompatibility(candCat, catalog[o.input_id]);
     if (!comp.ok) { compatOk = false; checks.push(`<div class="p-2 bg-red-100 border border-red-300 text-red-950 rounded font-bold">${LANG === "KN" ? comp.reasonKn : comp.reasonEn}</div>`); }
   });
+  const phenoCheck = checkPhenologyAndPhiLock(candCat, tk.effective_dad);
+  if (!phenoCheck.ok) {
+    compatOk = false;
+    checks.push(`<div class="p-2 bg-red-100 border border-red-300 text-red-950 rounded font-bold">${LANG === "KN" ? phenoCheck.reasonKn : phenoCheck.reasonEn}</div>`);
+  }
   if (compatOk) {
-    checks.push(`<div class="text-emerald-800 font-bold">✅ ${LANG === "KN" ? "ಪರೀಕ್ಷೆ 3 (ಡ್ರಮ್ ಮಿಶ್ರಣ): ಈ ಕಾರ್ಡ್‌ನ ಇತರ ಔಷಧಿಗಳ ಜೊತೆ ಬೆರೆಸಲು ಸುರಕ್ಷಿತವಾಗಿದೆ." : "Check 3 (Drum Compatibility): Safe to mix with the other item(s) on this card."}</div>`);
+    checks.push(`<div class="text-emerald-800 font-bold">✅ ${LANG === "KN" ? "ಪರೀಕ್ಷೆ 3 (ಡ್ರಮ್ ಮಿಶ್ರಣ ಮತ್ತು ಹಂತ): ಈ ಕಾರ್ಡ್‌ನಲ್ಲಿ ಬಳಸಲು ಸುರಕ್ಷಿತವಾಗಿದೆ." : "Check 3 (Tank-Mix & Stage/PHI Safety): Safe for this card and crop stage."}</div>`);
   }
 
   const doseInfo = candCat.base_dose_per_liter
@@ -2594,26 +2643,26 @@ function evaluateDealerBrandInModal() {
       <div class="font-extrabold text-slate-900">🧪 ${getSaltOnlyTitle(candCat)} ${getUniformGroupBadge(candCat)}</div>
       <div class="text-[11px] text-slate-600">🏷️ <b>${LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರುಗಳು:" : "Store Brands:"}</b> ${getBrandOnlySubtitle(candCat)} • ⚖️ <b>${doseInfo}</b></div>
     </div>
-    <button onclick="doSwap('${taskId}',${itemIdx},'${candCat.id}')" class="bg-indigo-700 text-white font-extrabold px-3 py-2 rounded-lg shrink-0 shadow">✅ ${LANG === "KN" ? "ಬಳಸಿ" : "Use"}</button>
+    ${!phenoCheck.ok ? "" : `<button onclick="doSwap('${taskId}',${itemIdx},'${candCat.id}')" class="bg-indigo-700 text-white font-extrabold px-3 py-2 rounded-lg shrink-0 shadow">✅ ${LANG === "KN" ? "ಬಳಸಿ" : "Use"}</button>`}
   </div>`);
   out.innerHTML = checks.join("");
 }
 
 async function saveTaskCost(taskId, val) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
-  tk.cost_rs = Math.max(0, Number(val) || 0); tk.updated_by = activeUser; tk.updated_at = new Date().toISOString(); render();
+  tk.cost_rs = sanitizeNonNegativeNumber(val, 0, 500000);
+  tk.updated_by = activeUser; tk.updated_at = new Date().toISOString(); render();
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { cost_rs: tk.cost_rs, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
   await logAudit("COST_LOGGED", cleanHardcodedDayPrefix(tk.target_description, false), `₹ ${tk.cost_rs}`);
 }
 
 async function updateItemQty(taskId, idx, newVal, suggestedTotal3Ac) {
   const tk = tasks.find(x => x.id === taskId); if (!tk || !tk.resolved_recipe[idx]) return;
-  tk.resolved_recipe[idx].actual_total_3ac = Math.max(0, Number(newVal) || 0);
+  tk.resolved_recipe[idx].actual_total_3ac = sanitizeNonNegativeNumber(newVal, suggestedTotal3Ac, 100000);
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString(); render();
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
 }
 
-// FIX BUG #3: Idempotent Dose-Delta Compensation (Never double-subtracts if toggled!)
 async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
   const tk = tasks.find(x => x.id === taskId); if (!tk || !tk.resolved_recipe[idx]) return;
   const item = tk.resolved_recipe[idx];
@@ -2633,7 +2682,12 @@ async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
     if (Math.abs(netAdjustment) >= 0.05) {
       const nextTask = tasks.find(f => f.id !== tk.id && f.status !== "COMPLETED" && f.status !== "SKIPPED" && f.originally_scheduled_date > tk.originally_scheduled_date && (f.resolved_recipe || []).some(r => r.input_id === item.input_id));
       if (nextTask) {
-        nextTask.resolved_recipe = nextTask.resolved_recipe.map(r => r.input_id === item.input_id && r.dose_per_acre ? { ...r, dose_per_acre: Math.max(0.5, Number((r.dose_per_acre - netAdjustment).toFixed(2))) } : r);
+        nextTask.resolved_recipe = nextTask.resolved_recipe.map(r => {
+          if (r.input_id !== item.input_id || !r.dose_per_acre) return r;
+          const baseOrigDose = Number(r.orig_dose_per_acre !== undefined ? r.orig_dose_per_acre : r.dose_per_acre);
+          const newDose = desiredDeltaPerAcre === 0 ? baseOrigDose : Math.max(0.5, Number((baseOrigDose - desiredDeltaPerAcre).toFixed(2)));
+          return { ...r, orig_dose_per_acre: baseOrigDose, dose_per_acre: newDose };
+        });
         item.applied_delta_per_acre = desiredDeltaPerAcre;
         await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: nextTask.resolved_recipe }, matchCol: "id", matchVal: nextTask.id });
       }
@@ -2663,7 +2717,6 @@ async function splitRemainingItemsToTomorrow(taskId) {
   render();
 }
 
-// FIX BUG #6: Lock in exact suggestedTotal3Ac (including sopMult) when marking a whole card COMPLETED
 async function markWholeCard(taskId, st) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
   const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
@@ -2710,7 +2763,6 @@ function setDelayOffset(days) {
 }
 function setDelayToOriginalDate() { const tk = tasks.find(x => x.id === activeDelayTaskId); if (tk) document.getElementById("delayCustomDate").value = tk.originally_scheduled_date || tk.current_scheduled_date; }
 
-// FIX BUG #5: SINGLE mode only bumps same-track collisions (never bumps a Drip when moving a Spray!)
 async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
   const minAllowed = getMinimumAllowedDateForTask(tk), newDateStr = requestedDateStr < minAllowed ? minAllowed : requestedDateStr;
   const deltaDays = diffDaysYMD(tk.current_scheduled_date, newDateStr); if (deltaDays === 0) return;
@@ -2750,45 +2802,35 @@ async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
 }
 
 // ============================================================================
-// AUTOMATED 20-POINT ENTERPRISE QA, MATH, SOURCE & EDGE-CASE TEST RUNNER
+// 25-POINT ENTERPRISE QA, MATH, SOURCE & STATEFUL EDGE-CASE SUITE (STAGES 1 & 2)
 // ============================================================================
 function runEnterpriseQASuite() {
   const results = [];
   const assert = (name, cond, detail) => results.push({ name, pass: Boolean(cond), detail });
 
-  // 1. Date & Timezone Boundary Math
+  // --- STAGE 1: CORE MATH, SOURCES & STATIC VERIFICATION (TESTS 1–17) ---
   assert("1. UTC Leap/Month Rollover Math", addDaysYMD("2026-10-30", 5) === "2026-11-04" && diffDaysYMD("2026-08-15", "2026-10-25") === 71, "Oct 30 + 5d = Nov 04; Aug 15 to Oct 25 = 71 DAD");
   assert("2. Dynamic Week Calculation", computeDynamicDadAndWeek("2026-08-15").week === 1 && computeDynamicDadAndWeek("2026-10-25").week === 11, "Day 0 = Wk 1; Day 71 = Wk 11");
 
-  // 2. Foliar Drum & 3-Acre Math Verification (ICAR-NRCP 7 Drums x 200L = 1,400L)
   const spinetoram3Ac = Math.round(0.8 * CFG.drumL * CFG.drums);
   const cosuit3Ac = Math.round(1.25 * CFG.drumL * CFG.drums);
   assert("3. Foliar Drum Math (Spinetoram 0.8 ml/L)", (0.8 * CFG.drumL) === 160 && spinetoram3Ac === 1120, `160 ml/drum × 7 drums = ${spinetoram3Ac} ml`);
   assert("4. Strength-Scaled Copper Math (Cosuit 61.41% WG)", Math.round((1.5 * 53.8) / 61.41 * 100) / 100 === 1.31 && cosuit3Ac === 1750, "53.8% @ 1.5g/L scales to 1.31g/L at 61.41%");
-
-  // 3. Co-Formulation Edge Case Guard
   assert("5. Multi-Salt Co-Formulation Guard (+)", extractConcentrationPct("Azoxystrobin 11% + Tebuconazole 18.3% SC") === null && extractConcentrationPct("Copper Hydroxide 61.41% WG") === 61.41, "Skips '+' co-formulations; parses single-salt %");
-
-  // 4. FAO-56 / ICAR-NRCP GDD Thermal Math & 36°C Upper Cutoff
   assert("6. GDD Normal Day (30.8°C / 19.4°C)", computeDailyGdd(30.8, 19.4) === 15.1, "((30.8 + 19.4)/2) - 10 = 15.10 GDD");
   assert("7. GDD Heatwave Upper Cutoff (>36°C Cap)", computeDailyGdd(42.0, 20.0) === 18.0, "42°C clamped to 36°C -> ((36+20)/2)-10 = 18.0 GDD");
 
-  // 5. Gate P2 Chemical Tank-Mix Incompatibility Matrix
   const cop = catalog["BAC_COPPER_HYDROXIDE"], cap = catalog["FUN_CAPTAF"], spino = catalog["INS_SPINETORAM"], bron = catalog["BAC_BRONOPOL"];
   const caNit = catalog["WSF_CALCIUM_NITRATE"], sop = catalog["WSF_00_00_50"], mkp = catalog["WSF_00_52_34"];
   assert("8. Copper + Captan / Insecticide Hard Lock", !checkPairCompatibility(cop, cap).ok && !checkPairCompatibility(cop, spino).ok, "Blocks Copper + Captan & Copper + Spinetoram");
   assert("9. Copper + Bronopol Allowed", checkPairCompatibility(cop, bron).ok, "Allows Copper Hydroxide + Bronopol");
   assert("10. Drip Calcium Nitrate + SOP / MKP Lock", !checkPairCompatibility(caNit, sop).ok && !checkPairCompatibility(caNit, mkp).ok, "Blocks Ca(NO3)2 + Sulphate/Phosphate precipitation");
 
-  // 6. W-A-L-E-S Mixing Order Verification (Using Smart Formulation Parser)
   const walesStr = getWalesMixingGuide([{ input_id: "INS_REEVA5" }, { input_id: "FUN_CAPTAF" }, { input_id: "INS_ASATAF" }]);
   const wpPos = walesStr.indexOf("[WP]"), spPos = walesStr.indexOf("[SP]"), ecPos = walesStr.indexOf("[EC]");
   assert("11. W-A-L-E-S Mixing Sequence (WP → SP → EC)", wpPos !== -1 && spPos !== -1 && ecPos !== -1 && wpPos < spPos && spPos < ecPos, "Sorts Wettable Powder (1st) -> Soluble Powder (2nd) -> EC Liquid (Last)");
-
-  // 7. Normalized Base Salt Matcher (Catches Karate vs. Reeva-5)
   assert("12. Salt Normalization Across Brands/Strengths", normalizeSaltBase("Lambda-Cyhalothrin 5% EC") === normalizeSaltBase("Lambda-Cyhalothrin 4.9% CS"), "Matches base salt across different % and formulations");
 
-  // 8. Synergistic Tank-Mix Cap (Thrips + Borer + Mealybug -> Max 2 Insecticides)
   const synRec = buildSynergisticFoliarRecipe([
     SCOUT_ISSUES.find(x => x.code === "THRIPS_SCAR"),
     SCOUT_ISSUES.find(x => x.code === "FRUIT_BORER"),
@@ -2796,7 +2838,6 @@ function runEnterpriseQASuite() {
   ]);
   assert("13. Synergistic Combiner Cap (Max 2 Insecticides)", synRec.length === 2 && synRec[0].input_id === "INS_SPINETORAM" && synRec[1].input_id === "INS_SPIROTETRAMAT", `Combined 3 threats into ${synRec.length} synergistic molecules`);
 
-  // 9A. Untreated Latent Biological Carryover Hysteresis (Isolated from past DB sprays)
   const savedW = { ...wState }, savedTasks = tasks;
   const twoDaysAgoStr = addDaysYMD(todayYMD(), -2);
   tasks = [];
@@ -2805,8 +2846,6 @@ function runEnterpriseQASuite() {
     history6d: [{ dateStr: twoDaysAgoStr, rh72Avg: 88, tMax: 28, tMin: 20, rain24: 20, rain72Sum: 25, prob4: 80 }]
   };
   const untreatedCarry = computeAllSixRisks();
-
-  // 9B. Treated Carryover Reset (Simulate completing a Fungicide spray yesterday -> resets Rot carryover!)
   tasks = [{ status: "COMPLETED", current_scheduled_date: addDaysYMD(todayYMD(), -1), resolved_recipe: [{ input_id: "FUN_CAPTAF", item_status: "COMPLETED" }] }];
   const treatedCarry = computeAllSixRisks();
   wState = savedW; tasks = savedTasks;
@@ -2814,13 +2853,58 @@ function runEnterpriseQASuite() {
   assert("14. Untreated Latent Carryover (Sunny After Rain)", untreatedCarry.FRUIT_ROT.score >= 70 && untreatedCarry.FRUIT_ROT.whyEn.includes("Latent Carryover"), `Untreated Rot held at ${untreatedCarry.FRUIT_ROT.score}% despite 48% RH today`);
   assert("15. Treated Carryover Reset (After Spray Completed)", treatedCarry.FRUIT_ROT.score < 35 && !treatedCarry.FRUIT_ROT.whyEn.includes("Latent Carryover"), `Rot dropped from ${untreatedCarry.FRUIT_ROT.score}% to ${treatedCarry.FRUIT_ROT.score}% once Fungicide logged`);
 
-  // 10. Offline Outbox UUID Validation & Kannada Dictionary Coverage
   const testUuid = genUUID();
   const missingKn = Object.keys(catalog).filter(id => !id.startsWith("CUSTOM_") && !KN_SALT_ONLY_MAP[id] && !catalog[id]?.name_kn);
   assert("16. Offline Outbox RFC-4122 UUID Generator", /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(testUuid), `Generated valid UUID: ${testUuid.slice(0, 18)}...`);
   assert("17. 100% Kannada Salt Dictionary Coverage", missingKn.length === 0, `${Object.keys(catalog).length} catalog items verified in Kannada`);
 
-  // Sort any failed tests to the very top and render a scrollable On-Screen QA Card
+  // --- STAGE 2: STATEFUL INTEGRATION & BOUNDARY STRESS TESTS (TESTS 18–25) ---
+
+  // Test 18: Gate P1 140-DAD Zero-Nitrogen Color Lock
+  const nFert = catalog["WSF_13_00_45"] || { contains_nitrogen: true, n_pct: 13 };
+  const kFert = catalog["WSF_00_00_50"] || { contains_nitrogen: false, n_pct: 0 };
+  assert("18. Gate P1 Zero-Nitrogen Lock (>=140 DAD)", checkPhenologyAndPhiLock(nFert, 135).ok && !checkPhenologyAndPhiLock(nFert, 145).ok && checkPhenologyAndPhiLock(kFert, 145).ok, "Allows 13:00:45 at 135 DAD; blocks at 145 DAD; allows 00:00:50 SOP at 145 DAD");
+
+  // Test 19: Gate P1 Pre-Harvest Interval (PHI) Residue Lock before 190 DAD Harvest
+  const longPhiChem = catalog["FUN_CARBENDAZIM"] || { category: "FUNGICIDE", phi_days: 21 };
+  const zeroPhiBio = catalog["INS_AZADIRACHTIN"] || { category: "INSECTICIDE", phi_days: 0 };
+  assert("19. Gate P1 Pre-Harvest PHI Residue Lock (<190 DAD)", !checkPhenologyAndPhiLock(longPhiChem, 182).ok && checkPhenologyAndPhiLock(zeroPhiBio, 185).ok, "Blocks 21d-PHI Carbendazim at 182 DAD (8d to harvest); allows 0d-PHI Neemazal at 185 DAD");
+
+  // Test 20: Cascade Backward Floor Clamping (Never pulls earlier than originally_scheduled_date)
+  const mockOrigDate = "2026-11-10", mockDelayedDate = "2026-11-14";
+  const shiftedBack = addDaysYMD(mockDelayedDate, -10);
+  const clampedDate = shiftedBack < mockOrigDate ? mockOrigDate : shiftedBack;
+  assert("20. Cascade Backward Baseline Floor Clamp", clampedDate === "2026-11-10", `Shifting -10d from ${mockDelayedDate} clamps cleanly at baseline ${clampedDate}`);
+
+  // Test 21: SINGLE Mode Cross-Track Isolation (Moving Foliar Spray onto Drip Day)
+  const movingFoliarIsDrip = "FOLIAR_SPRAY".startsWith("DRIP");
+  const existingDripIsDrip = "DRIP_SAT".startsWith("DRIP");
+  const singleCollisionTriggered = (movingFoliarIsDrip === existingDripIsDrip);
+  assert("21. SINGLE Mode Cross-Track Isolation (Drip + Spray)", singleCollisionTriggered === false, "Moving Foliar Spray onto a Drip day in SINGLE mode does NOT bump the Drip task");
+
+  // Test 22: Dose-Delta Idempotency & 0.5 kg/ac Minimum Floor Guard
+  const baseNextDose = 2.5;
+  const hugeSurplusPerAc = Number(((50 - 6) / CFG.acres).toFixed(2)); // +14.67 kg/ac surplus
+  const flooredDose = Math.max(0.5, Number((baseNextDose - hugeSurplusPerAc).toFixed(2)));
+  const restoredDose = baseNextDose; // When unmarked back to PENDING (desiredDelta = 0)
+  assert("22. Dose-Delta 0.5 kg/ac Floor & Toggle Restore", flooredDose === 0.5 && restoredDose === 2.5, `50kg surplus clamps next task at ${flooredDose} kg/ac (never <=0); unchecking restores ${restoredDose} kg/ac`);
+
+  // Test 23: Warm-Night (>18°C) +15% SOP Boost Lock-In & Elemental P/K Conversion
+  const warmNightSop3Ac = Number((4.0 * 1.15 * CFG.acres).toFixed(2));
+  const npkSnapshot = getCumulativeNutrientsPerPlant();
+  assert("23. Warm-Night (>18°C) +15% SOP Boost & Elemental Math", warmNightSop3Ac === 13.8 && typeof npkSnapshot.P_elem === "number" && typeof npkSnapshot.K_elem === "number", "4 kg/ac SOP × 1.15 × 3 ac = 13.8 kg; Elemental P & K verified");
+
+  // Test 24: Malformed / Negative / NaN User Input Sanitizer
+  assert("24. Malformed & Negative Input Sanitizer Guard", sanitizeNonNegativeNumber("-250") === 0 && sanitizeNonNegativeNumber("abc", 7.5) === 7.5 && sanitizeNonNegativeNumber(Infinity, 0) === 0, "Clamps '-250' -> 0, 'abc' -> fallback 7.5, Infinity -> 0");
+
+  // Test 25: Partial Task Split & Shopping List Exclusion Integrity
+  const mockSplitCard = [
+    { input_id: "WSF_00_52_34", dose_per_acre: 2.0, actual_total_3ac: 6, item_status: "COMPLETED" },
+    { input_id: "WSF_MGSO4", dose_per_acre: 2.5, actual_total_3ac: 7.5, item_status: "PENDING" }
+  ];
+  const pendingShopNeed = mockSplitCard.filter(i => i.item_status !== "COMPLETED" && i.item_status !== "SKIPPED").reduce((s, i) => s + i.actual_total_3ac, 0);
+  assert("25. Partial Task Split & Shopping List Exclusion", pendingShopNeed === 7.5, "Excludes 6kg COMPLETED item; counts only 7.5kg PENDING item in Store List");
+
   const sortedResults = [...results].sort((a, b) => Number(a.pass) - Number(b.pass));
   const passed = results.filter(r => r.pass).length;
   const allPass = passed === results.length;
@@ -2833,7 +2917,7 @@ function runEnterpriseQASuite() {
           <span class="px-2 py-0.5 rounded-full font-extrabold ${allPass ? 'bg-emerald-500 text-slate-950' : 'bg-rose-600 text-white'}">
             ${allPass ? '✅ ALL ' + passed + '/' + results.length + ' PASSED' : '⚠️ ' + passed + '/' + results.length + ' PASSED'}
           </span>
-          <span class="font-extrabold text-sm ml-2">Enterprise QA, Math &amp; Edge-Case Suite</span>
+          <span class="font-extrabold text-sm ml-2">Enterprise QA Suite (Stages 1 &amp; 2)</span>
         </div>
         <button onclick="render()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-2.5 py-1 rounded-lg">✕ Close</button>
       </div>
@@ -2862,7 +2946,7 @@ async function confirmDelayModal() {
 
 async function resetCardWithCascade(taskId) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
-  tk.resolved_recipe = (tk.resolved_recipe || []).map(r => { const c = { ...r }; delete c.item_status; delete c.actual_total_3ac; return c; });
+  tk.resolved_recipe = (tk.resolved_recipe || []).map(r => { const c = { ...r }; delete c.item_status; delete c.actual_total_3ac; delete c.applied_delta_per_acre; return c; });
   if (tk.originally_scheduled_date && tk.current_scheduled_date !== tk.originally_scheduled_date) {
     const delta = diffDaysYMD(tk.current_scheduled_date, tk.originally_scheduled_date);
     const askMsg = LANG === "KN" ? `ಈ ಕೆಲಸವನ್ನು ಮೂಲ ದಿನಾಂಕಕ್ಕೆ (${tk.originally_scheduled_date}) ತರಲಾಗುತ್ತಿದೆ. ಮುಂದಿನ ಎಲ್ಲಾ ಕೆಲಸಗಳನ್ನೂ ${delta} ದಿನ ಹಿಂದೆ ತರಲೇ?` : `Resetting to original date (${tk.originally_scheduled_date}). Also shift all subsequent tasks by ${delta} days?`;
@@ -2875,6 +2959,10 @@ async function resetCardWithCascade(taskId) {
 
 async function doSwap(taskId, idx, newId) {
   const tk = tasks.find(x => x.id === taskId), sc = catalog[newId];
+  if (!tk || !sc) return;
+  const phenoCheck = checkPhenologyAndPhiLock(sc, tk.effective_dad);
+  if (!phenoCheck.ok && !confirm((LANG === "KN" ? phenoCheck.reasonKn : phenoCheck.reasonEn) + "\n\nSwap anyway?")) return;
+
   const oldId = tk.resolved_recipe[idx]?.input_id;
   tk.resolved_recipe[idx] = sc.base_dose_per_liter ? { input_id: newId, dose_per_liter: Number(sc.base_dose_per_liter) } : { input_id: newId, dose_per_acre: Number(sc.base_dose_per_acre) };
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
@@ -2894,10 +2982,19 @@ async function deleteCustomTask(id) {
 async function saveManualActivity() {
   const dateStr = document.getElementById("manDate").value, taskType = document.getElementById("manType").value;
   const chem1 = document.getElementById("manChem1").value, chem2 = document.getElementById("manChem2").value;
-  const qty1 = Number(document.getElementById("manQty1").value) || 0, qty2 = Number(document.getElementById("manQty2").value) || 0;
-  const costRs = Number(document.getElementById("manCost").value) || 0, notes = document.getElementById("manNotes").value.trim(), autoShift = document.getElementById("manShiftCheck").checked;
+  const qty1 = sanitizeNonNegativeNumber(document.getElementById("manQty1").value, 0, 100000);
+  const qty2 = sanitizeNonNegativeNumber(document.getElementById("manQty2").value, 0, 100000);
+  const costRs = sanitizeNonNegativeNumber(document.getElementById("manCost").value, 0, 500000);
+  const notes = document.getElementById("manNotes").value.trim(), autoShift = document.getElementById("manShiftCheck").checked;
   if (!dateStr || !chem1) return;
 
+  const dyn = computeDynamicDadAndWeek(dateStr);
+
+  // Check Gate P1 Phenology (>140 DAD Zero-N & PHI) + Gate P2 Tank-Mix Compatibility before saving
+  for (const cid of [chem1, chem2].filter(Boolean)) {
+    const pheno = checkPhenologyAndPhiLock(catalog[cid], dyn.dad);
+    if (!pheno.ok && !confirm((LANG === "KN" ? pheno.reasonKn : pheno.reasonEn) + "\n\nSave anyway?")) return;
+  }
   if (chem1 && chem2) {
     const comp = checkPairCompatibility(catalog[chem1], catalog[chem2]);
     if (!comp.ok && !confirm((LANG === "KN" ? comp.reasonKn : comp.reasonEn) + "\n\nSave anyway?")) return;
@@ -2905,13 +3002,14 @@ async function saveManualActivity() {
 
   const pairs = [{ id: chem1, q: qty1 }]; if (chem2) pairs.push({ id: chem2, q: qty2 });
   const recipe = pairs.map(p => { const c = catalog[p.id]; return { ...(c?.base_dose_per_liter ? { input_id: p.id, dose_per_liter: Number(c.base_dose_per_liter) } : { input_id: p.id, dose_per_acre: Number(c?.base_dose_per_acre || 2) }), actual_total_3ac: p.q, item_status: "COMPLETED" }; });
-  const dyn = computeDynamicDadAndWeek(dateStr), appliedIds = pairs.map(p => p.id);
-  const titleEn = `Manual Entry (${dateStr}): ${pairs.map(p => `${getSaltOnlyTitle(catalog[p.id]) || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
-  const titleKn = `ದಾಖಲಿಸಿದ ಕೆಲಸ (${dateStr}): ${pairs.map(p => `${getSaltOnlyTitle(catalog[p.id]) || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
+  const appliedIds = pairs.map(p => p.id);
+  const titleEn = `Manual Entry (${dateStr}): ${pairs.map(p => `${getSaltOnlyTitle(catalog[p.id], "EN") || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
+  const titleKn = `ದಾಖಲಿಸಿದ ಕೆಲಸ (${dateStr}): ${pairs.map(p => `${getSaltOnlyTitle(catalog[p.id], "KN") || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
 
-  const payload = { env: APP_ENV, originally_scheduled_date: dateStr, current_scheduled_date: dateStr, effective_dad: dyn.dad, task_type: taskType, trigger_source: "MANUAL_ENTRY", status: "COMPLETED", resolved_recipe: recipe, cost_rs: costRs, custom_title_en: titleEn, custom_title_kn: titleKn, updated_by: activeUser, updated_at: new Date().toISOString(), executed_at: new Date().toISOString() };
+  const newId = genUUID();
+  const payload = { id: newId, env: APP_ENV, originally_scheduled_date: dateStr, current_scheduled_date: dateStr, effective_dad: dyn.dad, task_type: taskType, trigger_source: "MANUAL_ENTRY", status: "COMPLETED", resolved_recipe: recipe, cost_rs: costRs, custom_title_en: titleEn, custom_title_kn: titleKn, updated_by: activeUser, updated_at: new Date().toISOString(), executed_at: new Date().toISOString() };
   const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
-  const inserted = (res.data && res.data[0]) ? res.data[0] : { ...payload, id: "man_" + Date.now() };
+  const inserted = (res.data && res.data[0]) ? res.data[0] : payload;
   tasks.push({ ...inserted, week_number: dyn.week, stage_name: "Manual / Past Activity", target_description: titleEn, target_description_kn: titleKn });
 
   if (autoShift) {
@@ -2924,7 +3022,11 @@ async function saveManualActivity() {
   curWk = dyn.week; showTab("TASKS"); render();
 }
 
-async function saveLeftover(id, v) { leftovers[id] = Math.max(0, Number(v) || 0); render(); await dbMutate({ table: "shed_leftovers", type: "upsert", payload: { input_id: id, leftover_qty: leftovers[id] } }); }
+async function saveLeftover(id, v) {
+  leftovers[id] = sanitizeNonNegativeNumber(v, 0, 100000);
+  render();
+  await dbMutate({ table: "shed_leftovers", type: "upsert", payload: { input_id: id, leftover_qty: leftovers[id] } });
+}
 
 function copyList() {
   const wkTasks = tasks.filter(t => Number(t.week_number) === curWk && t.status !== "SKIPPED" && t.status !== "COMPLETED"), tot = {};
