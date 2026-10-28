@@ -480,21 +480,76 @@ const KN_SALT_ONLY_MAP = {
   BAC_KASUGAMYCIN:      "ಕಸುಗಾಮೈಸಿನ್ 3% SL",
   BAC_TAGMYCIN:         "ಸ್ಟ್ರೆಪ್ಟೋಮೈಸಿನ್ + ಟೆಟ್ರಾಸೈಕ್ಲಿನ್ (90:10)",
   BAC_H2O2:             "ಹೈಡ್ರೋಜನ್ ಪೆರಾಕ್ಸೈಡ್ 20–50% (H2O2)",
-  FUN_CAPTAF:           "ಕ್ಯಾಪ್ಟಾನ್ 50% WP",
+  INS_SPINETORAM:       "ಸ್ಪೈನೆಟೊರಾಮ್ 11.7% SC",
+  INS_CYANTRANILIPROLE: "ಸಯಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ 10.26% OD",
+  INS_CHLORANTRANILIPROLE: "ಕ್ಲೋರಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ 18.5% SC",
+  INS_SPINOSAD:         "ಸ್ಪೈನೋಸಾಡ್ 45% SC",
+  INS_EXPONUS:          "ಬ್ರೋಫ್ಲಾನಿಲೈಡ್ 300g/L SC",
+  INS_SPIROTETRAMAT:    "ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ 15.31% OD",
+  INS_BUPROFEZIN:       "ಬುಪ್ರೊಫೆಜಿನ್ 25% SC",
+  INS_THIA_LAMBDA:      "ಥಯಾಮೆಥಾಕ್ಸಾಮ್ + ಲ್ಯಾಂಬ್ಡಾ-ಸೈಹಾಲೋಥ್ರಿನ್",
+  INS_FENPYROXIMATE:    "ಫೆನ್‌ಪೈರಾಕ್ಸಿಮೇಟ್ 5% EC (ನುಸಿ ನಾಶಕ)",
+  INS_ABAMECTIN:        "ಅಬಾಮೆಕ್ಟಿನ್ 1.9% EC (ನುಸಿ ನಾಶಕ)",
+  INS_AZADIRACHTIN:     "ಅಜಾಡಿರಾಕ್ಟಿನ್ 10000 ppm (ಬೇವಿನ ಎಣ್ಣೆ)",
+  INS_CHLORPYRIFOS:     "ಕ್ಲೋರ್‌ಪೈರಿಫಾಸ್ 20% EC",
   INS_ASATAF:           "ಆಸಿಫೇಟ್ 75% SP",
-  INS_REEVA5:           "ಲ್ಯಾಂಬ್ಡಾ-ಸೈಹಾಲೋಥ್ರಿನ್ 5% EC"
+  INS_REEVA5:           "ಲ್ಯಾಂಬ್ಡಾ-ಸೈಹಾಲೋಥ್ರಿನ್ 5% EC",
+  INS_IMIDACLOPRID:     "ಇಮಿಡಾಕ್ಲೋಪ್ರಿಡ್ 17.8% SL",
+  INS_THIAMETHOXAM:     "ಥಯಾಮೆಥಾಕ್ಸಾಮ್ 25% WG",
+  INS_ACETAMIPRID:      "ಅಸಿಟಾಮಿಪ್ರಿಡ್ 20% SP",
+  INS_BETA_IMIDA:       "ಬೀಟಾ-ಸೈಫ್ಲುಥ್ರಿನ್ + ಇಮಿಡಾಕ್ಲೋಪ್ರಿಡ್ 300 OD",
+  INS_DIAFENTHIURON:    "ಡಯಾಫೆಂಥಿಯುರಾನ್ 50% WP",
+  INS_TOLFENPYRAD:      "ಟೋಲ್ಫೆನ್ಪೈರಾಡ್ 15% EC",
+  INS_SPIROMESIFEN:     "ಸ್ಪೈರೋಮೆಸಿಫೆನ್ 22.9% SC (ನುಸಿ ನಾಶಕ)",
+  INS_PROPARGITE:       "ಪ್ರೊಪಾರ್ಗೈಟ್ 57% EC (ನುಸಿ ನಾಶಕ)",
+  INS_FENAZAQUIN:       "ಫೆನಜಾಕ್ವಿನ್ 10% EC (ನುಸಿ ನಾಶಕ)",
+  FUN_CAPTAF:           "ಕ್ಯಾಪ್ಟಾನ್ 50% WP",
+  FUN_AZOXY_TEBU:       "ಅಜಾಕ್ಸಿಸ್ಟ್ರೋಬಿನ್ 11% + ಟೆಬುಕೊನಜೋಲ್ 18.3% SC",
+  FUN_FLUXA_PYRA:       "ಫ್ಲುಕ್ಸಾಪೈರಾಕ್ಸಾಡ್ + ಪೈರಾಕ್ಲೋಸ್ಟ್ರೋಬಿನ್ SC",
+  FUN_FLUOPYRAM_TEBU:   "ಫ್ಲುವೋಪೈರಾಮ್ + ಟೆಬುಕೊನಜೋಲ್ SC",
+  FUN_DIFENOCONAZOLE:   "ಡೈಫೆನೊಕೊನಜೋಲ್ 25% EC",
+  FUN_TEBU_TRIFLOXY:    "ಟೆಬುಕೊನಜೋಲ್ 50% + ಟ್ರೈಫ್ಲಾಕ್ಸಿಸ್ಟ್ರೋಬಿನ್ 25% WG",
+  FUN_CABRIO_TOP:       "ಮೆತಿರಾಮ್ 55% + ಪೈರಾಕ್ಲೋಸ್ಟ್ರೋಬಿನ್ 5% WG",
+  FUN_AZOXYSTROBIN:     "ಅಜಾಕ್ಸಿಸ್ಟ್ರೋಬಿನ್ 23% SC",
+  FUN_MANCOZEB:         "ಮ್ಯಾಂಕೋಜೆಬ್ 75% WP",
+  FUN_THIOPHANATE:      "ಥಯೋಫನೇಟ್ ಮೀಥೈಲ್ 70% WP",
+  FUN_CARBENDAZIM:      "ಕಾರ್ಬೆಂಡಜಿಮ್ 50% WP",
+  FUN_PROPINEB:         "ಪ್ರೊಪಿನೆಬ್ 70% WP",
+  FUN_CHLOROTHALONIL:   "ಕ್ಲೋರೋಥಾಲೋನಿಲ್ 75% WP",
+  FUN_PROPICONAZOLE:    "ಪ್ರೊಪಿಕೊನಜೋಲ್ 25% EC",
+  FUN_HEXACONAZOLE:     "ಹೆಕ್ಸಾಕೊನಜೋಲ್ 5% SC",
+  FUN_METALAXYL_MANCO:  "ಮೆಟಾಲಾಕ್ಸಿಲ್ 4% + ಮ್ಯಾಂಕೋಜೆಬ್ 64% WP",
+  FUN_FOSETYL_AL:       "ಫೊಸೆಟಿಲ್-ಎಎಲ್ 80% WP",
+  BIO_BACILLUS:         "ಬ್ಯಾಸಿಲಸ್ ಸಬ್ಟಿಲಿಸ್ (ಜೈವಿಕ ಶಿಲೀಂಧ್ರನಾಶಕ)",
+  WSF_00_52_34:         "00:52:34 — ಮೊನೊ ಪೊಟ್ಯಾಸಿಯಮ್ ಫಾಸ್ಫೇಟ್ (MKP)",
+  WSF_00_00_50:         "00:00:50 — ಪೊಟ್ಯಾಸಿಯಮ್ ಸಲ್ಫೇಟ್ (SOP)",
+  WSF_13_00_45:         "13:00:45 — ಪೊಟ್ಯಾಸಿಯಮ್ ನೈಟ್ರೇಟ್",
+  WSF_19_19_19:         "19:19:19 — ಸಂಪೂರ್ಣ ನೀರಿನಲ್ಲಿ ಕರಗುವ ಗೊಬ್ಬರ",
+  WSF_12_61_00:         "12:61:00 — ಮೊನೊ ಅಮೋನಿಯಂ ಫಾಸ್ಫೇಟ್ (MAP)",
+  WSF_CALCIUM_NITRATE:  "ಕ್ಯಾಲ್ಸಿಯಂ ನೈಟ್ರೇಟ್ (15.5% N, 18.8% Ca)",
+  WSF_MGSO4:            "ಮೆಗ್ನೀಸಿಯಮ್ ಸಲ್ಫೇಟ್ (MgSO4 - 9.6% Mg)",
+  WSF_POT_SCHOENITE:    "ಪೊಟ್ಯಾಸಿಯಮ್ ಶೋನೈಟ್ (22% K2O, 11% Mg)",
+  WSF_C_PHOS:           "ಸಿ-ಫಾಸ್ (ರಂಜಕ ಮತ್ತು ಕ್ಯಾಲ್ಸಿಯಂ ದ್ರಾವಣ)",
+  MIC_BORON_20:         "ಬೋರಾನ್ 20% (ಡೈಸೋಡಿಯಂ ಆಕ್ಟಾಬೋರೇಟ್)",
+  MIC_CA_B_LIQUID:      "ಚಿಲೇಟೆಡ್ ಕ್ಯಾಲ್ಸಿಯಂ + ಬೋರಾನ್ ದ್ರಾವಣ",
+  MIC_CHELATED_CA:      "ಚಿಲೇಟೆಡ್ ಕ್ಯಾಲ್ಸಿಯಂ (Ca-EDTA 10%)",
+  MIC_CHELATED_MIX:     "ಚಿಲೇಟೆಡ್ ಲಘು ಪೋಷಕಾಂಶ ಮಿಶ್ರಣ (Gr-II)",
+  MIC_FE_EDTA:          "ಚಿಲೇಟೆಡ್ ಕಬ್ಬಿಣ (Fe-EDTA 12%)",
+  MIC_ZN_EDTA:          "ಚಿಲೇಟೆಡ್ ಸತು (Zn-EDTA 12%)",
+  BIO_HUMIC_FULVIC:     "ಹ್ಯೂಮಿಕ್ + ಫಲ್ವಿಕ್ ಆಸಿಡ್ 98%",
+  BIO_ORTHOSILICIC:     "ಆರ್ಥೋಸಿಲಿಸಿಕ್ ಆಸಿಡ್ 2% SL (ಸಿಲಿಕಾನ್)",
+  BIO_KAOLIN:           "ಕಾವೊಲಿನ್ ಕ್ಲೇ 95% WP (ಬಿಸಿಲು ರಕ್ಷಕ)"
 };
 
-function getSaltOnlyTitle(cat) {
+function getSaltOnlyTitle(cat, langOverride) {
   if (!cat) return "";
-  if (LANG === "KN") {
+  const useLang = langOverride || LANG;
+  if (useLang === "KN") {
     if (KN_SALT_ONLY_MAP[cat.id]) return KN_SALT_ONLY_MAP[cat.id];
     const kn = cat.name_kn || cat.active_ingredient || cat.name_en || "";
-    // If name_kn has "Brand (Salt)", extract the Salt inside parentheses
     const m = kn.match(/\(([^)]+)\)$/);
     return m ? m[1].trim() : kn;
   }
-  // In English: for NPK fertilizers show grade + salt (e.g., "00:52:34 (Mono Potassium Phosphate)")
   if (cat.id && cat.id.startsWith("WSF_") && /^\d{2}:\d{2}:\d{2}/.test(cat.name_en || "")) {
     return `${cat.name_en.split(" ")[0]} — ${cat.active_ingredient || cat.name_en}`;
   }
@@ -506,7 +561,17 @@ function getBrandOnlySubtitle(cat) {
   return cat.popular_brands || (LANG === "KN" ? "ಯಾವುದೇ ಪ್ರಮಾಣಿತ ಕಂಪನಿ" : "Standard Approved Brand");
 }
 
-// Ensures EVERY item on a card shows a clear classification badge (IRAC / FRAC / NUTRIENT / BIO)
+function getDealerWarning(cat) {
+  if (!cat || !cat.dealer_warning_en) return "";
+  if (LANG !== "KN") return cat.dealer_warning_en;
+  if (cat.is_copper_compound) return "ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಸಿಂಪಡಣೆ ಮಾತ್ರ: ಇದನ್ನು ಕ್ಯಾಪ್ಟಾನ್, ಕೀಟನಾಶಕಗಳು ಅಥವಾ ಲಘು ಪೋಷಕಾಂಶಗಳ ಜೊತೆ ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ಬೆರೆಸಬೇಡಿ.";
+  if (cat.id === "WSF_CALCIUM_NITRATE") return "ಕ್ಯಾಲ್ಸಿಯಂ ನೈಟ್ರೇಟ್ ಅನ್ನು ಸಲ್ಫೇಟ್ (00:00:50, MgSO4) ಅಥವಾ ಫಾಸ್ಫೇಟ್ (00:52:34) ಗೊಬ್ಬರಗಳ ಜೊತೆ ಬೆರೆಸಬೇಡಿ. 140 ದಿನಗಳ ನಂತರ ಬಳಸಬೇಡಿ.";
+  if (cat.id === "BAC_TAGMYCIN") return "ICAR-NRCP ನಿಯಮ: 90 ದಿನಗಳ ನಂತರ ಸ್ಟ್ರೆಪ್ಟೋಸೈಕ್ಲಿನ್ ಬದಲಿಗೆ ಬ್ರೊನೊಪಾಲ್ 95% (100 ಗ್ರಾಂ/ಡ್ರಮ್) ಅಥವಾ ಕಸುಗಾಮೈಸಿನ್ (300 ಮಿ.ಲೀ/ಡ್ರಮ್) ಬಳಸಿ.";
+  if (cat.contains_nitrogen) return "ಇದರಲ್ಲಿ ಸಾರಜನಕ (Nitrogen) ಇದೆ. 140 ದಿನಗಳ (DAD) ನಂತರ ಹಣ್ಣಿಗೆ ಕೆಂಪು ಬಣ್ಣ ಬರಲು ಇದನ್ನು ಬಳಸಬೇಡಿ.";
+  if (cat.incompatible_with_copper) return "ಇದನ್ನು ಕಾಪರ್ (Copper) ಔಷಧಿಯ ಜೊತೆ ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ಬೆರೆಸಬೇಡಿ ಮತ್ತು ಕಾಪರ್ ಸಿಂಪಡಿಸಿದ 5 ದಿನಗಳವರೆಗೆ ಬಳಸಬೇಡಿ.";
+  return "ಶಿಫಾರಸು ಮಾಡಿದ ಪ್ರಮಾಣದಲ್ಲಿ ಮಾತ್ರ ಬಳಸಿ ಮತ್ತು ಮುಂದಿನ ಸಿಂಪಡಣೆಯಲ್ಲಿ ಬೇರೆ ಗುಂಪಿನ ಔಷಧಿ ಬಳಸಿ.";
+}
+
 function getUniformGroupBadge(cat) {
   if (!cat) return "";
   if (cat.irac_frac_group) {
@@ -514,7 +579,7 @@ function getUniformGroupBadge(cat) {
   }
   if (cat.category === "FERTIGATION") {
     const npk = [Number(cat.n_pct)||0, Number(cat.p_pct)||0, Number(cat.k_pct)||0];
-    const tag = (npk[0]||npk[1]||npk[2]) ? `NPK ${npk[0]}:${npk[1]}:${npk[2]}` : (Number(cat.ca_pct) ? `Ca ${cat.ca_pct}%` : (Number(cat.mg_pct) ? `Mg ${cat.mg_pct}%` : "FERTILIZER"));
+    const tag = (npk[0]||npk[1]||npk[2]) ? `NPK ${npk[0]}:${npk[1]}:${npk[2]}` : (Number(cat.ca_pct) ? `Ca ${cat.ca_pct}%` : (Number(cat.mg_pct) ? `Mg ${cat.mg_pct}%` : (LANG === "KN" ? "ಗೊಬ್ಬರ" : "FERTILIZER")));
     return `<span class="text-[10px] bg-sky-100 text-sky-900 px-1.5 py-0.5 rounded font-mono font-bold">${tag}</span>`;
   }
   if (cat.category === "BIOSTIMULANT") {
@@ -523,7 +588,6 @@ function getUniformGroupBadge(cat) {
   return `<span class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono font-bold">${cat.category}</span>`;
 }
 
-// Built-in Curated Approved Alternatives Map (Supplements `substitution_rules` so ONLY verified target matches appear!)
 const CURATED_APPROVED_SUBS = {
   BAC_COPPER_HYDROXIDE: [
     { id: "BAC_COSUIT_FMC", noteEn: "Higher-strength 61.41% WG Copper Hydroxide (use 250 g/drum).", noteKn: "61.41% WG ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 250 ಗ್ರಾಂ ಬಳಸಿ)." },
@@ -550,9 +614,17 @@ const CURATED_APPROVED_SUBS = {
     { id: "INS_SPINOSAD", noteEn: "Spinosad 45% SC (use 70 ml/drum).", noteKn: "ಸ್ಪೈನೋಸಾಡ್ 45% SC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 70 ಮಿ.ಲೀ)." },
     { id: "INS_EXPONUS", noteEn: "Broflanilide 300g/L SC (different IRAC-30 group — 28 ml/drum).", noteKn: "ಬ್ರೋಫ್ಲಾನಿಲೈಡ್ (IRAC-30 ಗುಂಪು — ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 28 ಮಿ.ಲೀ)." }
   ],
+  INS_SPINOSAD: [
+    { id: "INS_SPINETORAM", noteEn: "Spinetoram 11.7% SC (use 160 ml/drum).", noteKn: "ಸ್ಪೈನೆಟೊರಾಮ್ 11.7% SC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 160 ಮಿ.ಲೀ)." },
+    { id: "INS_CYANTRANILIPROLE", noteEn: "Cyantraniliprole 10.26% OD (use 140 ml/drum).", noteKn: "ಸಯಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ 10.26% OD (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 140 ಮಿ.ಲೀ)." }
+  ],
   INS_CHLORANTRANILIPROLE: [
     { id: "INS_CYANTRANILIPROLE", noteEn: "Cyantraniliprole 10.26% OD (use 140 ml/drum).", noteKn: "ಸಯಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ 10.26% OD (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 140 ಮಿ.ಲೀ)." },
     { id: "INS_SPINETORAM", noteEn: "Spinetoram 11.7% SC (covers Borer + Thrips — 160 ml/drum).", noteKn: "ಸ್ಪೈನೆಟೊರಾಮ್ 11.7% SC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 160 ಮಿ.ಲೀ)." }
+  ],
+  INS_CYANTRANILIPROLE: [
+    { id: "INS_SPINETORAM", noteEn: "Spinetoram 11.7% SC (use 160 ml/drum).", noteKn: "ಸ್ಪೈನೆಟೊರಾಮ್ 11.7% SC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 160 ಮಿ.ಲೀ)." },
+    { id: "INS_CHLORANTRANILIPROLE", noteEn: "Chlorantraniliprole 18.5% SC (use 60 ml/drum).", noteKn: "ಕ್ಲೋರಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ 18.5% SC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 60 ಮಿ.ಲೀ)." }
   ],
   INS_SPIROTETRAMAT: [
     { id: "INS_BUPROFEZIN", noteEn: "Buprofezin 25% SC (targets Mealybug nymphs — 300 ml/drum).", noteKn: "ಬುಪ್ರೊಫೆಜಿನ್ 25% SC (ಹಿಟ್ಟು ತಿಗಣೆ ನಿಯಂತ್ರಣ — 300 ಮಿ.ಲೀ/ಡ್ರಮ್)." },
@@ -570,6 +642,10 @@ const CURATED_APPROVED_SUBS = {
     { id: "FUN_TEBU_TRIFLOXY", noteEn: "Tebuconazole 50% + Trifloxystrobin 25% WG (use 100 g/drum).", noteKn: "ಟೆಬುಕೊನಜೋಲ್ + ಟ್ರೈಫ್ಲಾಕ್ಸಿಸ್ಟ್ರೋಬಿನ್ (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 100 ಗ್ರಾಂ)." },
     { id: "FUN_CABRIO_TOP", noteEn: "Metiram 55% + Pyraclostrobin 5% WG (use 400 g/drum).", noteKn: "ಮೆತಿರಾಮ್ + ಪೈರಾಕ್ಲೋಸ್ಟ್ರೋಬಿನ್ (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 400 ಗ್ರಾಂ)." }
   ],
+  FUN_AZOXY_TEBU: [
+    { id: "FUN_FLUXA_PYRA", noteEn: "Fluxapyroxad + Pyraclostrobin SC (use 120 ml/drum).", noteKn: "ಫ್ಲುಕ್ಸಾಪೈರಾಕ್ಸಾಡ್ + ಪೈರಾಕ್ಲೋಸ್ಟ್ರೋಬಿನ್ (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 120 ಮಿ.ಲೀ)." },
+    { id: "FUN_TEBU_TRIFLOXY", noteEn: "Tebuconazole + Trifloxystrobin WG (use 100 g/drum).", noteKn: "ಟೆಬುಕೊನಜೋಲ್ + ಟ್ರೈಫ್ಲಾಕ್ಸಿಸ್ಟ್ರೋಬಿನ್ (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 100 ಗ್ರಾಂ)." }
+  ],
   FUN_DIFENOCONAZOLE: [
     { id: "FUN_PROPICONAZOLE", noteEn: "Propiconazole 25% EC (same FRAC-3 group — 200 ml/drum).", noteKn: "ಪ್ರೊಪಿಕೊನಜೋಲ್ 25% EC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 200 ಮಿ.ಲೀ)." },
     { id: "FUN_AZOXY_TEBU", noteEn: "Azoxystrobin + Tebuconazole SC (use 250 ml/drum).", noteKn: "ಅಜಾಕ್ಸಿಸ್ಟ್ರೋಬಿನ್ + ಟೆಬುಕೊನಜೋಲ್ (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 250 ಮಿ.ಲೀ)." }
@@ -577,6 +653,10 @@ const CURATED_APPROVED_SUBS = {
   FUN_MANCOZEB: [
     { id: "FUN_PROPINEB", noteEn: "Propineb 70% WP (contact fungicide with Zinc — 400 g/drum).", noteKn: "ಪ್ರೊಪಿನೆಬ್ 70% WP (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 400 ಗ್ರಾಂ)." },
     { id: "FUN_CAPTAF", noteEn: "Captan 50% WP (contact fruit spot shield — 400 g/drum).", noteKn: "ಕ್ಯಾಪ್ಟಾನ್ 50% WP (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 400 ಗ್ರಾಂ)." }
+  ],
+  FUN_CAPTAF: [
+    { id: "FUN_MANCOZEB", noteEn: "Mancozeb 75% WP (use 400 g/drum).", noteKn: "ಮ್ಯಾಂಕೋಜೆಬ್ 75% WP (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 400 ಗ್ರಾಂ ಬಳಸಿ)." },
+    { id: "FUN_PROPINEB", noteEn: "Propineb 70% WP (use 400 g/drum).", noteKn: "ಪ್ರೊಪಿನೆಬ್ 70% WP (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 400 ಗ್ರಾಂ ಬಳಸಿ)." }
   ]
 };
 
@@ -584,21 +664,24 @@ function getApprovedAlternativesForInput(primaryId) {
   const results = [];
   const seen = new Set([primaryId]);
 
-  // 1. Pull from DB `substitution_rules`
-  subs.filter(s => s.primary_input_id === primaryId).forEach(s => {
-    const sc = catalog[s.substitute_input_id];
-    if (sc && !seen.has(sc.id)) {
-      seen.add(sc.id);
-      results.push({ cat: sc, noteEn: s.adjustment_note_en || "Approved target equivalent.", noteKn: s.adjustment_note_en || "ಅನುಮೋದಿತ ಪರ್ಯಾಯ." });
-    }
-  });
-
-  // 2. Pull from Built-in Curated Target Map
+  // 1. Check Curated Map FIRST so full Kannada notes (`noteKn`) are preserved!
   (CURATED_APPROVED_SUBS[primaryId] || []).forEach(item => {
     const sc = catalog[item.id];
     if (sc && !seen.has(sc.id)) {
       seen.add(sc.id);
       results.push({ cat: sc, noteEn: item.noteEn, noteKn: item.noteKn });
+    }
+  });
+
+  // 2. Supplement with any remaining DB `substitution_rules`
+  subs.filter(s => s.primary_input_id === primaryId).forEach(s => {
+    const sc = catalog[s.substitute_input_id];
+    if (sc && !seen.has(sc.id)) {
+      seen.add(sc.id);
+      const doseKn = sc.base_dose_per_liter
+        ? `ಪ್ರತಿ 200L ಡ್ರಮ್‌ಗೆ ${Math.round(sc.base_dose_per_liter * CFG.drumL)} ${sc.unit} ಬಳಸಿ.`
+        : `ಪ್ರತಿ ಎಕರೆಗೆ ${sc.base_dose_per_acre} ${sc.unit} ಬಳಸಿ.`;
+      results.push({ cat: sc, noteEn: s.adjustment_note_en || "Approved target equivalent.", noteKn: doseKn });
     }
   });
 
@@ -1290,6 +1373,22 @@ function cleanHardcodedDayPrefix(desc, isKn) {
 
 function translateDescToKn(desc) {
   const map = [
+    ["Synergistic Curative Spray", "ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ"],
+    ["Combined Curative Spray", "ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ"],
+    ["Merged Tank-Mix Foliar Spray:", "ಒಟ್ಟುಗೂಡಿಸಿದ ಎಲೆ ಸಿಂಪಡಣೆ:"],
+    ["Foliar (Auto-Deduplicated after", "ಎಲೆ ಸಿಂಪಡಣೆ (ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ -"],
+    ["Spray):", "ಸಿಂಪಡಣೆ ನಂತರ):"],
+    ["Auto-scheduled after Oct 25 Copper", "ಅಕ್ಟೋಬರ್ 25ರ ಕಾಪರ್ ನಂತರ 5 ದಿನಗಳ ಅಂತರ"],
+    ["Auto-scheduled on", "ಕಾಪರ್ ಸಿಂಪಡಣೆಯ 5 ದಿನಗಳ ಅಂತರಕ್ಕಾಗಿ"],
+    ["for 5-day Copper cooldown after", "ಕ್ಕೆ ನಿಗದಿಪಡಿಸಲಾಗಿದೆ (ಕಾಪರ್ ದಿನಾಂಕ:"],
+    ["Immediate window", "ತಕ್ಷಣದ ಸಿಂಪಡಣೆ"],
+    ["Shifted +1d for rain", "ಮಳೆ ಕಾರಣ +1 ದಿನ ಮುಂದೂಡಲಾಗಿದೆ"],
+    ["Thrips + Borer + Mealybug/Mite", "ಥ್ರಿಪ್ಸ್ + ಕೊರಕ ಹುಳು + ತಿಗಣೆ/ನುಸಿ"],
+    ["Thrips + Borer + Mealy/Mite", "ಥ್ರಿಪ್ಸ್ + ಕೊರಕ ಹುಳು + ತಿಗಣೆ/ನುಸಿ"],
+    ["Thrips + Borer + Mealybug", "ಥ್ರಿಪ್ಸ್ + ಕೊರಕ ಹುಳು + ತಿಗಣೆ"],
+    ["Thrips + Borer", "ಥ್ರಿಪ್ಸ್ + ಕೊರಕ ಹುಳು"],
+    ["Manual Entry", "ದಾಖಲಿಸಿದ ಕೆಲಸ"],
+    ["Remaining Split Task:", "ಬಾಕಿ ಉಳಿದ ಕೆಲಸ:"],
     ["Main P-K Drip:", "ಮುಖ್ಯ P-K ಡ್ರಿಪ್:"], ["Calcium / Micro Drip:", "ಕ್ಯಾಲ್ಸಿಯಂ / ಲಘು ಪೋಷಕಾಂಶ ಡ್ರಿಪ್:"], ["Foliar:", "ಎಲೆ ಸಿಂಪಡಣೆ:"], ["Standalone Copper:", "ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಸಿಂಪಡಣೆ:"],
     ["Cell division & rind wall", "ಕಾಯಿ ಬೆಳವಣಿಗೆ ಮತ್ತು ಸಿಪ್ಪೆ ಗಟ್ಟಿಗೊಳಿಸಲು"], ["Fruit Borer, Thrips & Fungal Scab", "ಹಣ್ಣು ಕೊರೆಯುವ ಹುಳು, ಥ್ರಿಪ್ಸ್ ಮತ್ತು ಶಿಲೀಂಧ್ರ ನಿಯಂತ್ರಣ"],
     ["Pedicel strength & Ca-B", "ತೊಟ್ಟು ಗಟ್ಟಿಗೊಳಿಸಲು ಕ್ಯಾಲ್ಸಿಯಂ ಮತ್ತು ಬೋರಾನ್"], ["Phosphorus & Magnesium", "ರಂಜಕ ಮತ್ತು ಮೆಗ್ನೀಸಿಯಮ್ ಪೂರೈಕೆ"],
@@ -1301,6 +1400,7 @@ function translateDescToKn(desc) {
     ["Mealybug, Scale & Micronutrients", "ಹಿಟ್ಟು ತಿಗಣೆ ನಿಯಂತ್ರಣ ಮತ್ತು ಲಘು ಪೋಷಕಾಂಶ"], ["13:00:45 + Chelated Iron", "ಪೊಟ್ಯಾಸಿಯಮ್ ನೈಟ್ರೇಟ್ ಮತ್ತು ಕಬ್ಬಿಣಾಂಶ"],
     ["MKP + SOP transition", "ರಂಜಕ ಮತ್ತು ಪೊಟ್ಯಾಷ್ ಪೂರೈಕೆ"], ["Fruit Rot & Rind strengthening", "ಹಣ್ಣು ಕೊಳೆ ನಿಯಂತ್ರಣ ಮತ್ತು ಸಿಪ್ಪೆ ರಕ್ಷಣೆ"],
     ["Peak Calcium-Boron loading", "ಕ್ಯಾಲ್ಸಿಯಂ ಮತ್ತು ಬೋರಾನ್ ಪೂರೈಕೆ"], ["Fruit weight gain", "ಹಣ್ಣಿನ ತೂಕ ಹೆಚ್ಚಿಸಲು"],
+    ["Sucking pests & Borer (Benevia - Mite-Safe) + MKP+Boron sizing", "ರಸ ಹೀರುವ ಕೀಟ ಮತ್ತು ಹುಳು ನಿಯಂತ್ರಣ (ಬೆನೆವಿಯಾ) + MKP ಮತ್ತು ಬೋರಾನ್"],
     ["Sucking pests & MKP+Boron sizing", "ರಸ ಹೀರುವ ಕೀಟ ನಿಯಂತ್ರಣ ಮತ್ತು ಕಾಯಿ ಬೆಳವಣಿಗೆ"], ["Mid-cycle Blight sanitization", "ಬ್ಯಾಕ್ಟೀರಿಯಾ ಅಂಗಮಾರಿ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ"],
     ["Aril filling with MKP + SOP", "ಕಾಳು ತುಂಬಲು MKP ಮತ್ತು SOP ಪೂರೈಕೆ"], ["Mildew, Late Spot & Potash boost", "ಬೂದಿ ರೋಗ, ಚುಕ್ಕೆ ರೋಗ ಮತ್ತು ಪೊಟ್ಯಾಷ್ ಸಿಂಪಡಣೆ"],
     ["MgSO4 sugar translocation", "ಸಿಹಿ ಮತ್ತು ಬಣ್ಣಕ್ಕಾಗಿ ಮೆಗ್ನೀಸಿಯಮ್ ಸಲ್ಫೇಟ್"], ["Pre-color Potash ramp-up", "ಬಣ್ಣ ಬರುವ ಮುನ್ನ ಪೊಟ್ಯಾಷ್ ಪೂರೈಕೆ"],
@@ -1312,7 +1412,17 @@ function translateDescToKn(desc) {
     ["Feb El Nino Sunburn Shield (Kaolin Clay)", "ಫೆಬ್ರವರಿ ಬಿಸಿಲು ರಕ್ಷಣೆಗೆ ಕಾವೊಲಿನ್ ಕ್ಲೇ ಸಿಂಪಡಣೆ"], ["Zero-Residue Bio Rot & Moth shield", "ಅವಶೇಷ ಮುಕ್ತ ಜೈವಿಕ ಕೊಳೆ ಮತ್ತು ಪತಂಗ ನಿಯಂತ್ರಣ"],
     ["Pulsed plain water only", "ಬೆಳಿಗ್ಗೆ ಮತ್ತು ಸಂಜೆ ಶುದ್ಧ ನೀರು ಮಾತ್ರ"]
   ];
-  let out = desc; map.forEach(([en, kn]) => { out = out.replace(en, kn); }); return out;
+  let out = desc;
+  map.forEach(([en, kn]) => { out = out.replaceAll(en, kn); });
+  // Also replace any English Salt / Chemical names inside dynamically generated titles with Kannada Salt names!
+  Object.values(catalog).forEach(c => {
+    const knSalt = KN_SALT_ONLY_MAP[c.id] || c.name_kn;
+    if (knSalt) {
+      if (c.active_ingredient) out = out.replaceAll(c.active_ingredient, knSalt);
+      if (c.name_en) out = out.replaceAll(c.name_en, knSalt);
+    }
+  });
+  return out;
 }
 
 const SCOUT_ISSUES = [
@@ -1863,19 +1973,23 @@ function runStandaloneBrandChecker() {
   const htmlParts = [];
   [id1, id2].filter(Boolean).forEach(id => {
     const c = catalog[id]; if (!c) return;
-    const doseStr = c.base_dose_per_liter ? `${Math.round(c.base_dose_per_liter * CFG.drumL)} ${c.unit}/Drum` : `${c.base_dose_per_acre} ${c.unit}/Acre`;
+    const doseStr = c.base_dose_per_liter
+      ? (LANG === "KN" ? `${Math.round(c.base_dose_per_liter * CFG.drumL)} ${c.unit} / 200L ಡ್ರಮ್` : `${Math.round(c.base_dose_per_liter * CFG.drumL)} ${c.unit}/Drum`)
+      : (LANG === "KN" ? `${c.base_dose_per_acre} ${c.unit} / ಎಕರೆ` : `${c.base_dose_per_acre} ${c.unit}/Acre`);
     const resWarn = checkRecentSprayResistance(id, todayYMD());
+    const warnText = getDealerWarning(c);
     htmlParts.push(`<div class="p-2.5 bg-slate-50 border rounded-lg space-y-0.5">
-      <div class="font-extrabold text-slate-900 flex items-center gap-1.5">${getSaltOnlyTitle(c)} ${getUniformGroupBadge(c)}</div>
-      <div class="text-slate-600">🏷️ <b>Store Brands:</b> ${getBrandOnlySubtitle(c)} • ⚖️ <b>Dose:</b> ${doseStr}</div>
-      ${resWarn ? `<div class="p-2 mt-1 bg-amber-100 border border-amber-300 text-amber-950 rounded font-bold">${LANG === "KN" ? resWarn.msgKn : resWarn.msgEn}</div>` : `<div class="text-emerald-700 font-bold mt-0.5">✅ No repeat-salt conflict in past 21 days.</div>`}
+      <div class="font-extrabold text-slate-900 flex items-center gap-1.5">🧪 ${getSaltOnlyTitle(c)} ${getUniformGroupBadge(c)}</div>
+      <div class="text-slate-600">🏷️ <b>${LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರುಗಳು:" : "Store Brands:"}</b> ${getBrandOnlySubtitle(c)} • ⚖️ <b>${LANG === "KN" ? "ಪ್ರಮಾಣ:" : "Dose:"}</b> ${doseStr}</div>
+      ${warnText ? `<div class="text-amber-800 text-[11px]">💡 ${warnText}</div>` : ""}
+      ${resWarn ? `<div class="p-2 mt-1 bg-amber-100 border border-amber-300 text-amber-950 rounded font-bold">${LANG === "KN" ? resWarn.msgKn : resWarn.msgEn}</div>` : `<div class="text-emerald-700 font-bold mt-0.5">✅ ${LANG === "KN" ? "ಕಳೆದ 21 ದಿನಗಳಲ್ಲಿ ಈ ಲವಣಾಂಶ ಸಿಂಪಡಿಸಿಲ್ಲ (ಸುರಕ್ಷಿತ)." : "No repeat-salt conflict in past 21 days."}</div>`}
     </div>`);
   });
   if (id1 && id2) {
     const comp = checkPairCompatibility(catalog[id1], catalog[id2]);
     htmlParts.push(!comp.ok
       ? `<div class="p-2.5 bg-red-100 border-2 border-red-400 text-red-950 rounded-lg font-extrabold">${LANG === "KN" ? comp.reasonKn : comp.reasonEn}</div>`
-      : `<div class="p-2.5 bg-emerald-50 border border-emerald-300 text-emerald-950 rounded-lg">✅ <b>Compatible Mix!</b><br>${getWalesMixingGuide([{ input_id: id1 }, { input_id: id2 }])}</div>`);
+      : `<div class="p-2.5 bg-emerald-50 border border-emerald-300 text-emerald-950 rounded-lg">✅ <b>${LANG === "KN" ? "ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ಬೆರೆಸಲು ಸುರಕ್ಷಿತ!" : "Compatible Tank Mix!"}</b><br>${getWalesMixingGuide([{ input_id: id1 }, { input_id: id2 }])}</div>`);
   }
   out.innerHTML = htmlParts.join("");
 }
@@ -2037,7 +2151,6 @@ function render() {
       const wasShifted = tk.originally_scheduled_date && tk.originally_scheduled_date !== tk.current_scheduled_date;
       const walesGuide = getWalesMixingGuide(recipeArr);
 
-      // STANDARDIZED ITEM ROW: Line 1 = Active Salt + Uniform Group Badge, Line 2 = Dose, Line 3 = Store Brands ONLY!
       const itemsHtml = recipeArr.map((it, idx) => {
         const cat = catalog[it.input_id] || { id: it.input_id, name_en: it.input_id, active_ingredient: it.input_id, unit: it.dose_per_liter ? "ml" : "kg", procurement_criticality: "FLEXIBLE", category: "INPUT" };
         const saltTitle = getSaltOnlyTitle(cat);
@@ -2132,7 +2245,7 @@ function render() {
     return `<div class="py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
       <div>
         <div class="font-bold text-sm">🧪 ${getSaltOnlyTitle(c)} ${getUniformGroupBadge(c)}</div>
-        <div class="text-[11px] text-slate-500">🏷️ <b>Store Brands:</b> ${getBrandOnlySubtitle(c)}</div>
+        <div class="text-[11px] text-slate-500">🏷️ <b>${LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರುಗಳು:" : "Store Brands:"}</b> ${getBrandOnlySubtitle(c)}</div>
         <div class="mt-0.5">${LANG === "KN" ? "3 ಎಕರೆಗೆ ಬಾಕಿ ಅಗತ್ಯ" : "Pending 3-Acre Need"}: <b>${need} ${c.unit}</b> • <span class="text-emerald-800 font-bold">${LANG === "KN" ? "ಖರೀದಿಸಬೇಕಾದ್ದು" : "Net to Buy"}: ${buy} ${c.unit}</span></div>
       </div>
       <div class="flex items-center gap-1.5"><span>${LANG === "KN" ? "ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದದ್ದು:" : "Shed Leftover:"}</span><input type="number" value="${left}" onchange="saveLeftover('${id}',this.value)" class="w-16 border rounded px-2 py-1 font-bold"/></div>
@@ -2147,8 +2260,8 @@ function render() {
     const borderCls = queuedTask ? "border-emerald-400 bg-emerald-50/60" : isChecked ? "border-2 border-indigo-600 bg-indigo-50/70" : "border-rose-200 bg-rose-50/70 hover:bg-rose-100";
 
     const btnHtml = queuedTask
-      ? `<button onclick="event.stopPropagation();goWeek(${queuedTask.week_number});showTab('TASKS');" class="bg-emerald-700 text-white font-extrabold px-2 py-0.5 rounded text-[10px] shrink-0">✅ Queued (${queuedTask.current_scheduled_date})</button>`
-      : `<button onclick="event.stopPropagation();addScoutingTask('${iss.code}')" class="bg-white border border-rose-300 text-rose-900 font-bold px-2 py-0.5 rounded text-[10px] shrink-0">➕ Queue</button>`;
+      ? `<button onclick="event.stopPropagation();goWeek(${queuedTask.week_number});showTab('TASKS');" class="bg-emerald-700 text-white font-extrabold px-2 py-0.5 rounded text-[10px] shrink-0">✅ ${LANG === "KN" ? `ಸೇರಿಸಲಾಗಿದೆ (${queuedTask.current_scheduled_date})` : `Queued (${queuedTask.current_scheduled_date})`}</button>`
+      : `<button onclick="event.stopPropagation();addScoutingTask('${iss.code}')" class="bg-white border border-rose-300 text-rose-900 font-bold px-2 py-0.5 rounded text-[10px] shrink-0">➕ ${LANG === "KN" ? "ಸೇರಿಸಿ" : "Queue"}</button>`;
 
     return `<div onclick="toggleRiskSelection('${iss.code}')" class="cursor-pointer p-3 rounded-xl border ${borderCls} text-rose-950 text-left shadow-sm flex flex-col justify-between gap-1.5">
       <div class="w-full flex items-center justify-between gap-1">
@@ -2156,7 +2269,7 @@ function render() {
           ${queuedTask ? `<span class="text-emerald-700">☑️</span>` : `<input type="checkbox" ${isChecked ? "checked" : ""} onclick="event.stopPropagation();toggleRiskSelection('${iss.code}')" class="w-4 h-4 accent-indigo-600" />`}
           <span>${LANG === "KN" ? iss.knTitle : iss.enTitle}</span>
         </label>
-        <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${badgeCls}">Risk: ${sc}%</span>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${badgeCls}">${LANG === "KN" ? "ಅಪಾಯ" : "Risk"}: ${sc}%</span>
       </div>
       <div class="font-normal text-[11px] text-rose-800">${LANG === "KN" ? iss.knDesc : iss.enDesc}</div>
       <div class="font-normal text-[10px] text-slate-600 border-t border-rose-200/60 pt-1.5 w-full flex items-center justify-between gap-1">
@@ -2183,9 +2296,6 @@ function render() {
   }).join("");
 }
 
-// ============================================================================
-// SIMPLIFIED SWAP MODAL: SHOWS ONLY APPROVED ALTERNATIVES (NO GRAY LIST!)
-// ============================================================================
 function openSwap(taskId, idx, id) {
   const c = catalog[id]; if (!c) return;
   const tk = tasks.find(x => x.id === taskId);
@@ -2202,7 +2312,6 @@ function openSwap(taskId, idx, id) {
     }).join("");
   document.getElementById("modalBrandAuditResult").innerHTML = "";
 
-  // Evaluate each Approved Alternative against 21-day spray history & same-drum compatibility
   const rawApproved = getApprovedAlternativesForInput(id).map(item => {
     const sc = item.cat;
     const resWarn = checkRecentSprayResistance(sc.id, refDateStr);
@@ -2211,7 +2320,6 @@ function openSwap(taskId, idx, id) {
       const comp = checkPairCompatibility(sc, catalog[o.input_id]);
       if (!comp.ok) compatConflict = LANG === "KN" ? comp.reasonKn : comp.reasonEn;
     });
-    // Priority: 0 = Clean Rotation & Compatible, 1 = Recently Sprayed/Same Group, 2 = Tank Conflict
     const rank = compatConflict ? 2 : (resWarn ? 1 : 0);
     return { ...item, resWarn, compatConflict, rank };
   }).sort((a, b) => a.rank - b.rank);
@@ -2222,8 +2330,9 @@ function openSwap(taskId, idx, id) {
     <div class="text-slate-600">🏷️ <b>${LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರುಗಳು:" : "Store Brands:"}</b> ${getBrandOnlySubtitle(c)}</div>
   </div>`;
 
-  if (c.dealer_warning_en) {
-    h += `<div class="p-2.5 bg-amber-50 border border-amber-200 text-amber-950 rounded-lg">💡 ${c.dealer_warning_en}</div>`;
+  const warnMsg = getDealerWarning(c);
+  if (warnMsg) {
+    h += `<div class="p-2.5 bg-amber-50 border border-amber-200 text-amber-950 rounded-lg">💡 ${warnMsg}</div>`;
   }
 
   if (rawApproved.length === 0) {
@@ -2237,8 +2346,8 @@ function openSwap(taskId, idx, id) {
     rawApproved.forEach(item => {
       const sc = item.cat;
       const doseInfo = sc.base_dose_per_liter
-        ? `${Math.round(sc.base_dose_per_liter * CFG.drumL)} ${sc.unit} / 200L Drum`
-        : `${sc.base_dose_per_acre} ${sc.unit} / Acre`;
+        ? (LANG === "KN" ? `${Math.round(sc.base_dose_per_liter * CFG.drumL)} ${sc.unit} / 200L ಡ್ರಮ್` : `${Math.round(sc.base_dose_per_liter * CFG.drumL)} ${sc.unit} / 200L Drum`)
+        : (LANG === "KN" ? `${sc.base_dose_per_acre} ${sc.unit} / ಎಕರೆ` : `${sc.base_dose_per_acre} ${sc.unit} / Acre`);
 
       const isClean = item.rank === 0;
       const cardBorder = item.compatConflict
@@ -2284,13 +2393,13 @@ function evaluateDealerBrandInModal() {
 
   const checks = [];
   checks.push(candCat.category === primaryCat.category
-    ? `<div class="text-emerald-800 font-bold">✅ Check 1 (Target Function): Matches required category (${candCat.category}).</div>`
-    : `<div class="p-2 bg-red-100 border border-red-300 text-red-950 rounded font-bold">❌ Check 1 (Wrong Category!): Scheduled item is a <b>${primaryCat.category}</b>, but this brand is a <b>${candCat.category}</b>!</div>`);
+    ? `<div class="text-emerald-800 font-bold">✅ ${LANG === "KN" ? `ಪರೀಕ್ಷೆ 1 (ಉದ್ದೇಶ ಹೊಂದಾಣಿಕೆ): ಈ ಔಷಧಿಯ ವಿಭಾಗ (${candCat.category}) ಸರಿಯಾಗಿದೆ.` : `Check 1 (Target Function): Matches required category (${candCat.category}).`}</div>`
+    : `<div class="p-2 bg-red-100 border border-red-300 text-red-950 rounded font-bold">❌ ${LANG === "KN" ? `ಪರೀಕ್ಷೆ 1 (ತಪ್ಪು ವಿಭಾಗ!): ನಿಗದಿತ ಔಷಧಿ <b>${primaryCat.category}</b> ಆಗಿದೆ, ಆದರೆ ಇದು <b>${candCat.category}</b> ಆಗಿದೆ! ಇದನ್ನು ಬಳಸಬೇಡಿ.` : `Check 1 (Wrong Category!): Scheduled item is a <b>${primaryCat.category}</b>, but this brand is a <b>${candCat.category}</b>!`}</div>`);
 
   const resWarn = checkRecentSprayResistance(candidateId, tk.current_scheduled_date);
   checks.push(resWarn
     ? `<div class="p-2 bg-amber-100 border border-amber-300 text-amber-950 rounded font-bold">${LANG === "KN" ? resWarn.msgKn : resWarn.msgEn}</div>`
-    : `<div class="text-emerald-800 font-bold">✅ Check 2 (Anti-Resistance): Not sprayed in past 21 days (${candCat.irac_frac_group || "Safe"}).</div>`);
+    : `<div class="text-emerald-800 font-bold">✅ ${LANG === "KN" ? `ಪರೀಕ್ಷೆ 2 (ಪುನರಾವರ್ತನೆ ಇಲ್ಲ): ಕಳೆದ 21 ದಿನಗಳಲ್ಲಿ ಈ ಲವಣಾಂಶ ಬಳಸಿಲ್ಲ (${candCat.irac_frac_group || "Safe"}).` : `Check 2 (Anti-Resistance): Not sprayed in past 21 days (${candCat.irac_frac_group || "Safe"}).`}</div>`);
 
   const otherItems = (tk.resolved_recipe || []).filter((_, i) => i !== itemIdx);
   let compatOk = true;
@@ -2298,15 +2407,20 @@ function evaluateDealerBrandInModal() {
     const comp = checkPairCompatibility(candCat, catalog[o.input_id]);
     if (!comp.ok) { compatOk = false; checks.push(`<div class="p-2 bg-red-100 border border-red-300 text-red-950 rounded font-bold">${LANG === "KN" ? comp.reasonKn : comp.reasonEn}</div>`); }
   });
-  if (compatOk) checks.push(`<div class="text-emerald-800 font-bold">✅ Check 3 (Drum Compatibility): Safe to mix with the other item(s) on this card.</div>`);
+  if (compatOk) {
+    checks.push(`<div class="text-emerald-800 font-bold">✅ ${LANG === "KN" ? "ಪರೀಕ್ಷೆ 3 (ಡ್ರಮ್ ಮಿಶ್ರಣ): ಈ ಕಾರ್ಡ್‌ನ ಇತರ ಔಷಧಿಗಳ ಜೊತೆ ಬೆರೆಸಲು ಸುರಕ್ಷಿತವಾಗಿದೆ." : "Check 3 (Drum Compatibility): Safe to mix with the other item(s) on this card."}</div>`);
+  }
 
-  const doseInfo = candCat.base_dose_per_liter ? `${Math.round(candCat.base_dose_per_liter * CFG.drumL)} ${candCat.unit}/Drum` : `${candCat.base_dose_per_acre} ${candCat.unit}/Acre`;
+  const doseInfo = candCat.base_dose_per_liter
+    ? (LANG === "KN" ? `${Math.round(candCat.base_dose_per_liter * CFG.drumL)} ${candCat.unit} / 200L ಡ್ರಮ್` : `${Math.round(candCat.base_dose_per_liter * CFG.drumL)} ${candCat.unit}/Drum`)
+    : (LANG === "KN" ? `${candCat.base_dose_per_acre} ${candCat.unit} / ಎಕರೆ` : `${candCat.base_dose_per_acre} ${candCat.unit}/Acre`);
+
   checks.push(`<div class="p-2.5 bg-white border border-indigo-200 rounded-lg flex items-center justify-between gap-2 mt-1">
     <div>
       <div class="font-extrabold text-slate-900">🧪 ${getSaltOnlyTitle(candCat)} ${getUniformGroupBadge(candCat)}</div>
-      <div class="text-[11px] text-slate-600">🏷️ <b>Store Brands:</b> ${getBrandOnlySubtitle(candCat)} • ⚖️ <b>${doseInfo}</b></div>
+      <div class="text-[11px] text-slate-600">🏷️ <b>${LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರುಗಳು:" : "Store Brands:"}</b> ${getBrandOnlySubtitle(candCat)} • ⚖️ <b>${doseInfo}</b></div>
     </div>
-    <button onclick="doSwap('${taskId}',${itemIdx},'${candCat.id}')" class="bg-indigo-700 text-white font-extrabold px-3 py-2 rounded-lg shrink-0 shadow">✅ Use</button>
+    <button onclick="doSwap('${taskId}',${itemIdx},'${candCat.id}')" class="bg-indigo-700 text-white font-extrabold px-3 py-2 rounded-lg shrink-0 shadow">✅ ${LANG === "KN" ? "ಬಳಸಿ" : "Use"}</button>
   </div>`);
   out.innerHTML = checks.join("");
 }
