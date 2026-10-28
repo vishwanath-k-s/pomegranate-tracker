@@ -2188,6 +2188,9 @@ function render() {
 // ============================================================================
 function openSwap(taskId, idx, id) {
   const c = catalog[id]; if (!c) return;
+  const tk = tasks.find(x => x.id === taskId);
+  const refDateStr = tk ? tk.current_scheduled_date : todayYMD();
+  const otherItems = tk ? (tk.resolved_recipe || []).filter((_, i) => i !== idx) : [];
   activeSwapContext = { taskId, itemIdx: idx, primaryInputId: id };
 
   const bSel = document.getElementById("modalBrandSelect");
@@ -2199,7 +2202,19 @@ function openSwap(taskId, idx, id) {
     }).join("");
   document.getElementById("modalBrandAuditResult").innerHTML = "";
 
-  const approvedList = getApprovedAlternativesForInput(id);
+  // Evaluate each Approved Alternative against 21-day spray history & same-drum compatibility
+  const rawApproved = getApprovedAlternativesForInput(id).map(item => {
+    const sc = item.cat;
+    const resWarn = checkRecentSprayResistance(sc.id, refDateStr);
+    let compatConflict = null;
+    otherItems.forEach(o => {
+      const comp = checkPairCompatibility(sc, catalog[o.input_id]);
+      if (!comp.ok) compatConflict = LANG === "KN" ? comp.reasonKn : comp.reasonEn;
+    });
+    // Priority: 0 = Clean Rotation & Compatible, 1 = Recently Sprayed/Same Group, 2 = Tank Conflict
+    const rank = compatConflict ? 2 : (resWarn ? 1 : 0);
+    return { ...item, resWarn, compatConflict, rank };
+  }).sort((a, b) => a.rank - b.rank);
 
   let h = `<div class="p-3 bg-slate-100 border border-slate-200 rounded-xl space-y-1">
     <div class="text-[11px] font-bold text-slate-500 uppercase">${LANG === "KN" ? "ಪ್ರಸ್ತುತ ಶಿಫಾರಸು ಮಾಡಿದ ಲವಣಾಂಶ:" : "Currently Scheduled Active Salt:"}</div>
@@ -2211,31 +2226,46 @@ function openSwap(taskId, idx, id) {
     h += `<div class="p-2.5 bg-amber-50 border border-amber-200 text-amber-950 rounded-lg">💡 ${c.dealer_warning_en}</div>`;
   }
 
-  if (approvedList.length === 0) {
+  if (rawApproved.length === 0) {
     h += `<div class="p-3 bg-red-50 border border-red-200 text-red-950 rounded-xl font-bold">
       🔴 ${LANG === "KN"
         ? `ಇದು ಕಡ್ಡಾಯವಾಗಿ ಬೇಕಾದ ಪೋಷಕಾಂಶ (${getSaltOnlyTitle(c)}). ಇದಕ್ಕೆ ಬೇರೆ ಪರ್ಯಾಯವಿಲ್ಲ — ಇದೇ ಲವಣಾಂಶ ಇರುವ ಯಾವುದೇ ಕಂಪನಿ (${getBrandOnlySubtitle(c)}) ಕೇಳಿ.`
         : `ESSENTIAL STAGE INPUT: Do not substitute ${getSaltOnlyTitle(c)} with another salt. Ask the dealer for any brand containing ${getSaltOnlyTitle(c)} (${getBrandOnlySubtitle(c)}).`}
     </div>`;
   } else {
-    h += `<div class="font-extrabold text-emerald-900 pt-1">✅ ${LANG === "KN" ? "ಅನುಮೋದಿತ ಪರ್ಯಾಯ ಲವಣಾಂಶಗಳು (Approved Alternatives Only):" : "Approved Target-Matched Alternatives:"}</div>`;
-    approvedList.forEach(item => {
+    h += `<div class="font-extrabold text-emerald-900 pt-1">✅ ${LANG === "KN" ? "ಅನುಮೋದಿತ ಪರ್ಯಾಯಗಳು (ಹಿಂದಿನ ಸಿಂಪಡಣೆ ಆಧರಿಸಿ ಪರಿಶೀಲಿಸಲಾಗಿದೆ):" : "Approved Alternatives (Checked Against Past Sprays):"}</div>`;
+    rawApproved.forEach(item => {
       const sc = item.cat;
       const doseInfo = sc.base_dose_per_liter
         ? `${Math.round(sc.base_dose_per_liter * CFG.drumL)} ${sc.unit} / 200L Drum`
         : `${sc.base_dose_per_acre} ${sc.unit} / Acre`;
-      h += `<div class="p-3 border-2 border-emerald-300 bg-emerald-50/70 rounded-xl flex justify-between items-center gap-2">
+
+      const isClean = item.rank === 0;
+      const cardBorder = item.compatConflict
+        ? "border-red-300 bg-red-50/70"
+        : isClean
+          ? "border-2 border-emerald-300 bg-emerald-50/70"
+          : "border border-amber-300 bg-amber-50/70";
+
+      const statusBadge = item.compatConflict
+        ? `<div class="text-[11px] font-bold text-red-800 mt-1">${item.compatConflict}</div>`
+        : item.resWarn
+          ? `<div class="text-[11px] font-bold text-amber-900 bg-amber-100/80 border border-amber-300 rounded px-2 py-1 mt-1">${LANG === "KN" ? item.resWarn.msgKn : item.resWarn.msgEn}</div>`
+          : `<div class="text-[11px] font-bold text-emerald-800 mt-0.5">🟢 ${LANG === "KN" ? "ಸುರಕ್ಷಿತ ಆಯ್ಕೆ (ಕಳೆದ 21 ದಿನಗಳಲ್ಲಿ ಬಳಸಿಲ್ಲ)" : "Fresh Rotation — Not sprayed in past 21 days"}</div>`;
+
+      h += `<div class="p-3 ${cardBorder} rounded-xl flex justify-between items-center gap-2">
         <div class="space-y-0.5">
           <div class="font-extrabold text-sm text-slate-900 flex items-center gap-1.5 flex-wrap">
             <span>🧪 ${getSaltOnlyTitle(sc)}</span>
             ${getUniformGroupBadge(sc)}
           </div>
-          <div class="text-xs font-bold text-emerald-950">⚖️ ${doseInfo} • <span class="font-normal">${LANG === "KN" ? item.noteKn : item.noteEn}</span></div>
+          <div class="text-xs font-bold text-slate-800">⚖️ ${doseInfo} • <span class="font-normal">${LANG === "KN" ? item.noteKn : item.noteEn}</span></div>
           <div class="text-[11px] text-slate-600">🏷️ <b>${LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರುಗಳು:" : "Store Brands:"}</b> ${getBrandOnlySubtitle(sc)}</div>
+          ${statusBadge}
         </div>
-        <button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold px-3.5 py-2 rounded-lg shrink-0 shadow">
+        ${item.compatConflict ? "" : `<button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="${isClean ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-amber-600 hover:bg-amber-700'} text-white font-extrabold px-3.5 py-2 rounded-lg shrink-0 shadow">
           ${LANG === "KN" ? "ಬಳಸಿ" : "Select"}
-        </button>
+        </button>`}
       </div>`;
     });
   }
