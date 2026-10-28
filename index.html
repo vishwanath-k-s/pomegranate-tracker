@@ -691,8 +691,14 @@ function getApprovedAlternativesForInput(primaryId) {
 
 function normalizeSaltBase(rawSaltStr) {
   if (!rawSaltStr) return "";
-  return rawSaltStr.toLowerCase().replace(/\([^)]*\)/g, " ").replace(/\b\d+(\.\d+)?\s*%?/g, " ")
-    .replace(/\b(wg|wdg|wp|df|sp|sc|od|sl|ec|wsf|l|gr|liquid|powder)\b/g, " ").replace(/[^a-z+]+/g, " ").trim().replace(/\s+/g, " ");
+  return rawSaltStr
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\b\d+(\.\d+)?\s*(%|g\/l|mg\/l|ppm|w\/w|w\/v|g|ml|l|kg)?\b/gi, " ")
+    .replace(/[^a-z+]+/g, " ")
+    .replace(/\b(wg|wdg|sg|wp|sp|df|sc|cs|zc|od|sl|ec|ew|se|me|wsf|gr|dp|l|g|ml|kg|ppm|ww|wv|liquid|powder|granules|soluble|suspension)\b/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 // === START OF QA-VERIFIED ENGINE BLOCK ===
 
