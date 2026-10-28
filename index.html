@@ -143,7 +143,7 @@
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div>
-          <label id="ui_lblManChem1" class="font-bold block mb-1">Primary Input:</label>
+          <label id="ui_lblManChem1" class="font-bold block mb-1">Primary Input (Active Salt):</label>
           <select id="manChem1" onchange="prefillManualQty(1)" class="w-full border rounded-lg px-3 py-2 font-semibold"></select>
           <div class="mt-1 flex items-center gap-1.5">
             <span class="text-slate-500">3-Acre Qty:</span>
@@ -269,16 +269,16 @@
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
-          <label class="font-bold block mb-0.5 text-slate-700">1. Brand / Trade Name (English):</label>
+          <label class="font-bold block mb-0.5 text-slate-700">1. Store Brand Name (English):</label>
           <input type="text" id="ncNameEn" oninput="previewSmartChem()" placeholder="e.g., Cosuit (FMC) / Validacin" class="w-full border rounded-lg px-2.5 py-1.5 font-bold" />
         </div>
         <div>
-          <label class="font-bold block mb-0.5 text-slate-700">Name in Kannada (Optional):</label>
-          <input type="text" id="ncNameKn" placeholder="ಉದಾ: ಕೋಸ್ಸೂಟ್ / ವ್ಯಾಲಿಡಾಸಿನ್" class="w-full border rounded-lg px-2.5 py-1.5" />
+          <label class="font-bold block mb-0.5 text-slate-700">Salt / Name in Kannada (Optional):</label>
+          <input type="text" id="ncNameKn" placeholder="ಉದಾ: ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್" class="w-full border rounded-lg px-2.5 py-1.5" />
         </div>
       </div>
       <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-        <div class="font-extrabold text-slate-800">2. Chemical Composition (From Packet Label / Bill):</div>
+        <div class="font-extrabold text-slate-800">2. Active Salt &amp; Composition (Displayed as Main Title):</div>
         <div>
           <label class="font-semibold text-slate-600 block mb-0.5">Base Active Salt (Pick from suggestions or type new):</label>
           <input type="text" id="ncSaltBase" list="knownSaltsList" oninput="onSaltOrPctChange()" placeholder="e.g., Copper Hydroxide OR Validamycin" class="w-full border rounded-lg px-2.5 py-1.5 font-bold bg-white" />
@@ -415,19 +415,24 @@
     </div>
   </div>
 
-  <!-- 4-CHECK STORE COUNTER BRAND VALIDATOR MODAL -->
+  <!-- SIMPLIFIED APPROVED ALTERNATIVES & BRAND VALIDATOR MODAL -->
   <div id="swapModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-3 text-xs">
       <div class="flex items-center justify-between border-b pb-2">
-        <h3 id="ui_modalTitle" class="font-extrabold text-base text-slate-900">🏪 4-Check Agro-Store Brand Validator</h3>
+        <h3 id="ui_modalTitle" class="font-extrabold text-base text-slate-900">🏪 Approved Alternatives &amp; Store Brand Check</h3>
         <button onclick="document.getElementById('swapModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
       </div>
+
+      <!-- 1. APPROVED ALTERNATIVES LIST (CLEAN GREEN CARDS ONLY) -->
+      <div id="swapModalContent" class="space-y-2"></div>
+
+      <!-- 2. OPTIONAL: CHECK A SPECIFIC STORE BRAND OFFERED BY DEALER -->
       <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2">
-        <label class="font-extrabold text-indigo-950 block" id="ui_lblBrandSearch">🔍 What brand did the store dealer offer you?</label>
+        <label class="font-extrabold text-indigo-950 block" id="ui_lblBrandSearch">🔍 Dealer offered a specific brand name? Check it here:</label>
         <select id="modalBrandSelect" onchange="evaluateDealerBrandInModal()" class="w-full border border-indigo-300 rounded-lg px-2.5 py-2 font-bold text-slate-900 bg-white"></select>
         <div id="modalBrandAuditResult" class="space-y-1.5"></div>
       </div>
-      <div id="swapModalContent" class="space-y-2"></div>
+
       <button onclick="document.getElementById('swapModal').classList.add('hidden');openNewChemModal();" class="w-full bg-slate-100 border border-slate-300 text-slate-800 font-bold py-2 rounded-lg text-xs">➕ Brand not in list? Add New Store Chemical</button>
     </div>
   </div>
@@ -462,6 +467,144 @@ let wState = { tempNow: 29.0, humidity: 58, rain24: 0, prob4: 0, tMax: 30.5, tMi
 let activeDelayTaskId = null;
 let activeSwapContext = { taskId: null, itemIdx: null, primaryInputId: null };
 
+// ============================================================================
+// UNIFIED SALT-FIRST DISPLAY & GROUP BADGE FORMATTERS
+// ============================================================================
+// Standardizes every item so the main title is ALWAYS the Active Salt + % Strength (never mixed with brand names)
+const KN_SALT_ONLY_MAP = {
+  BAC_COPPER_HYDROXIDE: "ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ 53.8% DF",
+  BAC_COSUIT_FMC:       "ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ 61.41% WG",
+  BAC_COPPER_OXY:       "ಕಾಪರ್ ಆಕ್ಸಿಕ್ಲೋರೈಡ್ 50% WP",
+  BAC_BRONOPOL:         "ಬ್ರೊನೊಪಾಲ್ 95% (ಬ್ಯಾಕ್ಟೀರಿಯಾ ನಾಶಕ)",
+  BAC_VALIDACIN:        "ವ್ಯಾಲಿಡಾಮೈಸಿನ್ 3% L",
+  BAC_KASUGAMYCIN:      "ಕಸುಗಾಮೈಸಿನ್ 3% SL",
+  BAC_TAGMYCIN:         "ಸ್ಟ್ರೆಪ್ಟೋಮೈಸಿನ್ + ಟೆಟ್ರಾಸೈಕ್ಲಿನ್ (90:10)",
+  BAC_H2O2:             "ಹೈಡ್ರೋಜನ್ ಪೆರಾಕ್ಸೈಡ್ 20–50% (H2O2)",
+  FUN_CAPTAF:           "ಕ್ಯಾಪ್ಟಾನ್ 50% WP",
+  INS_ASATAF:           "ಆಸಿಫೇಟ್ 75% SP",
+  INS_REEVA5:           "ಲ್ಯಾಂಬ್ಡಾ-ಸೈಹಾಲೋಥ್ರಿನ್ 5% EC"
+};
+
+function getSaltOnlyTitle(cat) {
+  if (!cat) return "";
+  if (LANG === "KN") {
+    if (KN_SALT_ONLY_MAP[cat.id]) return KN_SALT_ONLY_MAP[cat.id];
+    const kn = cat.name_kn || cat.active_ingredient || cat.name_en || "";
+    // If name_kn has "Brand (Salt)", extract the Salt inside parentheses
+    const m = kn.match(/\(([^)]+)\)$/);
+    return m ? m[1].trim() : kn;
+  }
+  // In English: for NPK fertilizers show grade + salt (e.g., "00:52:34 (Mono Potassium Phosphate)")
+  if (cat.id && cat.id.startsWith("WSF_") && /^\d{2}:\d{2}:\d{2}/.test(cat.name_en || "")) {
+    return `${cat.name_en.split(" ")[0]} — ${cat.active_ingredient || cat.name_en}`;
+  }
+  return cat.active_ingredient || cat.name_en || cat.id;
+}
+
+function getBrandOnlySubtitle(cat) {
+  if (!cat) return "";
+  return cat.popular_brands || (LANG === "KN" ? "ಯಾವುದೇ ಪ್ರಮಾಣಿತ ಕಂಪನಿ" : "Standard Approved Brand");
+}
+
+// Ensures EVERY item on a card shows a clear classification badge (IRAC / FRAC / NUTRIENT / BIO)
+function getUniformGroupBadge(cat) {
+  if (!cat) return "";
+  if (cat.irac_frac_group) {
+    return `<span class="text-[10px] bg-slate-200 text-slate-800 px-1.5 py-0.5 rounded font-mono font-bold">${cat.irac_frac_group}</span>`;
+  }
+  if (cat.category === "FERTIGATION") {
+    const npk = [Number(cat.n_pct)||0, Number(cat.p_pct)||0, Number(cat.k_pct)||0];
+    const tag = (npk[0]||npk[1]||npk[2]) ? `NPK ${npk[0]}:${npk[1]}:${npk[2]}` : (Number(cat.ca_pct) ? `Ca ${cat.ca_pct}%` : (Number(cat.mg_pct) ? `Mg ${cat.mg_pct}%` : "FERTILIZER"));
+    return `<span class="text-[10px] bg-sky-100 text-sky-900 px-1.5 py-0.5 rounded font-mono font-bold">${tag}</span>`;
+  }
+  if (cat.category === "BIOSTIMULANT") {
+    return `<span class="text-[10px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">${LANG === "KN" ? "ಲಘು ಪೋಷಕಾಂಶ / ಬಯೋ" : "MICRONUTRIENT / BIO"}</span>`;
+  }
+  return `<span class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono font-bold">${cat.category}</span>`;
+}
+
+// Built-in Curated Approved Alternatives Map (Supplements `substitution_rules` so ONLY verified target matches appear!)
+const CURATED_APPROVED_SUBS = {
+  BAC_COPPER_HYDROXIDE: [
+    { id: "BAC_COSUIT_FMC", noteEn: "Higher-strength 61.41% WG Copper Hydroxide (use 250 g/drum).", noteKn: "61.41% WG ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 250 ಗ್ರಾಂ ಬಳಸಿ)." },
+    { id: "BAC_COPPER_OXY", noteEn: "Copper Oxychloride 50% WP (use 400 g/drum).", noteKn: "ಕಾಪರ್ ಆಕ್ಸಿಕ್ಲೋರೈಡ್ 50% WP (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 400 ಗ್ರಾಂ ಬಳಸಿ)." }
+  ],
+  BAC_COSUIT_FMC: [
+    { id: "BAC_COPPER_HYDROXIDE", noteEn: "Copper Hydroxide 53.8% DF (use 300 g/drum).", noteKn: "ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ 53.8% DF (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 300 ಗ್ರಾಂ ಬಳಸಿ)." },
+    { id: "BAC_COPPER_OXY", noteEn: "Copper Oxychloride 50% WP (use 400 g/drum).", noteKn: "ಕಾಪರ್ ಆಕ್ಸಿಕ್ಲೋರೈಡ್ 50% WP (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 400 ಗ್ರಾಂ ಬಳಸಿ)." }
+  ],
+  BAC_COPPER_OXY: [
+    { id: "BAC_COPPER_HYDROXIDE", noteEn: "Copper Hydroxide 53.8% DF (use 300 g/drum).", noteKn: "ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ 53.8% DF (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 300 ಗ್ರಾಂ ಬಳಸಿ)." },
+    { id: "BAC_COSUIT_FMC", noteEn: "Copper Hydroxide 61.41% WG (use 250 g/drum).", noteKn: "ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ 61.41% WG (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 250 ಗ್ರಾಂ ಬಳಸಿ)." }
+  ],
+  BAC_BRONOPOL: [
+    { id: "BAC_KASUGAMYCIN", noteEn: "Kasugamycin 3% SL (use 300 ml/drum alongside Copper).", noteKn: "ಕಸುಗಾಮೈಸಿನ್ 3% SL (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 300 ಮಿ.ಲೀ ಕಾಪರ್ ಜೊತೆ ಬಳಸಿ)." },
+    { id: "BAC_VALIDACIN", noteEn: "Validamycin 3% L (use 200 ml/drum).", noteKn: "ವ್ಯಾಲಿಡಾಮೈಸಿನ್ 3% L (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 200 ಮಿ.ಲೀ ಬಳಸಿ)." }
+  ],
+  BAC_VALIDACIN: [
+    { id: "BAC_BRONOPOL", noteEn: "Bronopol 95% (stronger against Xanthomonas oily spot — 100 g/drum).", noteKn: "ಬ್ರೊನೊಪಾಲ್ 95% (ಎಣ್ಣೆ ಮಚ್ಚೆ ರೋಗಕ್ಕೆ ಹೆಚ್ಚು ಪರಿಣಾಮಕಾರಿ — 100 ಗ್ರಾಂ/ಡ್ರಮ್)." },
+    { id: "BAC_KASUGAMYCIN", noteEn: "Kasugamycin 3% SL (use 300 ml/drum).", noteKn: "ಕಸುಗಾಮೈಸಿನ್ 3% SL (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 300 ಮಿ.ಲೀ)." }
+  ],
+  INS_SPINETORAM: [
+    { id: "INS_CYANTRANILIPROLE", noteEn: "Cyantraniliprole 10.26% OD (controls both Thrips & Borer — 140 ml/drum).", noteKn: "ಸಯಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ 10.26% OD (ಥ್ರಿಪ್ಸ್ ಮತ್ತು ಹುಳು ನಿಯಂತ್ರಣ — 140 ಮಿ.ಲೀ/ಡ್ರಮ್)." },
+    { id: "INS_SPINOSAD", noteEn: "Spinosad 45% SC (use 70 ml/drum).", noteKn: "ಸ್ಪೈನೋಸಾಡ್ 45% SC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 70 ಮಿ.ಲೀ)." },
+    { id: "INS_EXPONUS", noteEn: "Broflanilide 300g/L SC (different IRAC-30 group — 28 ml/drum).", noteKn: "ಬ್ರೋಫ್ಲಾನಿಲೈಡ್ (IRAC-30 ಗುಂಪು — ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 28 ಮಿ.ಲೀ)." }
+  ],
+  INS_CHLORANTRANILIPROLE: [
+    { id: "INS_CYANTRANILIPROLE", noteEn: "Cyantraniliprole 10.26% OD (use 140 ml/drum).", noteKn: "ಸಯಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ 10.26% OD (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 140 ಮಿ.ಲೀ)." },
+    { id: "INS_SPINETORAM", noteEn: "Spinetoram 11.7% SC (covers Borer + Thrips — 160 ml/drum).", noteKn: "ಸ್ಪೈನೆಟೊರಾಮ್ 11.7% SC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 160 ಮಿ.ಲೀ)." }
+  ],
+  INS_SPIROTETRAMAT: [
+    { id: "INS_BUPROFEZIN", noteEn: "Buprofezin 25% SC (targets Mealybug nymphs — 300 ml/drum).", noteKn: "ಬುಪ್ರೊಫೆಜಿನ್ 25% SC (ಹಿಟ್ಟು ತಿಗಣೆ ನಿಯಂತ್ರಣ — 300 ಮಿ.ಲೀ/ಡ್ರಮ್)." },
+    { id: "INS_THIAMETHOXAM", noteEn: "Thiamethoxam 25% WG (systemic sucking pest control — 100 g/drum).", noteKn: "ಥಯಾಮೆಥಾಕ್ಸಾಮ್ 25% WG (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 100 ಗ್ರಾಂ)." }
+  ],
+  INS_BUPROFEZIN: [
+    { id: "INS_SPIROTETRAMAT", noteEn: "Spirotetramat 15.31% OD (two-way systemic Mealybug control — 200 ml/drum).", noteKn: "ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ 15.31% OD (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 200 ಮಿ.ಲೀ)." }
+  ],
+  INS_FENPYROXIMATE: [
+    { id: "INS_SPIROMESIFEN", noteEn: "Spiromesifen 22.9% SC (controls red mite eggs & nymphs — 160 ml/drum).", noteKn: "ಸ್ಪೈರೋಮೆಸಿಫೆನ್ 22.9% SC (ಕೆಂಪು ನುಸಿ ನಿಯಂತ್ರಣ — 160 ಮಿ.ಲೀ/ಡ್ರಮ್)." },
+    { id: "INS_ABAMECTIN", noteEn: "Abamectin 1.9% EC (use 100 ml/drum).", noteKn: "ಅಬಾಮೆಕ್ಟಿನ್ 1.9% EC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 100 ಮಿ.ಲೀ)." }
+  ],
+  FUN_FLUXA_PYRA: [
+    { id: "FUN_AZOXY_TEBU", noteEn: "Azoxystrobin 11% + Tebuconazole 18.3% SC (use 250 ml/drum).", noteKn: "ಅಜಾಕ್ಸಿಸ್ಟ್ರೋಬಿನ್ + ಟೆಬುಕೊನಜೋಲ್ (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 250 ಮಿ.ಲೀ)." },
+    { id: "FUN_TEBU_TRIFLOXY", noteEn: "Tebuconazole 50% + Trifloxystrobin 25% WG (use 100 g/drum).", noteKn: "ಟೆಬುಕೊನಜೋಲ್ + ಟ್ರೈಫ್ಲಾಕ್ಸಿಸ್ಟ್ರೋಬಿನ್ (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 100 ಗ್ರಾಂ)." },
+    { id: "FUN_CABRIO_TOP", noteEn: "Metiram 55% + Pyraclostrobin 5% WG (use 400 g/drum).", noteKn: "ಮೆತಿರಾಮ್ + ಪೈರಾಕ್ಲೋಸ್ಟ್ರೋಬಿನ್ (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 400 ಗ್ರಾಂ)." }
+  ],
+  FUN_DIFENOCONAZOLE: [
+    { id: "FUN_PROPICONAZOLE", noteEn: "Propiconazole 25% EC (same FRAC-3 group — 200 ml/drum).", noteKn: "ಪ್ರೊಪಿಕೊನಜೋಲ್ 25% EC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 200 ಮಿ.ಲೀ)." },
+    { id: "FUN_AZOXY_TEBU", noteEn: "Azoxystrobin + Tebuconazole SC (use 250 ml/drum).", noteKn: "ಅಜಾಕ್ಸಿಸ್ಟ್ರೋಬಿನ್ + ಟೆಬುಕೊನಜೋಲ್ (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 250 ಮಿ.ಲೀ)." }
+  ],
+  FUN_MANCOZEB: [
+    { id: "FUN_PROPINEB", noteEn: "Propineb 70% WP (contact fungicide with Zinc — 400 g/drum).", noteKn: "ಪ್ರೊಪಿನೆಬ್ 70% WP (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 400 ಗ್ರಾಂ)." },
+    { id: "FUN_CAPTAF", noteEn: "Captan 50% WP (contact fruit spot shield — 400 g/drum).", noteKn: "ಕ್ಯಾಪ್ಟಾನ್ 50% WP (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 400 ಗ್ರಾಂ)." }
+  ]
+};
+
+function getApprovedAlternativesForInput(primaryId) {
+  const results = [];
+  const seen = new Set([primaryId]);
+
+  // 1. Pull from DB `substitution_rules`
+  subs.filter(s => s.primary_input_id === primaryId).forEach(s => {
+    const sc = catalog[s.substitute_input_id];
+    if (sc && !seen.has(sc.id)) {
+      seen.add(sc.id);
+      results.push({ cat: sc, noteEn: s.adjustment_note_en || "Approved target equivalent.", noteKn: s.adjustment_note_en || "ಅನುಮೋದಿತ ಪರ್ಯಾಯ." });
+    }
+  });
+
+  // 2. Pull from Built-in Curated Target Map
+  (CURATED_APPROVED_SUBS[primaryId] || []).forEach(item => {
+    const sc = catalog[item.id];
+    if (sc && !seen.has(sc.id)) {
+      seen.add(sc.id);
+      results.push({ cat: sc, noteEn: item.noteEn, noteKn: item.noteKn });
+    }
+  });
+
+  return results;
+}
+
 function normalizeSaltBase(rawSaltStr) {
   if (!rawSaltStr) return "";
   return rawSaltStr.toLowerCase().replace(/\([^)]*\)/g, " ").replace(/\b\d+(\.\d+)?\s*%?/g, " ")
@@ -489,7 +632,7 @@ function populateKnownSaltsDatalist() {
   });
   dl.innerHTML = Array.from(uniqueBases.entries()).map(([_, c]) => {
     const cleanBase = (c.active_ingredient || "").replace(/\b\d+(\.\d+)?\s*%\s*(WG|WDG|WP|DF|SP|SC|OD|SL|EC|L)?/gi, "").trim();
-    return `<option value="${cleanBase}">${c.name_en} (${c.active_ingredient})</option>`;
+    return `<option value="${cleanBase}">${c.active_ingredient} (${c.popular_brands || ""})</option>`;
   }).join("");
 }
 
@@ -577,9 +720,6 @@ function getCumulativeNutrientsPerPlant() {
   return del;
 }
 
-// ============================================================================
-// DETECT IF A THREAT IS ALREADY QUEUED IN UPCOMING 8 DAYS
-// ============================================================================
 function getQueuedTaskCoveringIssue(code) {
   const tStr = todayYMD();
   const upcomingSprays = tasks.filter(t =>
@@ -591,7 +731,6 @@ function getQueuedTaskCoveringIssue(code) {
   for (const tk of upcomingSprays) {
     const ids = (tk.resolved_recipe || []).map(r => r.input_id);
     if (code === "BLIGHT_SPOT" && ids.some(id => catalog[id]?.is_copper_compound)) return tk;
-    // Note: Spinetoram (INS_SPINETORAM) or Benevia (INS_CYANTRANILIPROLE) covers BOTH Thrips AND Borer!
     if (code === "THRIPS_SCAR" && ids.some(id => ["INS_SPINETORAM", "INS_SPINOSAD", "INS_CYANTRANILIPROLE", "INS_EXPONUS"].includes(id))) {
       if (tk.trigger_source === "SCOUTING_CURATIVE" || diffDaysYMD(tStr, tk.current_scheduled_date) <= 4) return tk;
     }
@@ -693,16 +832,16 @@ function checkPairCompatibility(catA, catB) {
   if ((catA.is_copper_compound && catB.incompatible_with_copper) || (catB.is_copper_compound && catA.incompatible_with_copper)) {
     return {
       ok: false,
-      reasonEn: `❌ INCOMPATIBLE MIX: ${catA.name_en} and ${catB.name_en} cannot be mixed in the same drum! Copper reacts with Captan, insecticides, chelates, and bio-sprays.`,
-      reasonKn: `❌ ಬೆರೆಸಬೇಡಿ: ${catA.name_kn || catA.name_en} ಮತ್ತು ${catB.name_kn || catB.name_en} ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ಬೆರೆಸಬಾರದು (ಸಿಪ್ಪೆ ಸುಡುತ್ತದೆ).`
+      reasonEn: `❌ INCOMPATIBLE MIX: ${getSaltOnlyTitle(catA)} and ${getSaltOnlyTitle(catB)} cannot be mixed in the same drum! Copper reacts with Captan, insecticides, chelates, and bio-sprays.`,
+      reasonKn: `❌ ಬೆರೆಸಬೇಡಿ: ${getSaltOnlyTitle(catA)} ಮತ್ತು ${getSaltOnlyTitle(catB)} ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ಬೆರೆಸಬಾರದು (ಸಿಪ್ಪೆ ಸುಡುತ್ತದೆ).`
     };
   }
   const isCaA = catA.id === "WSF_CALCIUM_NITRATE", isCaB = catB.id === "WSF_CALCIUM_NITRATE";
   if ((isCaA && catB.incompatible_with_calcium) || (isCaB && catA.incompatible_with_calcium)) {
     return {
       ok: false,
-      reasonEn: `❌ DRIP PRECIPITATION LOCK: Calcium Nitrate cannot be mixed with ${isCaA ? catB.name_en : catA.name_en}.`,
-      reasonKn: `❌ ಡ್ರಿಪ್ ಎಚ್ಚರಿಕೆ: ಕ್ಯಾಲ್ಸಿಯಂ ನೈಟ್ರೇಟ್ ಜೊತೆ ${isCaA ? (catB.name_kn || catB.name_en) : (catA.name_kn || catA.name_en)} ಬೆರೆಸಬೇಡಿ.`
+      reasonEn: `❌ DRIP PRECIPITATION LOCK: Calcium Nitrate cannot be mixed with ${isCaA ? getSaltOnlyTitle(catB) : getSaltOnlyTitle(catA)}.`,
+      reasonKn: `❌ ಡ್ರಿಪ್ ಎಚ್ಚರಿಕೆ: ಕ್ಯಾಲ್ಸಿಯಂ ನೈಟ್ರೇಟ್ ಜೊತೆ ${isCaA ? getSaltOnlyTitle(catB) : getSaltOnlyTitle(catA)} ಬೆರೆಸಬೇಡಿ.`
     };
   }
   if (((catA.id === "FUN_CHLOROTHALONIL" || catA.id === "FUN_CAPTAF") && catB.formulation_type === "EC") ||
@@ -719,18 +858,14 @@ function checkPairCompatibility(catA, catB) {
 function getWalesMixingGuide(recipeItems) {
   if (!recipeItems || recipeItems.length < 2) return "";
   const sorted = [...recipeItems].map(r => catalog[r.input_id]).filter(Boolean).sort((a, b) => (WALES_ORDER[a.formulation_type || "SC"] || 3) - (WALES_ORDER[b.formulation_type || "SC"] || 3));
-  const steps = sorted.map((c, i) => `<b>${i + 1}.</b> ${LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en} <span class="text-slate-500">[${c.formulation_type || "SC"}]</span>`).join(" → ");
+  const steps = sorted.map((c, i) => `<b>${i + 1}.</b> ${getSaltOnlyTitle(c)} <span class="text-slate-500">[${c.formulation_type || "SC"}]</span>`).join(" → ");
   return LANG === "KN" ? `🪣 <b>ಡ್ರಮ್ ಬೆರೆಸುವ ಕ್ರಮ (W-A-L-E-S):</b> ${steps}` : `🪣 <b>Drum Mixing Order (W-A-L-E-S):</b> ${steps}`;
 }
 
-// ============================================================================
-// AGRONOMIC SYNERGY OPTIMIZER (CAPS DRUM AT MAX 2 PESTICIDES + DEDUPLICATES NOV 3)
-// ============================================================================
 function buildSynergisticFoliarRecipe(foliarIssues) {
   const codes = new Set(foliarIssues.map(x => x.code));
   const outRecipe = [];
 
-  // Synergy 1: Spinetoram 11.7% SC (Delegate/Largo) covers BOTH Thrips AND Fruit Borer!
   if (codes.has("THRIPS_SCAR") && codes.has("FRUIT_BORER")) {
     outRecipe.push({ input_id: "INS_SPINETORAM", dose_per_liter: 0.8 });
   } else if (codes.has("THRIPS_SCAR")) {
@@ -739,7 +874,6 @@ function buildSynergisticFoliarRecipe(foliarIssues) {
     outRecipe.push({ input_id: "INS_CHLORANTRANILIPROLE", dose_per_liter: 0.3 });
   }
 
-  // Synergy 2: If Mealybug is selected alongside Thrips/Borer, add ONLY Spirotetramat (Movento 1.0 ml/L) so we don't exceed 2 insecticides!
   if (codes.has("MEALYBUG")) {
     if (outRecipe.length > 0) {
       outRecipe.push({ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 });
@@ -748,12 +882,10 @@ function buildSynergisticFoliarRecipe(foliarIssues) {
     }
   }
 
-  // Synergy 3: Fungal Fruit Rot (Merivon 0.6 ml/L)
   if (codes.has("FRUIT_ROT") && outRecipe.length < 2) {
     outRecipe.push({ input_id: "FUN_FLUXA_PYRA", dose_per_liter: 0.6 });
   }
 
-  // Synergy 4: Anti-Cracking Foliar Nutrient (Chelated Ca-B 1.5 ml/L)
   if (codes.has("CRACKING")) {
     outRecipe.push({ input_id: "MIC_CA_B_LIQUID", dose_per_liter: 1.5 });
     if (outRecipe.length < 3) outRecipe.push({ input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 });
@@ -762,7 +894,6 @@ function buildSynergisticFoliarRecipe(foliarIssues) {
   return outRecipe;
 }
 
-// Automatically shifts & deduplicates any upcoming baseline foliar spray within 7 days (e.g., Nov 3 Spinetoram + Ca-B)
 async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, curativeRecipe, curativeTaskId) {
   const curativeInputIds = new Set(curativeRecipe.map(r => r.input_id));
   const curativeGroups = new Set(curativeRecipe.map(r => catalog[r.input_id]?.irac_frac_group).filter(Boolean));
@@ -778,33 +909,29 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
 
   if (!nextBaselineSpray) return;
 
-  // 1. Shift baseline spray so it sits at least +6 days after the Curative Spray (e.g., Oct 30 -> Nov 5)
   const targetShiftDate = addDaysYMD(curativeDateStr, 6);
   if (nextBaselineSpray.current_scheduled_date < targetShiftDate) {
     await applyScheduleShift(nextBaselineSpray, targetShiftDate, "TRACK", "CURATIVE_COOLDOWN");
   }
 
-  // 2. Strip or replace any duplicate active salt/group (like Spinetoram on Nov 3) while keeping Chelated Ca-B!
   const beforeLen = (nextBaselineSpray.resolved_recipe || []).length;
   let deduplicated = (nextBaselineSpray.resolved_recipe || []).filter(r => {
     const rCat = catalog[r.input_id];
     if (!rCat) return true;
-    if (rCat.category === "BIOSTIMULANT" || rCat.category === "FERTIGATION") return true; // Always keep Ca-B / Nutrients!
+    if (rCat.category === "BIOSTIMULANT" || rCat.category === "FERTIGATION") return true;
     if (curativeInputIds.has(r.input_id)) return false;
     if (rCat.irac_frac_group && curativeGroups.has(rCat.irac_frac_group)) return false;
     return true;
   });
 
-  // If Spinetoram was removed from Nov 3, pair the remaining Chelated Ca-B with Orthosilicic Acid for rind anti-cracking!
   if (deduplicated.length < beforeLen) {
     if (!deduplicated.some(r => r.input_id === "BIO_ORTHOSILICIC") && catalog["BIO_ORTHOSILICIC"]) {
       deduplicated.push({ input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 });
     }
-    const newNamesEn = deduplicated.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + ");
-    const newNamesKn = deduplicated.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ");
+    const newNamesEn = deduplicated.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ");
     nextBaselineSpray.resolved_recipe = deduplicated;
     nextBaselineSpray.custom_title_en = `Foliar (Auto-Deduplicated after ${curativeDateStr} Spray): ${newNamesEn}`;
-    nextBaselineSpray.custom_title_kn = `ಎಲೆ ಸಿಂಪಡಣೆ (${curativeDateStr} ಸಿಂಪಡಣೆ ನಂತರ ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ): ${newNamesKn}`;
+    nextBaselineSpray.custom_title_kn = `ಎಲೆ ಸಿಂಪಡಣೆ (${curativeDateStr} ಸಿಂಪಡಣೆ ನಂತರ ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ): ${newNamesEn}`;
     nextBaselineSpray.target_description = nextBaselineSpray.custom_title_en;
     nextBaselineSpray.target_description_kn = nextBaselineSpray.custom_title_kn;
 
@@ -821,7 +948,6 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
   }
 }
 
-// 1-Click Optimizer for the existing 4-chemical Oct 30 card + Nov 3 card in DEV
 async function optimizeExistingOverloadedCurativeAndNov3() {
   const overloaded = tasks.find(t =>
     t.status === "PENDING" &&
@@ -831,13 +957,12 @@ async function optimizeExistingOverloadedCurativeAndNov3() {
   );
   if (!overloaded) return;
 
-  // Trim 4 insecticides down to the 2 synergistic ones: Spinetoram (Thrips+Borer) + Spirotetramat (Mealybug)
   overloaded.resolved_recipe = [
     { input_id: "INS_SPINETORAM", dose_per_liter: 0.8 },
     { input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 }
   ];
-  overloaded.custom_title_en = `Synergistic Curative Spray [Thrips + Borer + Mealybug]: Spinetoram 11.7% SC + Spirotetramat 15.31% OD (Auto-scheduled after Oct 25 Copper)`;
-  overloaded.custom_title_kn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ [ಥ್ರಿಪ್ಸ್ + ಹುಳು + ತಿಗಣೆ]: ಸ್ಪೈನೆಟೊರಾಮ್ + ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ (ಅಕ್ಟೋಬರ್ 25ರ ಕಾಪರ್ ನಂತರ 5 ದಿನಗಳ ಅಂತರ)`;
+  overloaded.custom_title_en = `Synergistic Curative Spray [Thrips + Borer + Mealybug]: Spinetoram 11.7% SC + Spirotetramat 15.31% OD`;
+  overloaded.custom_title_kn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ [ಥ್ರಿಪ್ಸ್ + ಹುಳು + ತಿಗಣೆ]: ಸ್ಪೈನೆಟೊರಾಮ್ 11.7% SC + ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ 15.31% OD`;
   overloaded.target_description = overloaded.custom_title_en;
   overloaded.target_description_kn = overloaded.custom_title_kn;
   overloaded.updated_by = activeUser;
@@ -860,7 +985,7 @@ async function optimizeExistingOverloadedCurativeAndNov3() {
 }
 
 function toggleRiskSelection(code) {
-  if (getQueuedTaskCoveringIssue(code)) return; // Already queued!
+  if (getQueuedTaskCoveringIssue(code)) return;
   if (selectedRiskCodes.has(code)) selectedRiskCodes.delete(code);
   else selectedRiskCodes.add(code);
   render();
@@ -935,8 +1060,8 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
     const foliarDateStr = safeSlot.dateStr;
     const synergisticRecipe = buildSynergisticFoliarRecipe(foliarIssues);
 
-    const titleEn = `Synergistic Curative Spray [${foliarIssues.map(x => x.shortEn).join(" + ")}]: ${synergisticRecipe.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + ")} (${safeSlot.noteEn})`;
-    const titleKn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ [${foliarIssues.map(x => x.shortKn).join(" + ")}]: ${synergisticRecipe.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ")} (${safeSlot.noteKn})`;
+    const titleEn = `Synergistic Curative Spray [${foliarIssues.map(x => x.shortEn).join(" + ")}]: ${synergisticRecipe.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ")}`;
+    const titleKn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ [${foliarIssues.map(x => x.shortKn).join(" + ")}]: ${synergisticRecipe.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ")}`;
 
     const existingCurative = tasks.find(t =>
       t.status === "PENDING" &&
@@ -954,8 +1079,8 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
         }
       });
       existingCurative.current_scheduled_date = foliarDateStr;
-      existingCurative.custom_title_en = `Synergistic Curative Spray: ${existingCurative.resolved_recipe.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + ")} (${safeSlot.noteEn})`;
-      existingCurative.custom_title_kn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ: ${existingCurative.resolved_recipe.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ")} (${safeSlot.noteKn})`;
+      existingCurative.custom_title_en = `Synergistic Curative Spray: ${existingCurative.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ")}`;
+      existingCurative.custom_title_kn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ: ${existingCurative.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ")}`;
       existingCurative.updated_by = activeUser;
       existingCurative.updated_at = new Date().toISOString();
 
@@ -992,7 +1117,6 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
       tasks.push(activeCurativeTask);
     }
 
-    // Automatically shift & deduplicate upcoming baseline foliar spray (e.g., Nov 3 Spinetoram + Ca-B)!
     await reconcileUpcomingBaselineFoliarAfterCurative(foliarDateStr, activeCurativeTask.resolved_recipe, activeCurativeTask.id);
   }
 
@@ -1050,14 +1174,13 @@ async function mergeDuplicateSpraysInCurrentWeek() {
   });
 
   const dyn = computeDynamicDadAndWeek(targetDateStr);
-  const chemNamesEn = primary.resolved_recipe.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + ");
-  const chemNamesKn = primary.resolved_recipe.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ");
+  const chemNamesEn = primary.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ");
 
   primary.current_scheduled_date = targetDateStr;
   primary.effective_dad = dyn.dad;
   primary.week_number = dyn.week;
-  primary.custom_title_en = `Merged Tank-Mix Foliar Spray: ${chemNamesEn} (${safeSlot.noteEn})`;
-  primary.custom_title_kn = `ಒಟ್ಟುಗೂಡಿಸಿದ ಎಲೆ ಸಿಂಪಡಣೆ: ${chemNamesKn} (${safeSlot.noteKn})`;
+  primary.custom_title_en = `Merged Tank-Mix Foliar Spray: ${chemNamesEn}`;
+  primary.custom_title_kn = `ಒಟ್ಟುಗೂಡಿಸಿದ ಎಲೆ ಸಿಂಪಡಣೆ: ${chemNamesEn}`;
   primary.target_description = primary.custom_title_en;
   primary.target_description_kn = primary.custom_title_kn;
   primary.updated_by = activeUser;
@@ -1094,13 +1217,13 @@ const I18N = {
     npkLedgerSub: "Calculated across 1,500 plants from all COMPLETED applications so far vs. ICAR-NRCP target curve for today's DAD.",
     manTitle: "➕ Record Manual or Past Spray / Drip", lblManDate: "Date Applied:", lblManType: "Activity Type:", lblManCost: "Total Cost Paid (₹):",
     optFoliar: "🌿 Foliar Spray (7 Drums)", optCopper: "⚠️ Standalone Copper Spray", optDrip: "💧 Drip Fertigation (3 Acres)",
-    lblManChem1: "Primary Input:", lblManChem2: "Second Input (Optional):", lblManNotes: "Notes / Brand Used:",
+    lblManChem1: "Primary Input (Active Salt):", lblManChem2: "Second Input (Optional):", lblManNotes: "Notes / Brand Used:",
     lblManShift: "Auto-adjust future schedule (+3d shift, 5d Copper cooldown, 10d Boron lock & IRAC/FRAC rotation)", btnSaveMan: "💾 Save Activity & Update Schedule",
     expTitle: "💰 Total Recorded Orchard Spend (3 Acres)", shopTitle: "Agro-Store Shopping List (3 Acres)", shopSub: "Skipped and completed items are excluded. Enter shed leftovers below.", btnCopy: "📲 Copy List",
     brandCheckerTitle: "🧪 Agro-Store Brand & Tank-Mix Compatibility Checker", brandCheckerSub: "Select 1 or 2 store brands below to verify active salt, 21-day repeat-spray resistance, and drum mixing order:",
     scoutTitle: "🔍 Field Problem Reporter (Multi-Select & Smart Combine)", scoutSub: "Tick multiple problems to merge them into one synergistic spray, or tap Queue on any single issue.",
     auditTitle: "👤 Recent Activity & User Tracking Log", masterTitle: "📅 Complete Orchard Schedule (Week 0 to Week 30)",
-    modalTitle: "🏪 4-Check Agro-Store Brand Validator", lblBrandSearch: "🔍 What brand did the store dealer offer you?", userModalTitle: "👤 Manage App Users",
+    modalTitle: "🏪 Approved Alternatives & Store Brand Check", lblBrandSearch: "🔍 Dealer offered a specific brand name? Check it here:", userModalTitle: "👤 Manage App Users",
     delayModalTitle: "⏳ Delay / Reschedule Task", lblQuickDelay: "1. Shift Earlier (-), Later (+) or Pick Date:", btnOrigDate: "↺ Original Date", lblNewDate: "New Date:",
     lblCascadeMode: "2. How should subsequent tasks update?", casAllTitle: "🌊 Shift ALL subsequent tasks forward/backward (Recommended)", casAllSub: "Moves all following Sprays and Drips by the exact same days.",
     casTrackTitle: "🛤️ Shift ONLY same-type tasks (Drip or Spray)", casSingleTitle: "📌 Move ONLY this single task",
@@ -1126,13 +1249,13 @@ const I18N = {
     npkLedgerSub: "ಇಲ್ಲಿಯವರೆಗೆ ಪೂರ್ಣಗೊಂಡ ಡ್ರಿಪ್ ಮತ್ತು ಸಿಂಪಡಣೆಗಳಿಂದ 1,500 ಗಿಡಗಳಿಗೆ ತಲುಪಿದ ನಿಖರ N, P, K, Ca, Mg ಪ್ರಮಾಣ.",
     manTitle: "➕ ಮಾಡಿದ ಸಿಂಪಡಣೆ / ಡ್ರಿಪ್ ಗೊಬ್ಬರ ದಾಖಲಿಸಿ", lblManDate: "ಮಾಡಿದ ದಿನಾಂಕ:", lblManType: "ಕೆಲಸದ ವಿಧ:", lblManCost: "ಒಟ್ಟು ಖರ್ಚು (₹):",
     optFoliar: "🌿 ಎಲೆ ಸಿಂಪಡಣೆ (7 ಡ್ರಮ್)", optCopper: "⚠️ ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಸಿಂಪಡಣೆ", optDrip: "💧 ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)",
-    lblManChem1: "ಮೊದಲನೇ ಔಷಧಿ / ಗೊಬ್ಬರ:", lblManChem2: "ಎರಡನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಐಚ್ಛಿಕ):", lblManNotes: "ವಿವರ / ಕಂಪನಿ ಹೆಸರು:",
+    lblManChem1: "ಮೊದಲನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಲವಣಾಂಶ):", lblManChem2: "ಎರಡನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಐಚ್ಛಿಕ):", lblManNotes: "ವಿವರ / ಕಂಪನಿ ಹೆಸರು:",
     lblManShift: "ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸಿ (+3 ದಿನ ಮುಂದೂಡಿಕೆ, 5 ದಿನ ಕಾಪರ್ ಅಂತರ, ಬೋರಾನ್ ಮಿತಿ)", btnSaveMan: "💾 ದಾಖಲಿಸಿ ಮತ್ತು ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ",
     expTitle: "💰 ಒಟ್ಟು ದಾಖಲಾದ ತೋಟದ ಖರ್ಚು (3 ಎಕರೆ)", shopTitle: "ಅಗ್ರೋ ಅಂಗಡಿ ಖರೀದಿ ಪಟ್ಟಿ (3 ಎಕರೆ)", shopSub: "ಪೂರ್ಣಗೊಂಡ ಮತ್ತು ಬಿಟ್ಟುಬಿಟ್ಟ ಔಷಧಿಗಳನ್ನು ಕೈಬಿಡಲಾಗಿದೆ. ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣ ನಮೂದಿಸಿ.", btnCopy: "📲 ಪಟ್ಟಿ ಕಾಪಿ ಮಾಡಿ",
     brandCheckerTitle: "🧪 ಅಗ್ರೋ ಅಂಗಡಿ ಕಂಪನಿ ಹೆಸರು & ಮಿಶ್ರಣ ಪರೀಕ್ಷಕ", brandCheckerSub: "ಅಂಗಡಿಯವರು ಕೊಡುವ ಕಂಪನಿ ಹೆಸರನ್ನು ಕೆಳಗೆ ಆರಿಸಿ — ಲವಣಾಂಶ, 21 ದಿನದ ಪುನರಾವರ್ತನೆ ಮತ್ತು ಡ್ರಮ್ ಮಿಶ್ರಣ ಕ್ರಮ ತಿಳಿಯಿರಿ:",
     scoutTitle: "🔍 ತೋಟದ ರೋಗ / ಕೀಟ ವರದಿ ಮಾಡಿ (ಮಲ್ಟಿ-ಸೆಲೆಕ್ಟ್ ಮತ್ತು ಒಂದೇ ಸಿಂಪಡಣೆ)", scoutSub: "ಎರಡು ಅಥವಾ ಹೆಚ್ಚು ಸಮಸ್ಯೆಗಳನ್ನು ಟಿಕ್ ಮಾಡಿ ಒಂದೇ ಸಿಂಪಡಣೆಯಾಗಿ ಸೇರಿಸಿ.",
     auditTitle: "👤 ಯಾರು, ಯಾವಾಗ ಬದಲಾವಣೆ ಮಾಡಿದರು (ದಾಖಲೆ ಪಟ್ಟಿ)", masterTitle: "📅 ಪೂರ್ಣ ವೇಳಾಪಟ್ಟಿ (ವಾರ 0 ರಿಂದ ವಾರ 30 ರವರೆಗೆ)",
-    modalTitle: "🏪 ಅಗ್ರೋ ಅಂಗಡಿ ಕಂಪನಿ ಹೆಸರು & ಪರ್ಯಾಯ ಪರೀಕ್ಷಕ", lblBrandSearch: "🔍 ಅಂಗಡಿಯವರು ಯಾವ ಕಂಪನಿಯ ಔಷಧಿ ಕೊಡುತ್ತಿದ್ದಾರೆ?", userModalTitle: "👤 ಬಳಕೆದಾರರ ಹೆಸರು ನಿರ್ವಹಿಸಿ",
+    modalTitle: "🏪 ಅನುಮೋದಿತ ಪರ್ಯಾಯಗಳು & ಕಂಪನಿ ಹೆಸರು ಪರೀಕ್ಷಕ", lblBrandSearch: "🔍 ಅಂಗಡಿಯವರು ಬೇರೆ ಕಂಪನಿ ಹೆಸರು ಕೊಡುತ್ತಿದ್ದಾರೆಯೇ? ಇಲ್ಲಿ ಪರಿಶೀಲಿಸಿ:", userModalTitle: "👤 ಬಳಕೆದಾರರ ಹೆಸರು ನಿರ್ವಹಿಸಿ",
     delayModalTitle: "⏳ ದಿನಾಂಕ ಬದಲಿಸಿ / ಮುಂದೂಡಿ", lblQuickDelay: "1. ದಿನಗಳನ್ನು ಹಿಂದೆ (-) / ಮುಂದೆ (+) ಮಾಡಿ ಅಥವಾ ದಿನಾಂಕ ಆರಿಸಿ:", btnOrigDate: "↺ ಮೂಲ ದಿನಾಂಕಕ್ಕೆ ತನ್ನಿ", lblNewDate: "ಹೊಸ ದಿನಾಂಕ:",
     lblCascadeMode: "2. ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಹೇಗೆ ಬದಲಾಗಬೇಕು?", casAllTitle: "🌊 ಮುಂದಿನ ಎಲ್ಲಾ ಸಿಂಪಡಣೆ ಮತ್ತು ಡ್ರಿಪ್ ಒಟ್ಟಿಗೆ ಬದಲಿಸಿ (ಶಿಫಾರಸು)", casAllSub: "ಮುಂದಿನ ಎಲ್ಲಾ ಕೆಲಸಗಳೂ ಅಷ್ಟೇ ದಿನ ಮುಂದೆ ಅಥವಾ ಹಿಂದೆ ಬರುತ್ತವೆ.",
     casTrackTitle: "🛤️ ಇದೇ ವಿಧದ ಕೆಲಸಗಳನ್ನು ಮಾತ್ರ ಬದಲಿಸಿ (ಡ್ರಿಪ್ ಅಥವಾ ಸಿಂಪಡಣೆ ಮಾತ್ರ)", casSingleTitle: "📌 ಈ ಒಂದು ಕೆಲಸವನ್ನು ಮಾತ್ರ ಬದಲಿಸಿ",
@@ -1142,7 +1265,7 @@ const I18N = {
     rn3: "⛈️ ಜೋರು ಮಳೆ (~20 ಮಿ.ಮೀ) — ಸಾಲುಗಳಲ್ಲಿ ನೀರು ಹರಿದಿದೆ (48ಗಂ ಡ್ರಿಪ್ ನಿಲ್ಲಿಸಿ + ಕಾಪರ್)", rn4: "🌊 ಭಾರಿ ಮಳೆ (~35 ಮಿ.ಮೀ) — ಗಿಡದ ಬುಡದಲ್ಲಿ ನೀರು ನಿಂತಿದೆ",
     weekWord: "ವಾರ", preEthrelLabel: "📜 ವಾರ 0: ಎಥ್ರೆಲ್ ಮುಂಚಿನ ದಾಖಲೆಗಳು (15 ಆಗಸ್ಟ್ 2026 ಕ್ಕಿಂತ ಮೊದಲು)", dadWord: "ದಿನ (DAD)",
     doneBtn: "✅ ಎಲ್ಲಾ ಪೂರ್ಣ", delayBtn: "⏳ ದಿನಾಂಕ ಬದಲಿಸಿ", skipBtn: "⏭️ ಬಿಟ್ಟುಬಿಡಿ", resetBtn: "↺ ಮರುಹೊಂದಿಸಿ", deleteBtn: "🗑️ ಅಳಿಸಿ", storeOutBtn: "🏪 ಬದಲಿಸಿ / ಕಂಪನಿ",
-    mustSource: "🔴 ಇದೇ ಔಷಧಿ ಕಡ್ಡಾಯ", flexible: "🟢 ಬದಲಿಸಬಹುದು",
+    mustSource: "🔴 ಇದೇ ಲವಣಾಂಶ ಕಡ್ಡಾಯ", flexible: "🟢 ಬದಲಿಸಬಹುದು",
     status_PENDING: "🕒 ಬಾಕಿ ಇದೆ", status_PARTIAL: "🌗 ಅರ್ಧ ಪೂರ್ಣಗೊಂಡಿದೆ", status_COMPLETED: "✅ ಪೂರ್ಣಗೊಂಡಿದೆ", status_DELAYED: "⏳ ದಿನಾಂಕ ಬದಲಾಗಿದೆ", status_SKIPPED: "⏭️ ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ",
     type_DRIP_MON_THU: "💧 ಮುಖ್ಯ P-K ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)", type_DRIP_SAT: "💧 ಕ್ಯಾಲ್ಸಿಯಂ / ಲಘು ಪೋಷಕಾಂಶ ಡ್ರಿಪ್ (3 ಎಕರೆ)",
     type_FOLIAR_SPRAY: "🌿 ಎಲೆ ಸಿಂಪಡಣೆ (7 ಡ್ರಮ್ × 200 ಲೀಟರ್)", type_STANDALONE_COPPER: "⚠️ ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ (ಬೇರೆ ಬೆರೆಸಬೇಡಿ)",
@@ -1359,8 +1482,7 @@ function onSaltOrPctChange() {
 }
 
 function deriveSmartChemAttributes() {
-  const nameEn = document.getElementById("ncNameEn").value.trim() || "New Brand";
-  const nameKn = document.getElementById("ncNameKn").value.trim() || nameEn;
+  const nameEn = document.getElementById("ncNameEn").value.trim() || "Custom Brand";
   const baseSalt = document.getElementById("ncSaltBase").value.trim() || nameEn;
   const pct = document.getElementById("ncSaltPct").value.trim();
   const form = document.getElementById("ncFormulation").value;
@@ -1381,6 +1503,9 @@ function deriveSmartChemAttributes() {
   document.getElementById("ncDoseLabel").textContent = method === "FOLIAR" ? "5. Dose per Liter:" : "5. Dose per Acre:";
 
   const fullSalt = `${baseSalt}${pct ? " " + pct + "%" : ""}${form ? " " + form : ""}`.trim();
+  const nameKnInput = document.getElementById("ncNameKn").value.trim();
+  const fullSaltKn = nameKnInput ? `${nameKnInput}${pct ? " " + pct + "%" : ""}${form ? " " + form : ""}`.trim() : fullSalt;
+
   const matched = findMatchingCatalogItemByBaseSalt(baseSalt);
   const lowSalt = (baseSalt + " " + nameEn).toLowerCase();
 
@@ -1411,7 +1536,7 @@ function deriveSmartChemAttributes() {
   const mgPct = Number(document.getElementById("ncMg").value) || 0;
 
   return {
-    nameEn, nameKn, baseSalt, fullSalt, form, category, method, dose, unit,
+    nameEn, fullSalt, fullSaltKn, form, category, method, dose, unit,
     isCopper, incompCopper, incompCalcium, iracFrac, matched,
     nPct, pPct, kPct, caPct, mgPct, containsNitrogen: nPct > 0
   };
@@ -1425,28 +1550,22 @@ function previewSmartChem() {
     ? `${Math.round(d.dose * CFG.drumL)} ${d.unit} / 200L Drum (${Math.round(d.dose * CFG.drumL * CFG.drums)} ${d.unit} for 3 Acres)`
     : `${d.dose} ${d.unit} / Acre (${(d.dose * CFG.acres).toFixed(1)} ${d.unit} for 3 Acres)`;
 
-  const rules = [];
-  if (d.isCopper) rules.push("🛡️ Recognised as Copper Compound (Activates 5-day cooldown + reduces Bacterial Blight Risk by -20%)");
-  if (d.incompCopper) rules.push("⚠️ Incompatible with Copper (Blocked from mixing in same drum with Copper)");
-  if (d.incompCalcium) rules.push("⚠️ Incompatible with Calcium Nitrate (Blocked from same-day drip mixing)");
-  if (d.iracFrac) rules.push(`🧬 Resistance Group: ${d.iracFrac} (Tracked in 21-day repeat-spray check)`);
-  if (d.matched) rules.push(`🔗 Linked to existing salt family: ${d.matched.name_en}`);
-
   document.getElementById("ncRecognitionPreview").innerHTML = `
-    <div class="font-extrabold text-emerald-950">🧠 System Recognition Preview:</div>
-    <div>🧪 <b>Full Composition Saved:</b> <span class="bg-white px-1.5 py-0.5 rounded border font-mono">${d.fullSalt}</span></div>
-    <div>🪣 <b>W-A-L-E-S Mixing Slot:</b> ${walesText} • ⚖️ <b>Math:</b> ${perDrumOrAc}</div>
-    ${rules.map(r => `<div>• ${r}</div>`).join("")}
+    <div class="font-extrabold text-emerald-950">🧠 Standardized Card Display Preview:</div>
+    <div>🧪 <b>Main Card Title (Salt Only):</b> <span class="bg-white px-1.5 py-0.5 rounded border font-bold">${d.fullSalt}</span></div>
+    <div>🏷️ <b>Subtitle (Brand Only):</b> ${d.nameEn}</div>
+    <div>🪣 <b>W-A-L-E-S Slot:</b> ${walesText} • ⚖️ <b>Math:</b> ${perDrumOrAc}</div>
   `;
 }
 
 async function saveNewChemical() {
   const d = deriveSmartChemAttributes();
-  if (!d.nameEn) return;
+  if (!d.fullSalt) return;
 
   const id = "CUSTOM_" + d.nameEn.toUpperCase().replace(/[^A-Z0-9]/g, "_").slice(0, 14) + "_" + Math.floor(Math.random() * 90 + 10);
+  // Save Active Salt as `name_en` and Brand Name in `popular_brands` so all cards stay 100% consistent!
   const newChem = {
-    id, name_en: `${d.nameEn} (${d.fullSalt})`, name_kn: `${d.nameKn} (${d.fullSalt})`,
+    id, name_en: d.fullSalt, name_kn: d.fullSaltKn,
     category: d.category, active_ingredient: d.fullSalt, popular_brands: d.nameEn,
     irac_frac_group: d.iracFrac, application_method: d.method,
     base_dose_per_liter: d.method === "FOLIAR" ? d.dose : null, base_dose_per_acre: d.method === "DRIP" ? d.dose : null,
@@ -1458,7 +1577,7 @@ async function saveNewChemical() {
   };
 
   catalog[id] = newChem;
-  const brandEntry = { brand_name: d.nameEn, company_name: d.form, input_id: id, primary_use_en: d.fullSalt, primary_use_kn: d.nameKn };
+  const brandEntry = { brand_name: d.nameEn, company_name: d.form, input_id: id, primary_use_en: d.fullSalt, primary_use_kn: d.fullSaltKn };
   brandsDir.push(brandEntry);
 
   document.getElementById("newChemModal").classList.add("hidden");
@@ -1467,7 +1586,7 @@ async function saveNewChemical() {
 
   await dbMutate({ table: "inputs_catalog", type: "insert", payload: [newChem] });
   await dbMutate({ table: "commercial_brands_directory", type: "insert", payload: [brandEntry] });
-  await logAudit("NEW_CHEMICAL_ADDED", `${d.nameEn} [${d.fullSalt}]`, `${d.dose} ${d.unit}`);
+  await logAudit("NEW_CHEMICAL_ADDED", `${d.fullSalt} [Brand: ${d.nameEn}]`, `${d.dose} ${d.unit}`);
 }
 
 function renderAnalyticsTab() {
@@ -1677,9 +1796,9 @@ async function loadDB() {
         target_description_kn: q.custom_title_kn || ""
       };
     });
-    localStorage.setItem(`h_cache_v14_${APP_ENV}`, JSON.stringify({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList }));
+    localStorage.setItem(`h_cache_v15_${APP_ENV}`, JSON.stringify({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList }));
   } catch (e) {
-    const c = localStorage.getItem(`h_cache_v14_${APP_ENV}`);
+    const c = localStorage.getItem(`h_cache_v15_${APP_ENV}`);
     if (c) ({ catalog, subs, brandsDir, leftovers, tasks, templates, auditLogs, usersList } = JSON.parse(c));
   }
   updateSyncBadge(); renderUserDropdown(); populateManualSelects(); populateBrandCheckerDropdowns();
@@ -1688,7 +1807,8 @@ async function loadDB() {
 function populateManualSelects() {
   const s1 = document.getElementById("manChem1"), s2 = document.getElementById("manChem2"); if (!s1 || !s2) return;
   const c1 = s1.value, c2 = s2.value;
-  const opts = Object.values(catalog).map(c => `<option value="${c.id}">${LANG === "KN" && c.name_kn ? c.name_kn : c.name_en} [${c.active_ingredient || c.unit}]</option>`).join("");
+  // Standardized dropdown: Salt Name first -> [Store Brands]
+  const opts = Object.values(catalog).map(c => `<option value="${c.id}">${getSaltOnlyTitle(c)} — [🏷️ ${getBrandOnlySubtitle(c)}]</option>`).join("");
   s1.innerHTML = opts; s2.innerHTML = `<option value="">-- ${LANG === "KN" ? "ಯಾವುದೂ ಇಲ್ಲ" : "None"} --</option>` + opts;
   if (c1) s1.value = c1; if (c2) s2.value = c2;
   prefillManualQty(1); prefillManualQty(2);
@@ -1697,9 +1817,13 @@ function populateManualSelects() {
 function populateBrandCheckerDropdowns() {
   const b1 = document.getElementById("checkerBrand1"), b2 = document.getElementById("checkerBrand2");
   if (!b1 || !b2) return;
-  const list = brandsDir.length > 0 ? brandsDir : Object.values(catalog).map(c => ({ brand_name: c.popular_brands || c.name_en, company_name: c.category, input_id: c.id, primary_use_en: c.active_ingredient, primary_use_kn: c.name_kn }));
-  const opts = list.map(b => `<option value="${b.input_id}">🏷️ ${b.brand_name} (${b.company_name}) — ${LANG === "KN" ? b.primary_use_kn : b.primary_use_en}</option>`).join("");
-  b1.innerHTML = `<option value="">-- ${LANG === "KN" ? "1ನೇ ಕಂಪನಿ ಹೆಸರು ಆರಿಸಿ" : "Select 1st Brand Name"} --</option>` + opts;
+  const list = brandsDir.length > 0 ? brandsDir : Object.values(catalog).map(c => ({ brand_name: c.popular_brands || c.name_en, company_name: c.category, input_id: c.id }));
+  const opts = list.map(b => {
+    const cat = catalog[b.input_id];
+    const saltTitle = cat ? getSaltOnlyTitle(cat) : b.primary_use_en;
+    return `<option value="${b.input_id}">🏷️ ${b.brand_name} (${b.company_name}) → ${saltTitle}</option>`;
+  }).join("");
+  b1.innerHTML = `<option value="">-- ${LANG === "KN" ? "1ನೇ ಕಂಪನಿ ಹೆಸರು ಆರಿಸಿ" : "Select 1st Store Brand"} --</option>` + opts;
   b2.innerHTML = `<option value="">-- ${LANG === "KN" ? "2ನೇ ಕಂಪನಿ ಹೆಸರು (ಬೆರೆಸಲು ಪರಿಶೀಲಿಸಿ)" : "Select 2nd Brand (Check Tank-Mix)"} --</option>` + opts;
 }
 
@@ -1717,13 +1841,13 @@ function checkRecentSprayResistance(inputId, refDateStr) {
 
       if (isSameBaseSalt && cat.category !== "FERTIGATION" && cat.category !== "BIOSTIMULANT") {
         return {
-          msgEn: `⚠️ DUPLICATE SALT WARNING: You already sprayed this active salt (${pastCat.active_ingredient}) on ${t.current_scheduled_date}. Repeating within 21 days builds resistance!`,
-          msgKn: `⚠️ ಒಂದೇ ಲವಣಾಂಶ ಎಚ್ಚರಿಕೆ: ನೀವು ಇದೇ ಲವಣಾಂಶವನ್ನು (${pastCat.active_ingredient}) ${t.current_scheduled_date} ರಂದು ಸಿಂಪಡಿಸಿದ್ದೀರಿ!`
+          msgEn: `⚠️ DUPLICATE SALT WARNING: You already sprayed this active salt (${getSaltOnlyTitle(pastCat)}) on ${t.current_scheduled_date}. Repeating within 21 days builds resistance!`,
+          msgKn: `⚠️ ಒಂದೇ ಲವಣಾಂಶ ಎಚ್ಚರಿಕೆ: ನೀವು ಇದೇ ಲವಣಾಂಶವನ್ನು (${getSaltOnlyTitle(pastCat)}) ${t.current_scheduled_date} ರಂದು ಸಿಂಪಡಿಸಿದ್ದೀರಿ!`
         };
       }
       if (cat.irac_frac_group && pastCat.irac_frac_group === cat.irac_frac_group && cat.irac_frac_group !== "FRAC-M01" && cat.irac_frac_group !== "FRAC-M03") {
         return {
-          msgEn: `⚠️ RESISTANCE GROUP ROTATION ALERT: ${cat.name_en} is in group ${cat.irac_frac_group}, recently sprayed on ${t.current_scheduled_date} (${pastCat.name_en}).`,
+          msgEn: `⚠️ RESISTANCE GROUP ROTATION ALERT: ${getSaltOnlyTitle(cat)} is in group ${cat.irac_frac_group}, recently sprayed on ${t.current_scheduled_date} (${getSaltOnlyTitle(pastCat)}).`,
           msgKn: `⚠️ ಗುಂಪು ಬದಲಾವಣೆ ಸಲಹೆ: ಇದು ${cat.irac_frac_group} ಗುಂಪಿಗೆ ಸೇರಿದೆ (${t.current_scheduled_date} ರಂದು ಬಳಸಲಾಗಿದೆ).`
         };
       }
@@ -1741,9 +1865,9 @@ function runStandaloneBrandChecker() {
     const c = catalog[id]; if (!c) return;
     const doseStr = c.base_dose_per_liter ? `${Math.round(c.base_dose_per_liter * CFG.drumL)} ${c.unit}/Drum` : `${c.base_dose_per_acre} ${c.unit}/Acre`;
     const resWarn = checkRecentSprayResistance(id, todayYMD());
-    htmlParts.push(`<div class="p-2.5 bg-slate-50 border rounded-lg">
-      <div class="font-extrabold text-slate-900">${LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en} <span class="text-emerald-700">[${c.category}]</span></div>
-      <div class="text-slate-600">🧪 <b>Active Salt:</b> ${c.active_ingredient} • ⚖️ <b>Dose:</b> ${doseStr}</div>
+    htmlParts.push(`<div class="p-2.5 bg-slate-50 border rounded-lg space-y-0.5">
+      <div class="font-extrabold text-slate-900 flex items-center gap-1.5">${getSaltOnlyTitle(c)} ${getUniformGroupBadge(c)}</div>
+      <div class="text-slate-600">🏷️ <b>Store Brands:</b> ${getBrandOnlySubtitle(c)} • ⚖️ <b>Dose:</b> ${doseStr}</div>
       ${resWarn ? `<div class="p-2 mt-1 bg-amber-100 border border-amber-300 text-amber-950 rounded font-bold">${LANG === "KN" ? resWarn.msgKn : resWarn.msgEn}</div>` : `<div class="text-emerald-700 font-bold mt-0.5">✅ No repeat-salt conflict in past 21 days.</div>`}
     </div>`);
   });
@@ -1805,7 +1929,7 @@ function render() {
     "lblDelayReason","rsnRain","rsnPower","rsnLabor","rsnStore","btnConfirmDelay","rainModalTitle","rainModalSub","rn1","rn2","rn3","rn4"
   ].forEach(k => { const el = document.getElementById(`ui_${k}`); if (el && L[k]) el.textContent = L[k]; });
 
-  updateWBar();
+  updateWBar(); populateManualSelects(); populateBrandCheckerDropdowns();
 
   const sel = document.getElementById("wkSelect"), loc = LANG === "KN" ? "kn-IN" : "en-IN";
   sel.innerHTML = `<option value="0" ${curWk === 0 ? "selected" : ""}>${L.preEthrelLabel}</option>`;
@@ -1829,7 +1953,6 @@ function render() {
     document.getElementById("dadTitle").textContent = `${dadStart}–${dadEnd} ${L.dadWord} • ${LANG === "KN" ? (STAGE_KN[rawStage] || rawStage) : rawStage}`;
   }
 
-  // Banners for Duplicate Same-Week Sprays OR 4-Chemical Overloaded Card
   const pendingWkFoliars = wkTasks.filter(t => t.status === "PENDING" && t.task_type === "FOLIAR_SPRAY");
   const overloadedCurative = tasks.find(t => t.status === "PENDING" && t.trigger_source === "SCOUTING_CURATIVE" && t.task_type === "FOLIAR_SPRAY" && (t.resolved_recipe || []).length >= 3);
   const mergeBanners = [];
@@ -1838,7 +1961,7 @@ function render() {
     mergeBanners.push(`<div class="p-3 rounded-xl bg-amber-50 border-2 border-amber-400 text-amber-950 text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm">
       <div>
         <div class="font-extrabold">⚖️ ${LANG === "KN" ? "4 ಕೀಟನಾಶಕಗಳ ಮಿಶ್ರಣ ಪತ್ತೆಯಾಗಿದೆ — 2 ಸಿನರ್ಜಿಸ್ಟಿಕ್ ಔಷಧಿಗಳಿಗೆ ಇಳಿಸಿ!" : "4-Insecticide Tank Mix Detected on " + overloadedCurative.current_scheduled_date + "!"}</div>
-        <div class="text-[11px] text-amber-900">${LANG === "KN" ? "ಸ್ಪೈನೆಟೊರಾಮ್ (ಥ್ರಿಪ್ಸ್+ಹುಳು) + ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ (ತಿಗಣೆ) ಸಾಕು; ನವೆಂಬರ್ 3ರ ಸಿಂಪಡಣೆಯನ್ನೂ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸುತ್ತದೆ." : "Spinetoram covers BOTH Thrips & Borer. Tap below to trim to 2 synergistic insecticides (Spinetoram + Spirotetramat) and auto-shift/deduplicate Nov 3!"}</div>
+        <div class="text-[11px] text-amber-900">${LANG === "KN" ? "ಸ್ಪೈನೆಟೊರಾಮ್ (ಥ್ರಿಪ್ಸ್+ಹುಳು) + ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ (ತಿಗಣೆ) ಸಾಕು; ನವೆಂಬರ್ 3ರ ಸಿಂಪಡಣೆಯನ್ನೂ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸುತ್ತದೆ." : "Spinetoram covers BOTH Thrips & Borer. Tap below to trim to 2 synergistic insecticides and auto-shift/deduplicate Nov 3!"}</div>
       </div>
       <button onclick="optimizeExistingOverloadedCurativeAndNov3()" class="bg-amber-600 hover:bg-amber-700 text-white font-extrabold px-3 py-2 rounded-lg shadow shrink-0">
         ✨ ${LANG === "KN" ? "ಅಕ್ಟೋಬರ್ 30 & ನವೆಂಬರ್ 3 ಹೊಂದಿಸಿ" : "Optimize Oct 30 & Update Nov 3"}
@@ -1859,7 +1982,6 @@ function render() {
   }
   document.getElementById("sameDayMergeBanner").innerHTML = mergeBanners.join("");
 
-  // Consolidated High-Risk Banner (Checks if already queued!)
   const risks = computeAllSixRisks();
   const dad1 = curWk === 0 ? -10 : (curWk - 1) * 7, al = [];
   const highRiskIssues = SCOUT_ISSUES.filter(iss => (risks[iss.code]?.score || 0) >= 65);
@@ -1915,9 +2037,14 @@ function render() {
       const wasShifted = tk.originally_scheduled_date && tk.originally_scheduled_date !== tk.current_scheduled_date;
       const walesGuide = getWalesMixingGuide(recipeArr);
 
+      // STANDARDIZED ITEM ROW: Line 1 = Active Salt + Uniform Group Badge, Line 2 = Dose, Line 3 = Store Brands ONLY!
       const itemsHtml = recipeArr.map((it, idx) => {
-        const cat = catalog[it.input_id] || { id: it.input_id, name_en: it.input_id, name_kn: it.input_id, unit: it.dose_per_liter ? "ml" : "kg", procurement_criticality: "FLEXIBLE" };
-        const chemName = LANG === "KN" ? (cat.name_kn || cat.name_en) : cat.name_en, m = cat.id === "WSF_00_00_50" ? sopMult : 1.0;
+        const cat = catalog[it.input_id] || { id: it.input_id, name_en: it.input_id, active_ingredient: it.input_id, unit: it.dose_per_liter ? "ml" : "kg", procurement_criticality: "FLEXIBLE", category: "INPUT" };
+        const saltTitle = getSaltOnlyTitle(cat);
+        const brandsSubtitle = getBrandOnlySubtitle(cat);
+        const groupBadge = getUniformGroupBadge(cat);
+
+        const m = cat.id === "WSF_00_00_50" ? sopMult : 1.0;
         const itemSt = it.item_status || (tk.status === "COMPLETED" ? "COMPLETED" : tk.status === "SKIPPED" ? "SKIPPED" : "PENDING");
         const suggestedTotal3Ac = it.dose_per_liter ? Math.round(it.dose_per_liter * m * CFG.drumL * CFG.drums) : Number((it.dose_per_acre * m * CFG.acres).toFixed(2));
         const perUnitText = it.dose_per_liter ? (LANG === "KN" ? `ಪ್ರತಿ 200L ಡ್ರಮ್‌ಗೆ: <b>${Math.round(it.dose_per_liter * m * CFG.drumL)} ${cat.unit}</b>` : `Per 200L Drum: <b>${Math.round(it.dose_per_liter * m * CFG.drumL)} ${cat.unit}</b>`) : (LANG === "KN" ? `ಪ್ರತಿ ಎಕರೆಗೆ: <b>${(it.dose_per_acre * m).toFixed(2)} ${cat.unit}</b>` : `Per Acre: <b>${(it.dose_per_acre * m).toFixed(2)} ${cat.unit}</b>`);
@@ -1925,16 +2052,16 @@ function render() {
         const isCrit = cat.procurement_criticality === "CRITICAL_MUST_SOURCE";
         const rowBg = itemSt === "COMPLETED" ? "bg-emerald-50/80 border-emerald-300" : itemSt === "SKIPPED" ? "bg-slate-100 border-slate-200 opacity-60 line-through" : "bg-slate-50 border-slate-200";
 
-        return `<div class="p-2.5 rounded-xl border ${rowBg} space-y-2">
+        return `<div class="p-2.5 rounded-xl border ${rowBg} space-y-1.5">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
             <div>
-              <div class="font-bold text-sm flex items-center gap-1.5 flex-wrap">
-                <span>${chemName}</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded ${isCrit ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'}">${isCrit ? L.mustSource : L.flexible}</span>
-                ${cat.irac_frac_group ? `<span class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono">${cat.irac_frac_group}</span>` : ""}
+              <div class="font-extrabold text-sm text-slate-900 flex items-center gap-1.5 flex-wrap">
+                <span>🧪 ${saltTitle}</span>
+                ${groupBadge}
+                <span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${isCrit ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'}">${isCrit ? L.mustSource : L.flexible}</span>
               </div>
-              <div class="text-xs text-slate-600 mt-0.5">${perUnitText} • ${LANG === "KN" ? "ಶಿಫಾರಸು (3 ಎಕರೆ)" : "Suggested 3-Acre"}: <b>${suggestedTotal3Ac} ${cat.unit}</b></div>
-              <div class="text-[11px] text-slate-500">🧪 <b>Salt:</b> ${cat.active_ingredient || ''} ${cat.popular_brands ? `• 🏷️ <b>Brands:</b> ${cat.popular_brands}` : ''}</div>
+              <div class="text-xs text-slate-700 mt-0.5">${perUnitText} • ${LANG === "KN" ? "ಶಿಫಾರಸು (3 ಎಕರೆ)" : "Suggested 3-Acre"}: <b>${suggestedTotal3Ac} ${cat.unit}</b></div>
+              <div class="text-[11px] text-slate-500">🏷️ <b>${LANG === "KN" ? "ಮಾರುಕಟ್ಟೆ ಹೆಸರು (Brands):" : "Store Brands:"}</b> ${brandsSubtitle}</div>
             </div>
             <div class="flex flex-wrap items-center gap-1.5 pt-1 sm:pt-0">
               <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
@@ -2000,15 +2127,18 @@ function render() {
     });
   });
   document.getElementById("shopBox").innerHTML = Object.keys(tot).map(id => {
-    const c = catalog[id] || { name_en: id, name_kn: id, unit: "" }, dispName = LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en;
+    const c = catalog[id] || { name_en: id, active_ingredient: id, unit: "" };
     const need = Number(tot[id].toFixed(2)), left = Number(leftovers[id] || 0), buy = Math.max(0, Number((need - left).toFixed(2)));
     return `<div class="py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-      <div><div class="font-bold text-sm">${dispName} <span class="text-slate-400 font-normal">(${c.popular_brands || ""})</span></div><div>${LANG === "KN" ? "3 ಎಕರೆಗೆ ಬಾಕಿ ಅಗತ್ಯ" : "Pending 3-Acre Need"}: <b>${need} ${c.unit}</b> • <span class="text-emerald-800 font-bold">${LANG === "KN" ? "ಖರೀದಿಸಬೇಕಾದ್ದು" : "Net to Buy"}: ${buy} ${c.unit}</span></div></div>
+      <div>
+        <div class="font-bold text-sm">🧪 ${getSaltOnlyTitle(c)} ${getUniformGroupBadge(c)}</div>
+        <div class="text-[11px] text-slate-500">🏷️ <b>Store Brands:</b> ${getBrandOnlySubtitle(c)}</div>
+        <div class="mt-0.5">${LANG === "KN" ? "3 ಎಕರೆಗೆ ಬಾಕಿ ಅಗತ್ಯ" : "Pending 3-Acre Need"}: <b>${need} ${c.unit}</b> • <span class="text-emerald-800 font-bold">${LANG === "KN" ? "ಖರೀದಿಸಬೇಕಾದ್ದು" : "Net to Buy"}: ${buy} ${c.unit}</span></div>
+      </div>
       <div class="flex items-center gap-1.5"><span>${LANG === "KN" ? "ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದದ್ದು:" : "Shed Leftover:"}</span><input type="number" value="${left}" onchange="saveLeftover('${id}',this.value)" class="w-16 border rounded px-2 py-1 font-bold"/></div>
     </div>`;
   }).join("") || `<div class="py-3 text-xs text-slate-500">${LANG === "KN" ? "ಈ ವಾರ ಯಾವುದೇ ಖರೀದಿ ಅಗತ್ಯವಿಲ್ಲ." : "No pending inputs needed for this week."}</div>`;
 
-  // Scouting Grid with Queued State Detection
   document.getElementById("scoutGrid").innerHTML = SCOUT_ISSUES.map(iss => {
     const rObj = risks[iss.code] || { score: 20, whyEn: "", whyKn: "" };
     const sc = rObj.score, queuedTask = getQueuedTaskCoveringIssue(iss.code);
@@ -2053,33 +2183,63 @@ function render() {
   }).join("");
 }
 
+// ============================================================================
+// SIMPLIFIED SWAP MODAL: SHOWS ONLY APPROVED ALTERNATIVES (NO GRAY LIST!)
+// ============================================================================
 function openSwap(taskId, idx, id) {
   const c = catalog[id]; if (!c) return;
   activeSwapContext = { taskId, itemIdx: idx, primaryInputId: id };
+
   const bSel = document.getElementById("modalBrandSelect");
-  const list = brandsDir.length > 0 ? brandsDir : Object.values(catalog).map(x => ({ brand_name: x.popular_brands || x.name_en, company_name: x.category, input_id: x.id, primary_use_en: x.active_ingredient, primary_use_kn: x.name_kn }));
-  bSel.innerHTML = `<option value="">-- ${LANG === "KN" ? "ಅಂಗಡಿಯ ಕಂಪನಿ ಹೆಸರು ಆರಿಸಿ (85+ Brands)" : "Select Any Store Brand to Verify (85+ Brands)"} --</option>` +
-    list.map(b => `<option value="${b.input_id}">🏷️ ${b.brand_name} (${b.company_name}) — ${LANG === "KN" ? b.primary_use_kn : b.primary_use_en}</option>`).join("");
+  const list = brandsDir.length > 0 ? brandsDir : Object.values(catalog).map(x => ({ brand_name: x.popular_brands || x.name_en, company_name: x.category, input_id: x.id }));
+  bSel.innerHTML = `<option value="">-- ${LANG === "KN" ? "ಅಂಗಡಿಯ ಕಂಪನಿ ಹೆಸರು ಆರಿಸಿ (85+ Brands)" : "Select a Store Brand to Check (85+ Brands)"} --</option>` +
+    list.map(b => {
+      const bc = catalog[b.input_id];
+      return `<option value="${b.input_id}">🏷️ ${b.brand_name} (${b.company_name}) → ${bc ? getSaltOnlyTitle(bc) : ""}</option>`;
+    }).join("");
   document.getElementById("modalBrandAuditResult").innerHTML = "";
 
-  const dispName = LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en;
-  const directSubs = subs.filter(s => s.primary_input_id === id);
-  const sameCat = Object.values(catalog).filter(x => x.id !== id && x.category === c.category && x.application_method === c.application_method);
+  const approvedList = getApprovedAlternativesForInput(id);
 
-  let h = `<div class="p-2.5 bg-slate-100 rounded-lg"><div class="font-extrabold text-sm">${dispName}</div><div class="text-slate-600">Salt: ${c.active_ingredient} ${c.irac_frac_group ? `(${c.irac_frac_group})` : ""} • Brands: ${c.popular_brands || ""}</div></div>`;
-  if (c.dealer_warning_en) h += `<div class="p-2.5 bg-red-50 border border-red-200 text-red-900 rounded-lg">⚠️ ${c.dealer_warning_en}</div>`;
-  if (c.procurement_criticality === "CRITICAL_MUST_SOURCE" && directSubs.length === 0) {
-    h += `<div class="p-3 bg-amber-50 border border-amber-300 text-amber-950 rounded-lg font-bold">🔴 ${LANG === "KN" ? `ಇದು ಕಡ್ಡಾಯವಾಗಿ ಬೇಕಾದ ಪೋಷಕಾಂಶ (${dispName}). ಇದೇ ಲವಣಾಂಶ (${c.active_ingredient}) ಇರುವ ಬೇರೆ ಕಂಪನಿ ಕೇಳಿ.` : `CRITICAL INPUT: Ask for another brand with exact salt (${c.active_ingredient}).`}</div>`;
+  let h = `<div class="p-3 bg-slate-100 border border-slate-200 rounded-xl space-y-1">
+    <div class="text-[11px] font-bold text-slate-500 uppercase">${LANG === "KN" ? "ಪ್ರಸ್ತುತ ಶಿಫಾರಸು ಮಾಡಿದ ಲವಣಾಂಶ:" : "Currently Scheduled Active Salt:"}</div>
+    <div class="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">🧪 ${getSaltOnlyTitle(c)} ${getUniformGroupBadge(c)}</div>
+    <div class="text-slate-600">🏷️ <b>${LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರುಗಳು:" : "Store Brands:"}</b> ${getBrandOnlySubtitle(c)}</div>
+  </div>`;
+
+  if (c.dealer_warning_en) {
+    h += `<div class="p-2.5 bg-amber-50 border border-amber-200 text-amber-950 rounded-lg">💡 ${c.dealer_warning_en}</div>`;
+  }
+
+  if (approvedList.length === 0) {
+    h += `<div class="p-3 bg-red-50 border border-red-200 text-red-950 rounded-xl font-bold">
+      🔴 ${LANG === "KN"
+        ? `ಇದು ಕಡ್ಡಾಯವಾಗಿ ಬೇಕಾದ ಪೋಷಕಾಂಶ (${getSaltOnlyTitle(c)}). ಇದಕ್ಕೆ ಬೇರೆ ಪರ್ಯಾಯವಿಲ್ಲ — ಇದೇ ಲವಣಾಂಶ ಇರುವ ಯಾವುದೇ ಕಂಪನಿ (${getBrandOnlySubtitle(c)}) ಕೇಳಿ.`
+        : `ESSENTIAL STAGE INPUT: Do not substitute ${getSaltOnlyTitle(c)} with another salt. Ask the dealer for any brand containing ${getSaltOnlyTitle(c)} (${getBrandOnlySubtitle(c)}).`}
+    </div>`;
   } else {
-    directSubs.forEach(s => {
-      const sc = catalog[s.substitute_input_id]; if (!sc) return;
-      h += `<div class="p-2.5 border-2 border-emerald-200 bg-emerald-50 rounded-lg flex justify-between items-center gap-2"><div><div class="font-bold text-sm">${LANG === "KN" ? (sc.name_kn || sc.name_en) : sc.name_en}</div><div class="text-[11px] text-slate-600">🏷️ ${sc.popular_brands || sc.active_ingredient}</div><div class="text-emerald-900 font-semibold">${s.adjustment_note_en || ""}</div></div><button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg shrink-0">${LANG === "KN" ? "ಬಳಸಿ" : "Swap"}</button></div>`;
-    });
-    sameCat.forEach(sc => {
-      const doseInfo = sc.base_dose_per_liter ? `${sc.base_dose_per_liter * CFG.drumL} ${sc.unit}/Drum` : `${sc.base_dose_per_acre} ${sc.unit}/Acre`;
-      h += `<div class="p-2 border border-slate-200 bg-slate-50 rounded-lg flex justify-between items-center gap-2"><div><b>${LANG === "KN" ? (sc.name_kn || sc.name_en) : sc.name_en}</b> • ${doseInfo}</div><button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="bg-slate-700 text-white font-bold px-2.5 py-1 rounded-lg shrink-0">${LANG === "KN" ? "ಬಳಸಿ" : "Swap"}</button></div>`;
+    h += `<div class="font-extrabold text-emerald-900 pt-1">✅ ${LANG === "KN" ? "ಅನುಮೋದಿತ ಪರ್ಯಾಯ ಲವಣಾಂಶಗಳು (Approved Alternatives Only):" : "Approved Target-Matched Alternatives:"}</div>`;
+    approvedList.forEach(item => {
+      const sc = item.cat;
+      const doseInfo = sc.base_dose_per_liter
+        ? `${Math.round(sc.base_dose_per_liter * CFG.drumL)} ${sc.unit} / 200L Drum`
+        : `${sc.base_dose_per_acre} ${sc.unit} / Acre`;
+      h += `<div class="p-3 border-2 border-emerald-300 bg-emerald-50/70 rounded-xl flex justify-between items-center gap-2">
+        <div class="space-y-0.5">
+          <div class="font-extrabold text-sm text-slate-900 flex items-center gap-1.5 flex-wrap">
+            <span>🧪 ${getSaltOnlyTitle(sc)}</span>
+            ${getUniformGroupBadge(sc)}
+          </div>
+          <div class="text-xs font-bold text-emerald-950">⚖️ ${doseInfo} • <span class="font-normal">${LANG === "KN" ? item.noteKn : item.noteEn}</span></div>
+          <div class="text-[11px] text-slate-600">🏷️ <b>${LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರುಗಳು:" : "Store Brands:"}</b> ${getBrandOnlySubtitle(sc)}</div>
+        </div>
+        <button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold px-3.5 py-2 rounded-lg shrink-0 shadow">
+          ${LANG === "KN" ? "ಬಳಸಿ" : "Select"}
+        </button>
+      </div>`;
     });
   }
+
   document.getElementById("swapModalContent").innerHTML = h;
   document.getElementById("swapModal").classList.remove("hidden");
 }
@@ -2112,8 +2272,11 @@ function evaluateDealerBrandInModal() {
 
   const doseInfo = candCat.base_dose_per_liter ? `${Math.round(candCat.base_dose_per_liter * CFG.drumL)} ${candCat.unit}/Drum` : `${candCat.base_dose_per_acre} ${candCat.unit}/Acre`;
   checks.push(`<div class="p-2.5 bg-white border border-indigo-200 rounded-lg flex items-center justify-between gap-2 mt-1">
-    <div><div class="font-extrabold text-slate-900">${LANG === "KN" ? (candCat.name_kn || candCat.name_en) : candCat.name_en}</div><div class="text-indigo-900 font-bold">⚖️ ${doseInfo}</div></div>
-    <button onclick="doSwap('${taskId}',${itemIdx},'${candCat.id}')" class="bg-indigo-700 text-white font-extrabold px-3 py-2 rounded-lg shrink-0 shadow">✅ Use Brand</button>
+    <div>
+      <div class="font-extrabold text-slate-900">🧪 ${getSaltOnlyTitle(candCat)} ${getUniformGroupBadge(candCat)}</div>
+      <div class="text-[11px] text-slate-600">🏷️ <b>Store Brands:</b> ${getBrandOnlySubtitle(candCat)} • ⚖️ <b>${doseInfo}</b></div>
+    </div>
+    <button onclick="doSwap('${taskId}',${itemIdx},'${candCat.id}')" class="bg-indigo-700 text-white font-extrabold px-3 py-2 rounded-lg shrink-0 shadow">✅ Use</button>
   </div>`);
   out.innerHTML = checks.join("");
 }
@@ -2151,7 +2314,7 @@ async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
   }
   render();
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { status: tk.status, resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
-  await logAudit(`ITEM_${newStatus}`, `${catalog[item.input_id]?.name_en || item.input_id} (${item.actual_total_3ac})`, `Date: ${tk.current_scheduled_date}`);
+  await logAudit(`ITEM_${newStatus}`, `${getSaltOnlyTitle(catalog[item.input_id]) || item.input_id} (${item.actual_total_3ac})`, `Date: ${tk.current_scheduled_date}`);
 }
 
 async function splitRemainingItemsToTomorrow(taskId) {
@@ -2163,8 +2326,8 @@ async function splitRemainingItemsToTomorrow(taskId) {
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { status: "COMPLETED", resolved_recipe: doneItems, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
 
   const nextDateStr = addDaysYMD(tk.current_scheduled_date, 1), dyn = computeDynamicDadAndWeek(nextDateStr);
-  const remEn = pendingItems.map(r => catalog[r.input_id]?.name_en || r.input_id).join(" + "), remKn = pendingItems.map(r => catalog[r.input_id]?.name_kn || r.input_id).join(" + ");
-  const payload = { env: APP_ENV, originally_scheduled_date: nextDateStr, current_scheduled_date: nextDateStr, effective_dad: dyn.dad, task_type: tk.task_type, trigger_source: "SPLIT_REMAINDER", status: "PENDING", resolved_recipe: pendingItems, custom_title_en: `Remaining Split Task: ${remEn}`, custom_title_kn: `ಬಾಕಿ ಉಳಿದ ಕೆಲಸ: ${remKn}`, updated_by: activeUser, updated_at: new Date().toISOString() };
+  const remEn = pendingItems.map(r => getSaltOnlyTitle(catalog[r.input_id]) || r.input_id).join(" + ");
+  const payload = { env: APP_ENV, originally_scheduled_date: nextDateStr, current_scheduled_date: nextDateStr, effective_dad: dyn.dad, task_type: tk.task_type, trigger_source: "SPLIT_REMAINDER", status: "PENDING", resolved_recipe: pendingItems, custom_title_en: `Remaining Split Task: ${remEn}`, custom_title_kn: `ಬಾಕಿ ಉಳಿದ ಕೆಲಸ: ${remEn}`, updated_by: activeUser, updated_at: new Date().toISOString() };
   const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
   tasks.push({ ...(res.data?.[0] || { ...payload, id: "split_" + Date.now() }), week_number: dyn.week, stage_name: tk.stage_name, target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn });
   render();
@@ -2270,7 +2433,7 @@ async function doSwap(taskId, idx, newId) {
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
   document.getElementById("swapModal").classList.add("hidden"); render();
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
-  await logAudit("SWAPPED_CHEMICAL", cleanHardcodedDayPrefix(tk.target_description, false), `${oldId} → ${sc.name_en}`);
+  await logAudit("SWAPPED_CHEMICAL", cleanHardcodedDayPrefix(tk.target_description, false), `${oldId} → ${getSaltOnlyTitle(sc)}`);
 }
 
 async function deleteCustomTask(id) {
@@ -2296,8 +2459,8 @@ async function saveManualActivity() {
   const pairs = [{ id: chem1, q: qty1 }]; if (chem2) pairs.push({ id: chem2, q: qty2 });
   const recipe = pairs.map(p => { const c = catalog[p.id]; return { ...(c?.base_dose_per_liter ? { input_id: p.id, dose_per_liter: Number(c.base_dose_per_liter) } : { input_id: p.id, dose_per_acre: Number(c?.base_dose_per_acre || 2) }), actual_total_3ac: p.q, item_status: "COMPLETED" }; });
   const dyn = computeDynamicDadAndWeek(dateStr), appliedIds = pairs.map(p => p.id);
-  const titleEn = `Manual Entry (${dateStr}): ${pairs.map(p => `${catalog[p.id]?.name_en || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
-  const titleKn = `ದಾಖಲಿಸಿದ ಕೆಲಸ (${dateStr}): ${pairs.map(p => `${catalog[p.id]?.name_kn || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
+  const titleEn = `Manual Entry (${dateStr}): ${pairs.map(p => `${getSaltOnlyTitle(catalog[p.id]) || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
+  const titleKn = `ದಾಖಲಿಸಿದ ಕೆಲಸ (${dateStr}): ${pairs.map(p => `${getSaltOnlyTitle(catalog[p.id]) || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
 
   const payload = { env: APP_ENV, originally_scheduled_date: dateStr, current_scheduled_date: dateStr, effective_dad: dyn.dad, task_type: taskType, trigger_source: "MANUAL_ENTRY", status: "COMPLETED", resolved_recipe: recipe, cost_rs: costRs, custom_title_en: titleEn, custom_title_kn: titleKn, updated_by: activeUser, updated_at: new Date().toISOString(), executed_at: new Date().toISOString() };
   const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
@@ -2326,7 +2489,7 @@ function copyList() {
   const lines = [`🍎 Hosahalli Orchard Week ${curWk} Store List (3 Acres):`];
   Object.keys(tot).forEach(id => {
     const c = catalog[id], net = Math.max(0, Number((tot[id] - (leftovers[id] || 0)).toFixed(2)));
-    if (net > 0) lines.push(`• ${LANG === "KN" ? (c.name_kn || c.name_en) : c.name_en} [${c.popular_brands || ""}]: ${net} ${c.unit} (${c.active_ingredient})`);
+    if (net > 0) lines.push(`• ${getSaltOnlyTitle(c)} [Brands: ${getBrandOnlySubtitle(c)}]: ${net} ${c.unit}`);
   });
   navigator.clipboard.writeText(lines.join("\n"));
   alert(LANG === "KN" ? "ಖರೀದಿ ಪಟ್ಟಿಯನ್ನು ಕಾಪಿ ಮಾಡಲಾಗಿದೆ!" : "Shopping list copied to clipboard!");
