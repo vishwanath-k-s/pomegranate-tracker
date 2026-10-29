@@ -822,42 +822,37 @@ function computeDailyGdd(tMax, tMin) {
 }
 
 // Universal Dosage & Unit Converter (Fixes 4,200 kg MKP bug & supports dynamic drum counts!)
-function getItemDoseMetrics(cat, it, mult = 1.0, drumsCount = CFG.drums) {
+function getItemDoseMetrics(cat, it, mult = 1.0, drumsCount = CFG.drums, drumLiters = CFG.drumL) {
   const c = cat || { unit: it.dose_per_liter ? "ml" : "kg" };
   const isFoliar = Boolean(it.dose_per_liter);
+  const dL = Number(drumLiters) > 0 ? Number(drumLiters) : CFG.drumL;
+  const dCnt = Number(drumsCount) > 0 ? Number(drumsCount) : CFG.drums;
 
   if (isFoliar) {
-    // Foliar dose_per_liter is ALWAYS in 'g' (for solid kg/g items) or 'ml' (for liquid L/ml items)
     const rateUnit = (c.unit === "kg" || c.unit === "g") ? "g" : "ml";
     const ratePerL = Number((it.dose_per_liter * mult).toFixed(2));
-    const perDrumQty = Math.round(ratePerL * CFG.drumL);
-    const totalSmallUnit = Math.round(perDrumQty * drumsCount); // Total in g or ml
+    const perDrumQty = Math.round(ratePerL * dL);
+    const totalSmallUnit = Math.round(perDrumQty * dCnt);
 
-    // Convert to catalog unit if catalog unit is 'kg' or 'L' (e.g., 4200 g -> 4.2 kg)
     const isMacroUnit = (c.unit === "kg" || c.unit === "L");
     const suggestedInCatUnit = isMacroUnit ? Number((totalSmallUnit / 1000).toFixed(2)) : totalSmallUnit;
 
-    // Self-heal any legacy saved actual_total_3ac that stored 4200 instead of 4.2 on a 'kg'/'L' item
     let actualInCatUnit = it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : suggestedInCatUnit;
     if (isMacroUnit && actualInCatUnit >= 100 && suggestedInCatUnit < 50) {
       actualInCatUnit = Number((actualInCatUnit / 1000).toFixed(2));
     }
 
     const totalGramsOrMl = isMacroUnit ? Math.round(actualInCatUnit * 1000) : actualInCatUnit;
-    const humanTotalStr = totalSmallUnit >= 1000
-      ? `${(totalSmallUnit / 1000).toFixed(2).replace(/\.00$/, "")} ${rateUnit === "g" ? "kg" : "L"} (${totalSmallUnit} ${rateUnit})`
-      : `${totalSmallUnit} ${rateUnit}`;
-
     return {
       isFoliar: true,
       ratePerL,
       rateUnit,
+      drumLiters: dL,
       perDrumQty,
-      drumsCount,
+      drumsCount: dCnt,
       suggestedTotal3Ac: suggestedInCatUnit,
       actualTotal3Ac: actualInCatUnit,
-      totalGrams3Ac: totalGramsOrMl,
-      humanTotalStr
+      totalGrams3Ac: totalGramsOrMl
     };
   } else {
     const perAcreQty = Number(((it.dose_per_acre || 0) * mult).toFixed(2));
@@ -872,8 +867,7 @@ function getItemDoseMetrics(cat, it, mult = 1.0, drumsCount = CFG.drums) {
       perPlantGrams,
       suggestedTotal3Ac: suggestedInCatUnit,
       actualTotal3Ac: actualInCatUnit,
-      totalGrams3Ac,
-      humanTotalStr: `${suggestedInCatUnit} ${c.unit}`
+      totalGrams3Ac
     };
   }
 }
@@ -884,11 +878,12 @@ function getCumulativeNutrientsPerPlant() {
     const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
     const sopMult = (taskDad >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
     const drumsUsed = Number(tk.drums_count) || CFG.drums;
+    const drumLUsed = Number(tk.drum_liters) || CFG.drumL;
     (tk.resolved_recipe || []).forEach(it => {
       if (it.item_status === "SKIPPED") return;
       const c = catalog[it.input_id]; if (!c) return;
       const m = c.id === "WSF_00_00_50" ? sopMult : 1.0;
-      const metrics = getItemDoseMetrics(c, it, m, drumsUsed);
+      const metrics = getItemDoseMetrics(c, it, m, drumsUsed, drumLUsed);
       const gPlant = metrics.totalGrams3Ac / CFG.plants;
       del.N  += gPlant * ((Number(c.n_pct) || 0) / 100);
       del.P  += gPlant * ((Number(c.p_pct) || 0) / 100);
@@ -1176,14 +1171,15 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
     t.trigger_source === "BASELINE" &&
     t.task_type === "FOLIAR_SPRAY" &&
     diffDaysYMD(curativeDateStr, t.current_scheduled_date) >= 0 &&
-    diffDaysYMD(curativeDateStr, t.current_scheduled_date) <= 6
+    diffDaysYMD(curativeDateStr, t.current_scheduled_date) <= 5
   );
 
   if (!nextBaselineSpray) return;
 
-  const targetShiftDate = addDaysYMD(curativeDateStr, 6);
+  // Shift ONLY the colliding spray ("SINGLE") to +5 days after curative so downstream sprays (like Nov 12) stay on their date!
+  const targetShiftDate = addDaysYMD(curativeDateStr, 5);
   if (nextBaselineSpray.current_scheduled_date < targetShiftDate) {
-    await applyScheduleShift(nextBaselineSpray, targetShiftDate, "TRACK", "CURATIVE_COOLDOWN");
+    await applyScheduleShift(nextBaselineSpray, targetShiftDate, "SINGLE", "CURATIVE_COOLDOWN");
   }
 
   const beforeLen = (nextBaselineSpray.resolved_recipe || []).length;
@@ -2369,11 +2365,19 @@ function render() {
       const canDelete = isScout || isManual, isSkipped = tk.status === "SKIPPED";
       const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER";
       const drumsCount = Number(tk.drums_count) || CFG.drums;
+      const drumLiters = Number(tk.drum_liters) || CFG.drumL;
 
       let hdr = tk.task_type === "STANDALONE_COPPER" ? "bg-red-700 text-white" : tk.task_type === "FOLIAR_SPRAY" ? "bg-emerald-700 text-white" : "bg-sky-700 text-white";
       if (isScout) hdr = "bg-rose-700 text-white"; if (isKeep) hdr = "bg-slate-700 text-white";
 
-      const typeTitle = isScout ? (LANG === "KN" ? "🚨 ತುರ್ತು ರೋಗ/ಕೀಟ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ" : "🚨 Curative Scouting Spray") : (L[`type_${tk.task_type}`] || tk.task_type);
+      const baseTypeTitle = isScout
+        ? (LANG === "KN" ? "🚨 ತುರ್ತು ರೋಗ/ಕೀಟ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ" : "🚨 Curative Scouting Spray")
+        : isFoliarCard
+          ? (tk.task_type === "STANDALONE_COPPER"
+              ? (LANG === "KN" ? "⚠️ ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ (ಬೇರೆ ಬೆರೆಸಬೇಡಿ)" : "⚠️ Standalone Copper Spray (Do NOT Mix)")
+              : (LANG === "KN" ? "🌿 ಎಲೆ ಸಿಂಪಡಣೆ" : "🌿 Foliar Spray"))
+          : (L[`type_${tk.task_type}`] || tk.task_type);
+
       const descText = cleanHardcodedDayPrefix(LANG === "KN" ? (tk.target_description_kn || tk.target_description) : tk.target_description, LANG === "KN");
 
       const recipeArr = Array.isArray(tk.resolved_recipe) ? tk.resolved_recipe : [];
@@ -2383,17 +2387,14 @@ function render() {
       const wasShifted = tk.originally_scheduled_date && tk.originally_scheduled_date !== tk.current_scheduled_date;
       const walesGuide = getWalesMixingGuide(recipeArr);
 
-      // Interactive Drum Volume Selector for Foliar Cards (5, 6, 7, or 8 Drums x 200L)
-      const drumSelectorHtml = isFoliarCard ? `
-        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px]">
-          <span class="font-bold text-slate-700">🪣 ${LANG === "KN" ? `ಸಿಂಪಡಣೆ ನೀರಿನ ಪ್ರಮಾಣ (${drumsCount * CFG.drumL} ಲೀಟರ್):` : `Spray Tank Volume (${drumsCount * CFG.drumL}L total):`}</span>
-          <div class="flex items-center gap-1 font-extrabold">
-            ${[5, 6, 7, 8].map(dNum => `
-              <button onclick="setCardDrumCount('${tk.id}',${dNum})" class="px-2 py-0.5 rounded ${drumsCount === dNum ? 'bg-emerald-700 text-white shadow-sm' : 'bg-white text-slate-700 border border-slate-300'}">
-                ${dNum} ${LANG === "KN" ? "ಡ್ರಮ್" : "Drums"}
-              </button>
-            `).join("")}
-          </div>
+      // Compact inline editable Drum Size (L) x Drums badge (No bulky button bar, and drum size is never hardcoded!)
+      const inlineDrumSpecHtml = isFoliarCard ? `
+        <div class="inline-flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-lg px-2 py-0.5 text-[11px] font-bold text-slate-700" title="Edit Drum Size (L) or Drum Count">
+          <span>🪣</span>
+          <input type="number" step="10" min="10" value="${drumLiters}" onchange="setCardTankSpec('${tk.id}', this.value, ${drumsCount})" class="w-11 bg-white border border-slate-300 rounded px-1 text-center font-extrabold text-slate-900" />
+          <span>L ×</span>
+          <input type="number" step="0.5" min="1" value="${drumsCount}" onchange="setCardTankSpec('${tk.id}', ${drumLiters}, this.value)" class="w-9 bg-white border border-slate-300 rounded px-1 text-center font-extrabold text-slate-900" />
+          <span>${LANG === "KN" ? "ಡ್ರಮ್" : "drums"} (${drumLiters * drumsCount}L)</span>
         </div>` : "";
 
       const itemsHtml = recipeArr.map((it, idx) => {
@@ -2403,25 +2404,27 @@ function render() {
         const groupBadge = getUniformGroupBadge(cat);
 
         const m = cat.id === "WSF_00_00_50" ? sopMult : 1.0;
-        const metrics = getItemDoseMetrics(cat, it, m, drumsCount);
+        const metrics = getItemDoseMetrics(cat, it, m, drumsCount, drumLiters);
         const itemSt = it.item_status || (tk.status === "COMPLETED" ? "COMPLETED" : tk.status === "SKIPPED" ? "SKIPPED" : "PENDING");
         const suggestedTotal3Ac = metrics.suggestedTotal3Ac;
         const currentTotal3Ac = metrics.actualTotal3Ac;
         const isCrit = cat.procurement_criticality === "CRITICAL_MUST_SOURCE";
         const rowBg = itemSt === "COMPLETED" ? "bg-emerald-50/80 border-emerald-300" : itemSt === "SKIPPED" ? "bg-slate-100 border-slate-200 opacity-60 line-through" : "bg-slate-50 border-slate-200";
 
-        // 3-Pill Structured Dosage Recommendation Bar
+        // Clean 2-Pill Rate Breakdown on Left (NO duplicate "Total" pill—Total is shown in the Qty box on the right!)
         const dosePillsHtml = metrics.isFoliar
           ? `<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
-               <span class="bg-white border border-slate-200 rounded px-2 py-0.5 text-slate-700">💧 <b>${LANG === "KN" ? "ಪ್ರತಿ ಲೀಟರ್‌ಗೆ:" : "Per Liter:"}</b> ${metrics.ratePerL} ${metrics.rateUnit}/L</span>
-               <span class="bg-emerald-100/80 border border-emerald-300 rounded px-2 py-0.5 text-emerald-950">🪣 <b>${LANG === "KN" ? "ಪ್ರತಿ 200L ಡ್ರಮ್‌ಗೆ:" : "Per 200L Drum:"}</b> ${metrics.perDrumQty} ${metrics.rateUnit}</span>
-               <span class="bg-indigo-100/80 border border-indigo-300 rounded px-2 py-0.5 text-indigo-950">🚜 <b>${LANG === "KN" ? `ಒಟ್ಟು (${drumsCount} ಡ್ರಮ್):` : `Total (${drumsCount} Drums):`}</b> ${metrics.humanTotalStr}</span>
+               <span class="bg-white border border-slate-200 rounded px-2 py-0.5 text-slate-700">💧 <b>${LANG === "KN" ? "ಪ್ರಮಾಣ:" : "Rate:"}</b> ${metrics.ratePerL} ${metrics.rateUnit}/L</span>
+               <span class="bg-emerald-100/80 border border-emerald-300 rounded px-2 py-0.5 text-emerald-950">🪣 <b>${LANG === "KN" ? `ಪ್ರತಿ ${metrics.drumLiters}L ಡ್ರಮ್‌ಗೆ:` : `Per ${metrics.drumLiters}L Drum:`}</b> ${metrics.perDrumQty} ${metrics.rateUnit}</span>
              </div>`
           : `<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
-               <span class="bg-white border border-slate-200 rounded px-2 py-0.5 text-slate-700">🌱 <b>${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ:" : "Per Plant:"}</b> ${metrics.perPlantGrams} g</span>
                <span class="bg-sky-100/80 border border-sky-300 rounded px-2 py-0.5 text-sky-950">💧 <b>${LANG === "KN" ? "ಪ್ರತಿ ಎಕರೆಗೆ:" : "Per Acre:"}</b> ${metrics.perAcreQty} ${cat.unit}</span>
-               <span class="bg-indigo-100/80 border border-indigo-300 rounded px-2 py-0.5 text-indigo-950">🚜 <b>${LANG === "KN" ? "ಒಟ್ಟು (3 ಎಕರೆ):" : "Total (3 Acres):"}</b> ${metrics.humanTotalStr}</span>
+               <span class="bg-white border border-slate-200 rounded px-2 py-0.5 text-slate-700">🌱 <b>${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ:" : "Per Plant:"}</b> ${metrics.perPlantGrams} g</span>
              </div>`;
+
+        const qtyLabel = itemSt === "COMPLETED"
+          ? (LANG === "KN" ? "ಬಳಸಿದ್ದು:" : "Used:")
+          : (LANG === "KN" ? "ಒಟ್ಟು:" : "Total:");
 
         return `<div class="p-2.5 rounded-xl border ${rowBg} space-y-1.5">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
@@ -2436,7 +2439,7 @@ function render() {
             </div>
             <div class="flex flex-wrap items-center gap-1.5 pt-1 sm:pt-0">
               <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
-                <span class="text-slate-500 text-[11px]">${LANG === "KN" ? "ಬಳಸಿದ್ದು:" : "Qty:"}</span>
+                <span class="text-slate-500 text-[11px] font-semibold">${qtyLabel}</span>
                 <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" class="w-14 font-extrabold text-slate-900 focus:outline-none text-right" />
                 <span class="font-bold text-slate-600">${cat.unit}</span>
               </div>
@@ -2451,18 +2454,20 @@ function render() {
       const updTime = tk.updated_at ? new Date(tk.updated_at).toLocaleString(loc, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
       return `<div class="bg-white rounded-xl shadow-sm border overflow-hidden ${isSkipped ? 'opacity-60' : ''}">
         <div class="px-3 py-2 ${hdr} flex flex-wrap justify-between items-center gap-1 text-xs font-bold">
-          <span>${typeTitle}</span>
+          <span>${baseTypeTitle}</span>
           <span>📅 ${formatDateWithWeekday(tk.current_scheduled_date)} • ${tk.effective_dad} ${L.dadWord}</span>
         </div>
         <div class="p-3 space-y-2.5">
-          <div class="flex justify-between items-start gap-2">
+          <div class="flex flex-wrap justify-between items-start gap-2">
             <div>
               <div class="font-bold text-xs sm:text-sm">${descText}</div>
               ${wasShifted ? `<div class="text-[11px] text-amber-700 font-semibold">↪ ${LANG === "KN" ? "ಮೂಲ ದಿನಾಂಕ:" : "Original date:"} ${tk.originally_scheduled_date}</div>` : ""}
             </div>
-            <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 shrink-0">${statusText}</span>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              ${inlineDrumSpecHtml}
+              <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 shrink-0">${statusText}</span>
+            </div>
           </div>
-          ${drumSelectorHtml}
           ${itemsHtml ? `<div class="space-y-2">${itemsHtml}</div>` : ""}
           ${walesGuide ? `<div class="p-2 bg-emerald-50/70 border border-emerald-200 rounded-lg text-[11px] text-emerald-950">${walesGuide}</div>` : ""}
           ${hasPartialDone ? `<button onclick="splitRemainingItemsToTomorrow('${tk.id}')" class="w-full bg-indigo-600 text-white font-bold text-xs py-2 px-3 rounded-lg shadow">${L.splitRemainingBtn}</button>` : ""}
@@ -2490,15 +2495,15 @@ function render() {
   document.getElementById("totalSeasonCost").textContent = `₹ ${totalSpend.toLocaleString("en-IN")}`;
   document.getElementById("weekCostSummary").textContent = `${LANG === "KN" ? "ಈ ವಾರದ ಖರ್ಚು" : "This Week Spend"}: ₹ ${weekSpend.toLocaleString("en-IN")}`;
 
-  // Shopping List now uses getItemDoseMetrics so Foliar 00:52:34 adds 4.2 kg (NOT 4200 kg!)
   const tot = {};
   wkTasks.filter(t => t.status !== "SKIPPED" && t.status !== "COMPLETED").forEach(tk => {
     const drumsCount = Number(tk.drums_count) || CFG.drums;
+    const drumLiters = Number(tk.drum_liters) || CFG.drumL;
     (tk.resolved_recipe || []).forEach(it => {
       if (it.item_status === "COMPLETED" || it.item_status === "SKIPPED") return;
       const c = catalog[it.input_id];
       const m = c?.id === "WSF_00_00_50" ? sopMult : 1.0;
-      const metrics = getItemDoseMetrics(c, it, m, drumsCount);
+      const metrics = getItemDoseMetrics(c, it, m, drumsCount, drumLiters);
       tot[it.input_id] = (tot[it.input_id] || 0) + metrics.actualTotal3Ac;
     });
   });
@@ -2559,10 +2564,13 @@ function render() {
   }).join("");
 }
 
-// Interactive Drum Count Updater for Foliar Spray Cards (5, 6, 7, or 8 Drums)
-function setCardDrumCount(taskId, newDrums) {
+// Updates both Drum Size (L) and Drum Count on a Foliar Card and recalculates Total Qty
+function setCardTankSpec(taskId, newDrumLiters, newDrumsCount) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
-  tk.drums_count = Number(newDrums) || CFG.drums;
+  tk.drum_liters = sanitizeNonNegativeNumber(newDrumLiters, CFG.drumL, 5000) || CFG.drumL;
+  tk.drums_count = sanitizeNonNegativeNumber(newDrumsCount, CFG.drums, 100) || CFG.drums;
+  CFG.drumL = tk.drum_liters;
+
   const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
   const sopMult = (taskDad >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
 
@@ -2571,7 +2579,7 @@ function setCardDrumCount(taskId, newDrums) {
     const m = c?.id === "WSF_00_00_50" ? sopMult : 1.0;
     const copy = { ...it };
     delete copy.actual_total_3ac;
-    const metrics = getItemDoseMetrics(c, copy, m, tk.drums_count);
+    const metrics = getItemDoseMetrics(c, copy, m, tk.drums_count, tk.drum_liters);
     return { ...copy, actual_total_3ac: metrics.suggestedTotal3Ac };
   });
   render();
