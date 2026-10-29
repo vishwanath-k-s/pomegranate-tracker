@@ -1956,155 +1956,195 @@ function setWeather(m) {
 // Mode 2: Add Brand-New Active Salt with Auto-Scaling Concentration
 // ============================================================================
 let newChemModalMode = "EXISTING_SALT";
-function openNewChemModal() {
-  populateKnownSaltsDatalist();
-  const modalBox = document.querySelector("#newChemModal .space-y-2\\.5");
-  if (modalBox && !document.getElementById("ncModeSelectorBox")) {
-    const modeHtml = document.createElement("div");
-    modeHtml.id = "ncModeSelectorBox";
-    modeHtml.className = "space-y-2 pb-2 border-b border-slate-200";
-    modeHtml.innerHTML = `
-      <div class="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-xl text-[11px] font-extrabold">
-        <button type="button" id="btnModeExistingSalt" onclick="setNewChemModalMode('EXISTING_SALT')" class="py-1.5 px-2 rounded-lg bg-indigo-700 text-white shadow">🏷️ Add Brand to Existing Salt</button>
-        <button type="button" id="btnModeNewSalt" onclick="setNewChemModalMode('NEW_SALT')" class="py-1.5 px-2 rounded-lg text-slate-700">🧪 Add Brand-New Salt</button>
-      </div>
-      <div id="ncExistingSaltBox" class="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl space-y-1.5">
-        <label class="font-bold text-indigo-950 block text-[11px]">Select Existing Active Salt (e.g., Acetamiprid 20% SP):</label>
-        <select id="ncExistingSaltSelect" class="w-full border border-indigo-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900"></select>
-        <div class="text-[10px] text-indigo-800">💡 Type the store brand name (e.g., <b>TAG Ride</b> or <b>Custodia Prime</b>) below and tap Save — it will attach directly to this salt!</div>
-      </div>`;
-    modalBox.insertBefore(modeHtml, modalBox.firstChild);
+// Keeps card titles clean & simple so swapping chemicals never leaves stale salt names in the header
+function getSimpleTaskDescription(tk, isKn) {
+  if (!tk) return "";
+  if (tk.trigger_source === "SCOUTING_CURATIVE") {
+    if (tk.task_type === "STANDALONE_COPPER") {
+      return isKn ? "ತುರ್ತು ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ" : "Curative Copper Bactericide Spray";
+    }
+    return isKn ? "ತುರ್ತು ಎಲೆ ಸಿಂಪಡಣೆ (ರೋಗ ಮತ್ತು ಕೀಟ ನಿಯಂತ್ರಣ)" : "Curative Foliar Spray (Pest & Disease Control)";
   }
-  const exSel = document.getElementById("ncExistingSaltSelect");
-  if (exSel) {
-    exSel.innerHTML = Object.values(catalog).map(c => `<option value="${c.id}">🧪 ${getSaltOnlyTitle(c)} — [🏷️ ${getBrandOnlySubtitle(c)}]</option>`).join("");
+  const raw = isKn ? (tk.target_description_kn || tk.target_description || "") : (tk.target_description || "");
+  if (/^(Synergistic Curative Spray|Combined Curative Spray|Curative Spray|ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ|ತುರ್ತು ಸಿಂಪಡಣೆ)/i.test(raw)) {
+    return isKn ? "ತುರ್ತು ಎಲೆ ಸಿಂಪಡಣೆ (ರೋಗ ಮತ್ತು ಕೀಟ ನಿಯಂತ್ರಣ)" : "Curative Foliar Spray (Pest & Disease Control)";
   }
-  document.getElementById("ncBrand").value = "";
-  document.getElementById("ncCompany").value = "";
-  document.getElementById("ncSaltBase").value = "";
-  document.getElementById("ncConcPct").value = "";
-  document.getElementById("ncDose").value = "";
-  document.getElementById("ncAutoScaleHint").classList.add("hidden");
-  setNewChemModalMode("EXISTING_SALT");
-  document.getElementById("newChemModal").classList.remove("hidden");
+  if (/^(Foliar \(Auto-Deduplicated|ಎಲೆ ಸಿಂಪಡಣೆ \(.*ಹೊಂದಾಣಿಕೆ)/i.test(raw)) {
+    return isKn ? "ನಿಗದಿತ ಎಲೆ ಸಿಂಪಡಣೆ (ಇತ್ತೀಚಿನ ಸಿಂಪಡಣೆಗೆ ಹೊಂದಿಸಲಾಗಿದೆ)" : "Scheduled Foliar Spray (Adjusted for Recent Spray)";
+  }
+  return cleanHardcodedDayPrefix(raw, isKn);
 }
 
-function setNewChemModalMode(mode) {
-  newChemModalMode = mode;
-  const bEx = document.getElementById("btnModeExistingSalt"), bNew = document.getElementById("btnModeNewSalt");
-  const exBox = document.getElementById("ncExistingSaltBox");
-  const saltBaseInput = document.getElementById("ncSaltBase")?.parentElement;
-  if (bEx && bNew && exBox) {
-    if (mode === "EXISTING_SALT") {
-      bEx.className = "py-1.5 px-2 rounded-lg bg-indigo-700 text-white shadow";
-      bNew.className = "py-1.5 px-2 rounded-lg text-slate-700";
-      exBox.classList.remove("hidden");
-      if (saltBaseInput) saltBaseInput.classList.add("hidden");
-    } else {
-      bNew.className = "py-1.5 px-2 rounded-lg bg-indigo-700 text-white shadow";
-      bEx.className = "py-1.5 px-2 rounded-lg text-slate-700";
-      exBox.classList.add("hidden");
-      if (saltBaseInput) saltBaseInput.classList.remove("hidden");
+// Opens "+ New Chemical" Modal & Injects Quick "Add Brand to Existing Salt (e.g. TAG Ride)" Panel
+function openNewChemModal() {
+  populateKnownSaltsDatalist();
+  ["ncBrand", "ncSalt", "ncPct", "ncDose"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  const hint = document.getElementById("ncAutoScaleHint");
+  if (hint) { hint.classList.add("hidden"); hint.innerHTML = ""; }
+
+  const modalEl = document.getElementById("newChemModal");
+  if (!modalEl) return;
+
+  // Inject "Quick Add Brand Name to Existing Salt" box at top of modal if not already present
+  let attachBox = document.getElementById("ncQuickBrandAttachBox");
+  if (!attachBox) {
+    const brandInp = document.getElementById("ncBrand");
+    const formContainer = brandInp ? brandInp.closest(".space-y-3") || brandInp.parentElement.parentElement : null;
+    if (formContainer) {
+      attachBox = document.createElement("div");
+      attachBox.id = "ncQuickBrandAttachBox";
+      attachBox.className = "p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2 text-xs mb-2";
+      formContainer.insertBefore(attachBox, formContainer.firstChild);
     }
   }
+
+  if (attachBox) {
+    const sortedSalts = Object.values(catalog).sort((a, b) => getSaltOnlyTitle(a, "EN").localeCompare(getSaltOnlyTitle(b, "EN")));
+    attachBox.innerHTML = `
+      <div class="font-extrabold text-indigo-950">🏷️ ${LANG === "KN" ? "ಈಗಾಗಲೇ ಇರುವ ಲವಣಾಂಶಕ್ಕೆ ಹೊಸ ಕಂಪನಿ ಹೆಸರು ಸೇರಿಸಿ (ಉದಾ: TAG Ride):" : "Option 1: Add New Brand Name to Existing Salt (e.g. TAG Ride)"}</div>
+      <select id="ncExistingSaltSelect" class="w-full border border-indigo-300 rounded-lg px-2 py-1.5 bg-white font-bold text-slate-900">
+        <option value="">-- ${LANG === "KN" ? "ಲವಣಾಂಶ ಆರಿಸಿ" : "Select Existing Active Salt"} --</option>
+        ${sortedSalts.map(c => `<option value="${c.id}">🧪 ${getSaltOnlyTitle(c)} — [${getBrandOnlySubtitle(c)}]</option>`).join("")}
+      </select>
+      <div class="flex items-center gap-1.5">
+        <input id="ncQuickBrandName" type="text" placeholder="${LANG === 'KN' ? 'ಹೊಸ ಕಂಪನಿ ಹೆಸರು (ಉದಾ: TAG Ride)' : 'New Brand Name (e.g. TAG Ride, Custodia Prime)'}" class="flex-1 border border-indigo-300 rounded-lg px-2.5 py-1.5 bg-white font-bold text-slate-900" />
+        <button type="button" onclick="saveBrandToExistingSaltFromModal()" class="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold px-3 py-1.5 rounded-lg shrink-0 shadow">
+          ➕ ${LANG === "KN" ? "ಕಂಪನಿ ಸೇರಿಸಿ" : "Save Brand"}
+        </button>
+      </div>
+      <div class="text-[10px] text-indigo-800 border-t border-indigo-200 pt-1.5 font-semibold">
+        ⬇️ ${LANG === "KN" ? "ಅಥವಾ ಕೆಳಗೆ ಸಂಪೂರ್ಣ ಹೊಸ ಲವಣಾಂಶವನ್ನು (New Active Salt) ಸೇರಿಸಿ:" : "Option 2: Or fill below to add a brand-new Active Salt to the catalog:"}
+      </div>
+    `;
+  }
+
+  modalEl.classList.remove("hidden");
+}
+
+async function saveBrandToExistingSaltFromModal() {
+  const saltId = document.getElementById("ncExistingSaltSelect")?.value;
+  const newBrand = (document.getElementById("ncQuickBrandName")?.value || "").trim();
+  if (!saltId || !newBrand) {
+    alert(LANG === "KN" ? "ದಯವಿಟ್ಟು ಲವಣಾಂಶವನ್ನು ಆರಿಸಿ ಮತ್ತು ಹೊಸ ಕಂಪನಿ ಹೆಸರು ನಮೂದಿಸಿ." : "Please select an existing salt and enter the new brand name.");
+    return;
+  }
+  const c = catalog[saltId]; if (!c) return;
+  const curBrands = c.popular_brands ? c.popular_brands.split(",").map(s => s.trim()) : [];
+  if (!curBrands.some(b => b.toLowerCase() === newBrand.toLowerCase())) {
+    c.popular_brands = curBrands.length ? `${c.popular_brands}, ${newBrand}` : newBrand;
+    await dbMutate({ table: "inputs_catalog", type: "update", payload: { popular_brands: c.popular_brands }, matchCol: "id", matchVal: saltId });
+  }
+  const dirRow = { brand_name: newBrand, company_name: "Store Brand", input_id: saltId, primary_use_en: c.active_ingredient };
+  brandsDir.unshift(dirRow);
+  await dbMutate({ table: "commercial_brands_directory", type: "insert", payload: [dirRow] });
+  closeNewChemModal();
+  populateManualSelects(); populateBrandCheckerDropdowns(); render();
+  alert(LANG === "KN" ? `'${newBrand}' ಕಂಪನಿ ಹೆಸರನ್ನು '${getSaltOnlyTitle(c)}' ಗೆ ಸೇರಿಸಲಾಗಿದೆ!` : `Added brand '${newBrand}' to '${getSaltOnlyTitle(c)}'!`);
+}
+
+function closeNewChemModal() {
+  document.getElementById("newChemModal")?.classList.add("hidden");
 }
 
 function onSaltOrPctChange() {
-  const baseStr = document.getElementById("ncSaltBase").value.trim();
-  const newPct = Number(document.getElementById("ncConcPct").value);
-  const formType = document.getElementById("ncFormulation").value;
+  const saltVal = (document.getElementById("ncSalt")?.value || "").trim();
+  const pctVal = Number(document.getElementById("ncPct")?.value || 0);
   const hintBox = document.getElementById("ncAutoScaleHint");
+  if (!hintBox) return;
 
-  const unitSel = document.getElementById("ncUnit");
-  if (["WG", "WP", "DF", "SP", "WSF"].includes(formType)) unitSel.value = formType === "WSF" ? "kg" : "g";
-  else unitSel.value = "ml";
-
-  const matched = findMatchingCatalogItemByBaseSalt(baseStr);
+  const matched = findMatchingCatalogItemByBaseSalt(saltVal);
   if (!matched) { hintBox.classList.add("hidden"); return; }
 
-  document.getElementById("ncCat").value = matched.category || "INSECTICIDE";
-  document.getElementById("ncMethod").value = matched.application_method || "FOLIAR";
-  document.getElementById("ncGroup").value = matched.irac_frac_group || "";
-  document.getElementById("ncCopperIncomp").checked = Boolean(matched.incompatible_with_copper);
+  if (document.getElementById("ncCat")) document.getElementById("ncCat").value = matched.category || "INSECTICIDE";
+  if (document.getElementById("ncForm")) document.getElementById("ncForm").value = getFormulationCode(matched);
+  if (document.getElementById("ncUnit")) document.getElementById("ncUnit").value = matched.unit || "ml";
+  if (matched.irac_frac_group && document.getElementById("ncGroup")) document.getElementById("ncGroup").value = matched.irac_frac_group;
 
   const refPct = extractConcentrationPct(matched.active_ingredient);
-  const refDosePerL = Number(matched.base_dose_per_liter);
-
-  if (refPct && newPct > 0 && newPct <= 100 && refDosePerL > 0) {
-    const scaledDosePerL = Number(((refDosePerL * refPct) / newPct).toFixed(2));
-    const perDrum = Math.round(scaledDosePerL * CFG.drumL);
-    document.getElementById("ncDose").value = scaledDosePerL;
-    hintBox.innerHTML = `✨ <b>Auto-Scaled from ${matched.active_ingredient}:</b><br>Reference is <b>${refDosePerL} ${matched.unit}/L</b> at <b>${refPct}%</b> → Scaled to <b>${scaledDosePerL} ${unitSel.value}/L</b> (<b>${perDrum} ${unitSel.value} / 200L Drum</b>) for <b>${newPct}%</b> strength!`;
+  const refDoseL = Number(matched.base_dose_per_liter || 0);
+  if (refPct && pctVal > 0 && pctVal <= 100 && refDoseL > 0) {
+    const scaledDoseL = Number(((refDoseL * refPct) / pctVal).toFixed(2));
+    if (document.getElementById("ncDose")) document.getElementById("ncDose").value = scaledDoseL;
+    const perDrum = Math.round(scaledDoseL * CFG.drumL);
     hintBox.classList.remove("hidden");
-  } else if (refDosePerL > 0) {
-    document.getElementById("ncDose").value = refDosePerL;
-    hintBox.innerHTML = `💡 Matched <b>${matched.active_ingredient}</b> (Standard dose: <b>${refDosePerL} ${matched.unit}/L</b>).`;
+    hintBox.innerHTML = `✨ <b>Auto-Scaled Dose:</b> Matched <b>${matched.active_ingredient}</b> (${refDoseL} ${matched.unit}/L). Scaled for <b>${pctVal}%</b> → <b>${scaledDoseL} ${matched.unit}/L</b> (<b>${perDrum} ${matched.unit} / ${CFG.drumL}L Drum</b>).`;
+  } else if (refDoseL > 0) {
+    if (document.getElementById("ncDose")) document.getElementById("ncDose").value = refDoseL;
     hintBox.classList.remove("hidden");
+    hintBox.innerHTML = `✨ Matched existing salt <b>${matched.active_ingredient}</b> (Standard rate: <b>${refDoseL} ${matched.unit}/L</b>).`;
   }
 }
 
-async function saveNewChemToCatalog() {
-  const brand = document.getElementById("ncBrand").value.trim();
-  const company = document.getElementById("ncCompany").value.trim() || "Store Brand";
+async function saveCustomChemToCatalog() {
+  const brand = (document.getElementById("ncBrand")?.value || "").trim();
+  const baseSalt = (document.getElementById("ncSalt")?.value || "").trim();
+  const pct = (document.getElementById("ncPct")?.value || "").trim();
+  const cat = document.getElementById("ncCat")?.value || "INSECTICIDE";
+  const form = document.getElementById("ncForm")?.value || "SC";
+  const group = (document.getElementById("ncGroup")?.value || "").trim();
+  const unit = document.getElementById("ncUnit")?.value || "ml";
+  const doseVal = sanitizeNonNegativeNumber(document.getElementById("ncDose")?.value, 1.0, 500);
 
-  // MODE 1: Attach new Brand Name (e.g., TAG Ride or Custodia Prime) to an ALREADY EXISTING Salt!
-  if (newChemModalMode === "EXISTING_SALT") {
-    const existingId = document.getElementById("ncExistingSaltSelect")?.value;
-    const cat = catalog[existingId];
-    if (!brand || !cat) { alert("Please enter the Store Brand Name and select the existing salt."); return; }
-
-    const curBrands = cat.popular_brands ? cat.popular_brands.split(",").map(s => s.trim()) : [];
-    if (!curBrands.some(b => b.toLowerCase() === brand.toLowerCase())) {
-      curBrands.unshift(brand);
-      cat.popular_brands = curBrands.join(", ");
-    }
-    const brandRow = { brand_name: brand, company_name: company, input_id: existingId, primary_use_en: `${cat.category}: ${cat.active_ingredient}` };
-    brandsDir.unshift(brandRow);
-
-    await dbMutate({ table: "inputs_catalog", type: "update", payload: { popular_brands: cat.popular_brands }, matchCol: "id", matchVal: existingId });
-    await dbMutate({ table: "commercial_brands_directory", type: "insert", payload: [brandRow] });
-    await logAudit("BRAND_ADDED_TO_SALT", `${brand} (${company})`, `Linked to ${getSaltOnlyTitle(cat, "EN")}`);
-
-    document.getElementById("newChemModal").classList.add("hidden");
-    populateManualSelects(); populateBrandCheckerDropdowns(); render();
-    alert(LANG === "KN" ? `✅ '${brand}' ಕಂಪನಿ ಹೆಸರನ್ನು '${getSaltOnlyTitle(cat)}' ಗೆ ಯಶಸ್ವಿಯಾಗಿ ಸೇರಿಸಲಾಗಿದೆ!` : `✅ Added brand '${brand}' to ${getSaltOnlyTitle(cat)}!`);
+  if (!brand || !baseSalt) {
+    alert(LANG === "KN" ? "ದಯವಿಟ್ಟು ಕಂಪನಿ ಹೆಸರು ಮತ್ತು ಲವಣಾಂಶ ನಮೂದಿಸಿ." : "Please enter both Brand Name and Active Salt.");
     return;
   }
 
-  // MODE 2: Create Brand-New Active Salt
-  const baseSalt = document.getElementById("ncSaltBase").value.trim();
-  const concPct = document.getElementById("ncConcPct").value.trim();
-  const formType = document.getElementById("ncFormulation").value;
-  if (!brand || !baseSalt) { alert("Please enter both Brand Name and Active Ingredient (Salt)."); return; }
+  const isDrip = cat === "FERTIGATION";
+  const fullSaltName = pct ? `${baseSalt} ${pct}% ${form}` : `${baseSalt} (${form})`;
+  const matchedExisting = findMatchingCatalogItemByBaseSalt(baseSalt);
+  const exactSameStrength = matchedExisting && (!pct || extractConcentrationPct(matchedExisting.active_ingredient) === Number(pct));
 
-  const fullSalt = `${baseSalt}${concPct ? " " + concPct + "%" : ""} ${formType}`.trim();
-  const cat = document.getElementById("ncCat").value;
-  const method = document.getElementById("ncMethod").value;
-  const dose = Math.max(0.05, Number(document.getElementById("ncDose").value) || 1.0);
-  const unit = document.getElementById("ncUnit").value;
-  const grp = document.getElementById("ncGroup").value.trim() || null;
-  const copIncomp = document.getElementById("ncCopperIncomp").checked;
-  const id = "CUSTOM_" + brand.toUpperCase().replace(/[^A-Z0-9]/g, "_").slice(0, 18) + "_" + Date.now().toString().slice(-3);
+  if (exactSameStrength) {
+    const curBrands = matchedExisting.popular_brands ? matchedExisting.popular_brands.split(",").map(s => s.trim()) : [];
+    if (!curBrands.some(b => b.toLowerCase() === brand.toLowerCase())) {
+      matchedExisting.popular_brands = curBrands.length ? `${matchedExisting.popular_brands}, ${brand}` : brand;
+      await dbMutate({ table: "inputs_catalog", type: "update", payload: { popular_brands: matchedExisting.popular_brands }, matchCol: "id", matchVal: matchedExisting.id });
+    }
+    const dirRow = { brand_name: brand, company_name: "Custom Brand", input_id: matchedExisting.id, primary_use_en: matchedExisting.active_ingredient };
+    brandsDir.unshift(dirRow);
+    await dbMutate({ table: "commercial_brands_directory", type: "insert", payload: [dirRow] });
+    closeNewChemModal();
+    populateManualSelects(); populateBrandCheckerDropdowns(); render();
+    alert(LANG === "KN" ? `'${brand}' ಕಂಪನಿ ಹೆಸರನ್ನು '${getSaltOnlyTitle(matchedExisting)}' ಲವಣಾಂಶಕ್ಕೆ ಸೇರಿಸಲಾಗಿದೆ!` : `Added brand '${brand}' to existing salt '${getSaltOnlyTitle(matchedExisting)}'!`);
+    return;
+  }
 
+  const newId = "CUSTOM_" + Date.now();
+  const isCopper = /copper/i.test(baseSalt);
   const newCatRow = {
-    id, name_en: `${brand} (${fullSalt})`, name_kn: `${brand} (${fullSalt})`,
-    category: cat, active_ingredient: fullSalt, irac_frac_group: grp,
-    formulation_type: formType, application_method: method,
-    base_dose_per_liter: method === "FOLIAR" ? dose : null,
-    base_dose_per_acre: method === "DRIP" ? dose : null,
-    unit, procurement_criticality: "FLEXIBLE", popular_brands: `${brand} (${company})`,
-    is_copper_compound: cat === "BACTERICIDE" && fullSalt.toLowerCase().includes("copper"),
-    incompatible_with_copper: copIncomp, incompatible_with_calcium: false,
-    contains_nitrogen: false, contains_boron: fullSalt.toLowerCase().includes("boron"), phi_days: 7
+    id: newId,
+    name_en: `${brand} (${fullSaltName})`,
+    name_kn: `${brand} (${fullSaltName})`,
+    category: cat,
+    active_ingredient: fullSaltName,
+    irac_frac_group: group || null,
+    formulation_type: form,
+    application_method: isDrip ? "DRIP" : "FOLIAR",
+    base_dose_per_liter: isDrip ? null : doseVal,
+    base_dose_per_acre: isDrip ? doseVal : null,
+    unit: unit,
+    phi_days: cat === "BIOSTIMULANT" ? 0 : 14,
+    is_copper_compound: isCopper,
+    incompatible_with_copper: !isCopper && (cat === "INSECTICIDE" || cat === "BIOSTIMULANT"),
+    incompatible_with_calcium: false,
+    contains_nitrogen: false,
+    procurement_criticality: "FLEXIBLE",
+    popular_brands: brand
   };
-  const newBrandRow = { brand_name: brand, company_name: company, input_id: id, primary_use_en: `Custom ${cat}: ${fullSalt}` };
 
-  catalog[id] = newCatRow; brandsDir.push(newBrandRow);
-  document.getElementById("newChemModal").classList.add("hidden");
-  await dbMutate({ table: "inputs_catalog", type: "upsert", payload: [newCatRow] });
-  await dbMutate({ table: "commercial_brands_directory", type: "insert", payload: [newBrandRow] });
-  await logAudit("NEW_BRAND_ADDED", `${fullSalt} — Brand: ${brand}`, `Dose: ${dose} ${unit}`);
+  catalog[newId] = newCatRow;
+  const dirRow = { brand_name: brand, company_name: "Custom Added", input_id: newId, primary_use_en: fullSaltName };
+  brandsDir.unshift(dirRow);
+
+  await dbMutate({ table: "inputs_catalog", type: "insert", payload: [newCatRow] });
+  await dbMutate({ table: "commercial_brands_directory", type: "insert", payload: [dirRow] });
+  closeNewChemModal();
   populateManualSelects(); populateBrandCheckerDropdowns(); render();
+  alert(LANG === "KN" ? `ಹೊಸ ಔಷಧಿ '${fullSaltName} (${brand})' ಯಶಸ್ವಿಯಾಗಿ ಸೇರಿಸಲಾಗಿದೆ!` : `Saved '${fullSaltName} (${brand})' to catalog!`);
 }
 
 function computeScheduleTrueTargetsToDate(refDateStr) {
@@ -2760,27 +2800,7 @@ function render() {
   }
 
   const pendingWkFoliars = wkTasks.filter(t => t.status === "PENDING" && t.task_type === "FOLIAR_SPRAY");
-  // FIXED: Only trigger overloadedCurative if there are >2 INSECTICIDES (so 2 Insecticides + 1 Fungicide is NEVER flagged as an overload!)
-  const overloadedCurative = tasks.find(t =>
-    t.status === "PENDING" &&
-    t.trigger_source === "SCOUTING_CURATIVE" &&
-    t.task_type === "FOLIAR_SPRAY" &&
-    (t.resolved_recipe || []).filter(r => catalog[r.input_id]?.category === "INSECTICIDE").length > 2
-  );
   const mergeBanners = [];
-
-  if (overloadedCurative) {
-    mergeBanners.push(`<div class="p-3 rounded-xl bg-amber-50 border-2 border-amber-400 text-amber-950 text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm">
-      <div>
-        <div class="font-extrabold">⚖️ ${LANG === "KN" ? "2 ಕ್ಕಿಂತ ಹೆಚ್ಚು ಕೀಟನಾಶಕಗಳ ಮಿಶ್ರಣ ಪತ್ತೆಯಾಗಿದೆ — 2 ಸಿನರ್ಜಿಸ್ಟಿಕ್ ಕೀಟನಾಶಕಗಳಿಗೆ ಇಳಿಸಿ!" : "3+ Insecticides Detected on " + overloadedCurative.current_scheduled_date + "!"}</div>
-        <div class="text-[11px] text-amber-900">${LANG === "KN" ? "ಶಿಲೀಂಧ್ರನಾಶಕವನ್ನು ಉಳಿಸಿಕೊಂಡು ಹೆಚ್ಚುವರಿ ಕೀಟನಾಶಕವನ್ನು ತೆಗೆದುಹಾಕುತ್ತದೆ." : "Spinetoram covers BOTH Thrips & Borer. Tap below to trim to 2 insecticides (while keeping your Fungicide)!"}</div>
-      </div>
-      <button onclick="optimizeExistingOverloadedCurativeAndNov3()" class="bg-amber-600 hover:bg-amber-700 text-white font-extrabold px-3 py-2 rounded-lg shadow shrink-0">
-        ✨ ${LANG === "KN" ? "ಸಿಂಪಡಣೆ ಹೊಂದಿಸಿ" : "Optimize Insecticides"}
-      </button>
-    </div>`);
-  }
-
   if (pendingWkFoliars.length >= 2) {
     mergeBanners.push(`<div class="p-3 rounded-xl bg-indigo-50 border-2 border-indigo-300 text-indigo-950 text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm">
       <div>
@@ -2800,7 +2820,7 @@ function render() {
   if (highRiskIssues.length > 0) {
     const names = highRiskIssues.map(iss => `${LANG === "KN" ? iss.knTitle : iss.enTitle} (${risks[iss.code].score}%)`).join(" • ");
     const unqueuedHigh = highRiskIssues.filter(iss => !getQueuedTaskCoveringIssue(iss.code));
-    const firstQueuedTask = getQueuedTaskCoveringIssue(highRiskIssues[0].code);
+    const firstQueuedTask = highRiskIssues.map(iss => getQueuedTaskCoveringIssue(iss.code)).find(Boolean);
 
     let actionBtnHtml = "";
     if (unqueuedHigh.length === 0 && firstQueuedTask) {
@@ -2820,7 +2840,7 @@ function render() {
       d: `<div class="flex flex-wrap items-center justify-between gap-2 mt-1">
             <span>${unqueuedHigh.length === 0
               ? (LANG === "KN" ? "ಈ ಅಪಾಯಗಳಿಗೆ ಈಗಾಗಲೇ ತುರ್ತು ಸಿಂಪಡಣೆಯನ್ನು ವೇಳಾಪಟ್ಟಿಗೆ ಸೇರಿಸಲಾಗಿದೆ." : "A curative spray covering these threats is already queued in your schedule.")
-              : (LANG === "KN" ? "ಸೂಕ್ತ ಔಷಧಿಗಳನ್ನು ಒಳಗೊಂಡ ಒಂದೇ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್ ಸೇರಿಸಿ." : "Combine into a single synergistic spray (supports 2 Insecticides + 1 Fungicide).")}</span>
+              : (LANG === "KN" ? "ಸೂಕ್ತ ಔಷಧಿಗಳನ್ನು ಒಳಗೊಂಡ ಒಂದೇ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್ ಸೇರಿಸಿ." : "Combine into a single synergistic spray (supports up to 2 Insecticides + 1 Fungicide).")}</span>
             ${actionBtnHtml}
           </div>`
     });
@@ -2851,7 +2871,7 @@ function render() {
               : (LANG === "KN" ? "🌿 ಎಲೆ ಸಿಂಪಡಣೆ" : "🌿 Foliar Spray"))
           : (L[`type_${tk.task_type}`] || tk.task_type);
 
-     const descText = getSimpleTaskDescription(tk, LANG === "KN");
+      const descText = getSimpleTaskDescription(tk, LANG === "KN");
 
       const recipeArr = Array.isArray(tk.resolved_recipe) ? tk.resolved_recipe : [];
       const doneCount = recipeArr.filter(r => r.item_status === "COMPLETED").length, pendingCount = recipeArr.filter(r => !r.item_status || r.item_status === "PENDING").length;
@@ -2883,32 +2903,28 @@ function render() {
         const isCrit = cat.procurement_criticality === "CRITICAL_MUST_SOURCE";
         const rowBg = itemSt === "COMPLETED" ? "bg-emerald-50/80 border-emerald-300" : itemSt === "SKIPPED" ? "bg-slate-100 border-slate-200 opacity-60 line-through" : "bg-slate-50 border-slate-200";
 
-        // Season spray count badge for foliar pesticides
-        const sStat = getSeasonSprayStats(cat.id);
-        const seasonSprayBadge = (metrics.isFoliar && cat.category !== "FERTIGATION" && cat.category !== "BIOSTIMULANT")
-          ? `<span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${sStat.exceededSalt ? 'bg-red-100 text-red-800 border border-red-300' : 'bg-indigo-50 text-indigo-900 border border-indigo-200'}" title="Sprayed ${sStat.usedSalt} times this season (Max recommended: ${sStat.maxSalt})">📊 ${LANG === "KN" ? `ಹಂಗಾಮು: ${sStat.usedSalt}/${sStat.maxSalt}` : `Season: ${sStat.usedSalt}/${sStat.maxSalt}`}</span>`
-          : "";
-
-        // Inline Editable Rate Input (ml/L, g/L, or kg/Ac) + Per Drum / Per Plant breakdown
+        // Editable Inline Rate Input (g/L, ml/L, or kg/Ac) + Per-Drum / Per-Plant Pill
         const dosePillsHtml = metrics.isFoliar
           ? `<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
-               <span class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-slate-800" title="Edit Rate per Liter">
+               <span class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded px-2 py-0.5 text-slate-700">
                  💧 <b>${LANG === "KN" ? "ಪ್ರಮಾಣ:" : "Rate:"}</b>
-                 <input type="number" step="0.05" min="0.05" value="${metrics.ratePerL}" onchange="updateItemRate('${tk.id}',${idx},this.value,'FOLIAR')" class="w-12 font-extrabold text-indigo-900 text-center bg-slate-50 rounded border border-slate-200 focus:outline-none" />
+                 <input type="number" step="0.1" min="0.05" value="${metrics.ratePerL}" onchange="updateItemRate('${tk.id}',${idx},this.value)" class="w-12 font-extrabold text-emerald-900 text-right border-b border-slate-300 focus:outline-none" />
                  <b>${metrics.rateUnit}/L</b>
                </span>
                <span class="bg-emerald-100/80 border border-emerald-300 rounded px-2 py-0.5 text-emerald-950">🪣 <b>${LANG === "KN" ? `ಪ್ರತಿ ${metrics.drumLiters}L ಡ್ರಮ್‌ಗೆ:` : `Per ${metrics.drumLiters}L Drum:`}</b> ${metrics.perDrumQty} ${metrics.rateUnit}</span>
              </div>`
           : `<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
-               <span class="inline-flex items-center gap-1 bg-sky-100/80 border border-sky-300 rounded px-1.5 py-0.5 text-sky-950" title="Edit Rate per Acre">
+               <span class="inline-flex items-center gap-1 bg-sky-100/80 border border-sky-300 rounded px-2 py-0.5 text-sky-950">
                  💧 <b>${LANG === "KN" ? "ಪ್ರತಿ ಎಕರೆಗೆ:" : "Per Acre:"}</b>
-                 <input type="number" step="0.25" min="0.1" value="${metrics.perAcreQty}" onchange="updateItemRate('${tk.id}',${idx},this.value,'DRIP')" class="w-12 font-extrabold text-sky-950 text-center bg-white rounded border border-sky-300 focus:outline-none" />
+                 <input type="number" step="0.25" min="0.1" value="${metrics.perAcreQty}" onchange="updateItemRate('${tk.id}',${idx},this.value)" class="w-12 bg-white rounded px-1 font-extrabold text-sky-950 text-right border border-sky-300 focus:outline-none" />
                  <b>${cat.unit}</b>
                </span>
                <span class="bg-white border border-slate-200 rounded px-2 py-0.5 text-slate-700">🌱 <b>${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ:" : "Per Plant:"}</b> ${metrics.perPlantGrams} g</span>
              </div>`;
 
-        const qtyLabel = itemSt === "COMPLETED" ? (LANG === "KN" ? "ಬಳಸಿದ್ದು:" : "Used:") : (LANG === "KN" ? "ಒಟ್ಟು:" : "Total:");
+        const qtyLabel = itemSt === "COMPLETED"
+          ? (LANG === "KN" ? "ಬಳಸಿದ್ದು:" : "Used:")
+          : (LANG === "KN" ? "ಒಟ್ಟು:" : "Total:");
 
         return `<div class="p-2.5 rounded-xl border ${rowBg} space-y-1.5">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
@@ -2917,7 +2933,6 @@ function render() {
                 <span>🧪 ${saltTitle}</span>
                 ${groupBadge}
                 <span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${isCrit ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'}">${isCrit ? L.mustSource : L.flexible}</span>
-                ${seasonSprayBadge}
               </div>
               ${dosePillsHtml}
               <div class="text-[11px] text-slate-500 mt-1">🏷️ <b>${LANG === "KN" ? "ಮಾರುಕಟ್ಟೆ ಹೆಸರು (Brands):" : "Store Brands:"}</b> ${brandsSubtitle}</div>
@@ -2929,9 +2944,9 @@ function render() {
                 <span class="font-bold text-slate-600">${cat.unit}</span>
               </div>
               <button onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'COMPLETED' ? 'PENDING' : 'COMPLETED'}',${suggestedTotal3Ac})" class="${itemSt === 'COMPLETED' ? 'bg-emerald-800' : 'bg-emerald-600'} text-white text-xs font-bold px-2.5 py-1.5 rounded-lg">✅</button>
-              <button onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'SKIPPED' ? 'PENDING' : 'SKIPPED'}',${suggestedTotal3Ac})" class="bg-slate-200 text-slate-800 text-xs font-bold px-2 py-1.5 rounded-lg">⏭️</button>
+              <button onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'SKIPPED' ? 'PENDING' : 'SKIPPED'}',${suggestedTotal3Ac})" class="bg-slate-200 text-slate-800 text-xs font-bold px-2.5 py-1.5 rounded-lg">⏭️</button>
               <button onclick="openSwap('${tk.id}',${idx},'${cat.id}')" class="bg-indigo-50 border border-indigo-300 text-indigo-900 text-xs font-bold px-2 py-1.5 rounded-lg">${L.storeOutBtn}</button>
-              ${recipeArr.length > 1 ? `<button onclick="removeItemFromTaskCard('${tk.id}',${idx})" title="Remove item from card" class="bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-700 text-xs font-extrabold px-2 py-1.5 rounded-lg">✕</button>` : ""}
+              ${recipeArr.length > 1 ? `<button onclick="removeItemFromTaskCard('${tk.id}',${idx})" title="${LANG === 'KN' ? 'ಈ ಔಷಧಿಯನ್ನು ಕಾರ್ಡ್‌ನಿಂದ ತೆಗೆದುಹಾಕಿ' : 'Remove this item from card'}" class="bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-700 text-xs font-extrabold px-2 py-1.5 rounded-lg">✕</button>` : ""}
             </div>
           </div>
         </div>`;
@@ -3060,7 +3075,7 @@ function render() {
   }).join("") || `<div class="py-2 text-slate-400">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಬದಲಾವಣೆ ದಾಖಲಾಗಿಲ್ಲ." : "No activity logged yet in this environment."}</div>`;
 
   document.getElementById("allWeeksBody").innerHTML = tasks.map(t => {
-    const desc = cleanHardcodedDayPrefix(LANG === "KN" ? (t.target_description_kn || t.target_description) : t.target_description, LANG === "KN");
+    const desc = getSimpleTaskDescription(t, LANG === "KN");
     const canDel = ["SCOUTING_CURATIVE", "MANUAL_ENTRY", "SPLIT_REMAINDER"].includes(t.trigger_source);
     return `<tr class="hover:bg-slate-50">
       <td onclick="goWeek(${t.week_number});showTab('TASKS')" class="py-1.5 font-bold cursor-pointer">${L.weekWord} ${t.week_number}</td>
