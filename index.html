@@ -821,19 +821,75 @@ function computeDailyGdd(tMax, tMin) {
   return Math.max(0, Number((((cappedMax + cappedMin) / 2) - 10.0).toFixed(2)));
 }
 
+// Universal Dosage & Unit Converter (Fixes 4,200 kg MKP bug & supports dynamic drum counts!)
+function getItemDoseMetrics(cat, it, mult = 1.0, drumsCount = CFG.drums) {
+  const c = cat || { unit: it.dose_per_liter ? "ml" : "kg" };
+  const isFoliar = Boolean(it.dose_per_liter);
+
+  if (isFoliar) {
+    // Foliar dose_per_liter is ALWAYS in 'g' (for solid kg/g items) or 'ml' (for liquid L/ml items)
+    const rateUnit = (c.unit === "kg" || c.unit === "g") ? "g" : "ml";
+    const ratePerL = Number((it.dose_per_liter * mult).toFixed(2));
+    const perDrumQty = Math.round(ratePerL * CFG.drumL);
+    const totalSmallUnit = Math.round(perDrumQty * drumsCount); // Total in g or ml
+
+    // Convert to catalog unit if catalog unit is 'kg' or 'L' (e.g., 4200 g -> 4.2 kg)
+    const isMacroUnit = (c.unit === "kg" || c.unit === "L");
+    const suggestedInCatUnit = isMacroUnit ? Number((totalSmallUnit / 1000).toFixed(2)) : totalSmallUnit;
+
+    // Self-heal any legacy saved actual_total_3ac that stored 4200 instead of 4.2 on a 'kg'/'L' item
+    let actualInCatUnit = it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : suggestedInCatUnit;
+    if (isMacroUnit && actualInCatUnit >= 100 && suggestedInCatUnit < 50) {
+      actualInCatUnit = Number((actualInCatUnit / 1000).toFixed(2));
+    }
+
+    const totalGramsOrMl = isMacroUnit ? Math.round(actualInCatUnit * 1000) : actualInCatUnit;
+    const humanTotalStr = totalSmallUnit >= 1000
+      ? `${(totalSmallUnit / 1000).toFixed(2).replace(/\.00$/, "")} ${rateUnit === "g" ? "kg" : "L"} (${totalSmallUnit} ${rateUnit})`
+      : `${totalSmallUnit} ${rateUnit}`;
+
+    return {
+      isFoliar: true,
+      ratePerL,
+      rateUnit,
+      perDrumQty,
+      drumsCount,
+      suggestedTotal3Ac: suggestedInCatUnit,
+      actualTotal3Ac: actualInCatUnit,
+      totalGrams3Ac: totalGramsOrMl,
+      humanTotalStr
+    };
+  } else {
+    const perAcreQty = Number(((it.dose_per_acre || 0) * mult).toFixed(2));
+    const suggestedInCatUnit = Number((perAcreQty * CFG.acres).toFixed(2));
+    const actualInCatUnit = it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : suggestedInCatUnit;
+    const totalGrams3Ac = (c.unit === "kg" || c.unit === "L") ? actualInCatUnit * 1000 : actualInCatUnit;
+    const perPlantGrams = Number(((suggestedInCatUnit * ((c.unit === "kg" || c.unit === "L") ? 1000 : 1)) / CFG.plants).toFixed(1));
+
+    return {
+      isFoliar: false,
+      perAcreQty,
+      perPlantGrams,
+      suggestedTotal3Ac: suggestedInCatUnit,
+      actualTotal3Ac: actualInCatUnit,
+      totalGrams3Ac,
+      humanTotalStr: `${suggestedInCatUnit} ${c.unit}`
+    };
+  }
+}
+
 function getCumulativeNutrientsPerPlant() {
   const del = { N: 0, P: 0, K: 0, Ca: 0, Mg: 0 };
   tasks.filter(t => t.status === "COMPLETED" && t.current_scheduled_date >= "2026-08-15").forEach(tk => {
     const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
     const sopMult = (taskDad >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
+    const drumsUsed = Number(tk.drums_count) || CFG.drums;
     (tk.resolved_recipe || []).forEach(it => {
       if (it.item_status === "SKIPPED") return;
       const c = catalog[it.input_id]; if (!c) return;
       const m = c.id === "WSF_00_00_50" ? sopMult : 1.0;
-      const defTotal = it.dose_per_liter ? Math.round(it.dose_per_liter * m * CFG.drumL * CFG.drums) : Number(((it.dose_per_acre || 0) * m * CFG.acres).toFixed(2));
-      const totalUsed = it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : defTotal;
-      const totalGrams3Ac = (c.unit === "kg" || c.unit === "L") ? totalUsed * 1000 : totalUsed;
-      const gPlant = totalGrams3Ac / CFG.plants;
+      const metrics = getItemDoseMetrics(c, it, m, drumsUsed);
+      const gPlant = metrics.totalGrams3Ac / CFG.plants;
       del.N  += gPlant * ((Number(c.n_pct) || 0) / 100);
       del.P  += gPlant * ((Number(c.p_pct) || 0) / 100);
       del.K  += gPlant * ((Number(c.k_pct) || 0) / 100);
@@ -841,7 +897,6 @@ function getCumulativeNutrientsPerPlant() {
       del.Mg += gPlant * ((Number(c.mg_pct) || 0) / 100);
     });
   });
-  // Also compute pure elemental P (P2O5 * 0.4364) and K (K2O * 0.8301) for complete transparency
   del.P_elem = del.P * 0.4364;
   del.K_elem = del.K * 0.8301;
   return del;
@@ -2312,6 +2367,9 @@ function render() {
     pTasks.innerHTML = wkTasks.map(tk => {
       const isScout = tk.trigger_source === "SCOUTING_CURATIVE", isManual = tk.trigger_source === "MANUAL_ENTRY" || tk.trigger_source === "SPLIT_REMAINDER", isKeep = tk.trigger_source === "KEEP_NOTE_HISTORY";
       const canDelete = isScout || isManual, isSkipped = tk.status === "SKIPPED";
+      const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER";
+      const drumsCount = Number(tk.drums_count) || CFG.drums;
+
       let hdr = tk.task_type === "STANDALONE_COPPER" ? "bg-red-700 text-white" : tk.task_type === "FOLIAR_SPRAY" ? "bg-emerald-700 text-white" : "bg-sky-700 text-white";
       if (isScout) hdr = "bg-rose-700 text-white"; if (isKeep) hdr = "bg-slate-700 text-white";
 
@@ -2325,6 +2383,19 @@ function render() {
       const wasShifted = tk.originally_scheduled_date && tk.originally_scheduled_date !== tk.current_scheduled_date;
       const walesGuide = getWalesMixingGuide(recipeArr);
 
+      // Interactive Drum Volume Selector for Foliar Cards (5, 6, 7, or 8 Drums x 200L)
+      const drumSelectorHtml = isFoliarCard ? `
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px]">
+          <span class="font-bold text-slate-700">🪣 ${LANG === "KN" ? `ಸಿಂಪಡಣೆ ನೀರಿನ ಪ್ರಮಾಣ (${drumsCount * CFG.drumL} ಲೀಟರ್):` : `Spray Tank Volume (${drumsCount * CFG.drumL}L total):`}</span>
+          <div class="flex items-center gap-1 font-extrabold">
+            ${[5, 6, 7, 8].map(dNum => `
+              <button onclick="setCardDrumCount('${tk.id}',${dNum})" class="px-2 py-0.5 rounded ${drumsCount === dNum ? 'bg-emerald-700 text-white shadow-sm' : 'bg-white text-slate-700 border border-slate-300'}">
+                ${dNum} ${LANG === "KN" ? "ಡ್ರಮ್" : "Drums"}
+              </button>
+            `).join("")}
+          </div>
+        </div>` : "";
+
       const itemsHtml = recipeArr.map((it, idx) => {
         const cat = catalog[it.input_id] || { id: it.input_id, name_en: it.input_id, active_ingredient: it.input_id, unit: it.dose_per_liter ? "ml" : "kg", procurement_criticality: "FLEXIBLE", category: "INPUT" };
         const saltTitle = getSaltOnlyTitle(cat);
@@ -2332,12 +2403,25 @@ function render() {
         const groupBadge = getUniformGroupBadge(cat);
 
         const m = cat.id === "WSF_00_00_50" ? sopMult : 1.0;
+        const metrics = getItemDoseMetrics(cat, it, m, drumsCount);
         const itemSt = it.item_status || (tk.status === "COMPLETED" ? "COMPLETED" : tk.status === "SKIPPED" ? "SKIPPED" : "PENDING");
-        const suggestedTotal3Ac = it.dose_per_liter ? Math.round(it.dose_per_liter * m * CFG.drumL * CFG.drums) : Number((it.dose_per_acre * m * CFG.acres).toFixed(2));
-        const perUnitText = it.dose_per_liter ? (LANG === "KN" ? `ಪ್ರತಿ 200L ಡ್ರಮ್‌ಗೆ: <b>${Math.round(it.dose_per_liter * m * CFG.drumL)} ${cat.unit}</b>` : `Per 200L Drum: <b>${Math.round(it.dose_per_liter * m * CFG.drumL)} ${cat.unit}</b>`) : (LANG === "KN" ? `ಪ್ರತಿ ಎಕರೆಗೆ: <b>${(it.dose_per_acre * m).toFixed(2)} ${cat.unit}</b>` : `Per Acre: <b>${(it.dose_per_acre * m).toFixed(2)} ${cat.unit}</b>`);
-        const currentTotal3Ac = it.actual_total_3ac !== undefined ? it.actual_total_3ac : suggestedTotal3Ac;
+        const suggestedTotal3Ac = metrics.suggestedTotal3Ac;
+        const currentTotal3Ac = metrics.actualTotal3Ac;
         const isCrit = cat.procurement_criticality === "CRITICAL_MUST_SOURCE";
         const rowBg = itemSt === "COMPLETED" ? "bg-emerald-50/80 border-emerald-300" : itemSt === "SKIPPED" ? "bg-slate-100 border-slate-200 opacity-60 line-through" : "bg-slate-50 border-slate-200";
+
+        // 3-Pill Structured Dosage Recommendation Bar
+        const dosePillsHtml = metrics.isFoliar
+          ? `<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
+               <span class="bg-white border border-slate-200 rounded px-2 py-0.5 text-slate-700">💧 <b>${LANG === "KN" ? "ಪ್ರತಿ ಲೀಟರ್‌ಗೆ:" : "Per Liter:"}</b> ${metrics.ratePerL} ${metrics.rateUnit}/L</span>
+               <span class="bg-emerald-100/80 border border-emerald-300 rounded px-2 py-0.5 text-emerald-950">🪣 <b>${LANG === "KN" ? "ಪ್ರತಿ 200L ಡ್ರಮ್‌ಗೆ:" : "Per 200L Drum:"}</b> ${metrics.perDrumQty} ${metrics.rateUnit}</span>
+               <span class="bg-indigo-100/80 border border-indigo-300 rounded px-2 py-0.5 text-indigo-950">🚜 <b>${LANG === "KN" ? `ಒಟ್ಟು (${drumsCount} ಡ್ರಮ್):` : `Total (${drumsCount} Drums):`}</b> ${metrics.humanTotalStr}</span>
+             </div>`
+          : `<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
+               <span class="bg-white border border-slate-200 rounded px-2 py-0.5 text-slate-700">🌱 <b>${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ:" : "Per Plant:"}</b> ${metrics.perPlantGrams} g</span>
+               <span class="bg-sky-100/80 border border-sky-300 rounded px-2 py-0.5 text-sky-950">💧 <b>${LANG === "KN" ? "ಪ್ರತಿ ಎಕರೆಗೆ:" : "Per Acre:"}</b> ${metrics.perAcreQty} ${cat.unit}</span>
+               <span class="bg-indigo-100/80 border border-indigo-300 rounded px-2 py-0.5 text-indigo-950">🚜 <b>${LANG === "KN" ? "ಒಟ್ಟು (3 ಎಕರೆ):" : "Total (3 Acres):"}</b> ${metrics.humanTotalStr}</span>
+             </div>`;
 
         return `<div class="p-2.5 rounded-xl border ${rowBg} space-y-1.5">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
@@ -2347,13 +2431,13 @@ function render() {
                 ${groupBadge}
                 <span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${isCrit ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'}">${isCrit ? L.mustSource : L.flexible}</span>
               </div>
-              <div class="text-xs text-slate-700 mt-0.5">${perUnitText} • ${LANG === "KN" ? "ಶಿಫಾರಸು (3 ಎಕರೆ)" : "Suggested 3-Acre"}: <b>${suggestedTotal3Ac} ${cat.unit}</b></div>
-              <div class="text-[11px] text-slate-500">🏷️ <b>${LANG === "KN" ? "ಮಾರುಕಟ್ಟೆ ಹೆಸರು (Brands):" : "Store Brands:"}</b> ${brandsSubtitle}</div>
+              ${dosePillsHtml}
+              <div class="text-[11px] text-slate-500 mt-1">🏷️ <b>${LANG === "KN" ? "ಮಾರುಕಟ್ಟೆ ಹೆಸರು (Brands):" : "Store Brands:"}</b> ${brandsSubtitle}</div>
             </div>
             <div class="flex flex-wrap items-center gap-1.5 pt-1 sm:pt-0">
               <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
                 <span class="text-slate-500 text-[11px]">${LANG === "KN" ? "ಬಳಸಿದ್ದು:" : "Qty:"}</span>
-                <input type="number" step="0.25" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" class="w-14 font-extrabold text-slate-900 focus:outline-none text-right" />
+                <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" class="w-14 font-extrabold text-slate-900 focus:outline-none text-right" />
                 <span class="font-bold text-slate-600">${cat.unit}</span>
               </div>
               <button onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'COMPLETED' ? 'PENDING' : 'COMPLETED'}',${suggestedTotal3Ac})" class="${itemSt === 'COMPLETED' ? 'bg-emerald-800' : 'bg-emerald-600'} text-white text-xs font-bold px-2.5 py-1.5 rounded-lg">✅</button>
@@ -2378,6 +2462,7 @@ function render() {
             </div>
             <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 shrink-0">${statusText}</span>
           </div>
+          ${drumSelectorHtml}
           ${itemsHtml ? `<div class="space-y-2">${itemsHtml}</div>` : ""}
           ${walesGuide ? `<div class="p-2 bg-emerald-50/70 border border-emerald-200 rounded-lg text-[11px] text-emerald-950">${walesGuide}</div>` : ""}
           ${hasPartialDone ? `<button onclick="splitRemainingItemsToTomorrow('${tk.id}')" class="w-full bg-indigo-600 text-white font-bold text-xs py-2 px-3 rounded-lg shadow">${L.splitRemainingBtn}</button>` : ""}
@@ -2405,12 +2490,16 @@ function render() {
   document.getElementById("totalSeasonCost").textContent = `₹ ${totalSpend.toLocaleString("en-IN")}`;
   document.getElementById("weekCostSummary").textContent = `${LANG === "KN" ? "ಈ ವಾರದ ಖರ್ಚು" : "This Week Spend"}: ₹ ${weekSpend.toLocaleString("en-IN")}`;
 
+  // Shopping List now uses getItemDoseMetrics so Foliar 00:52:34 adds 4.2 kg (NOT 4200 kg!)
   const tot = {};
   wkTasks.filter(t => t.status !== "SKIPPED" && t.status !== "COMPLETED").forEach(tk => {
+    const drumsCount = Number(tk.drums_count) || CFG.drums;
     (tk.resolved_recipe || []).forEach(it => {
       if (it.item_status === "COMPLETED" || it.item_status === "SKIPPED") return;
-      const defReq = it.dose_per_liter ? it.dose_per_liter * CFG.drumL * CFG.drums : it.dose_per_acre * CFG.acres;
-      tot[it.input_id] = (tot[it.input_id] || 0) + (it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : defReq);
+      const c = catalog[it.input_id];
+      const m = c?.id === "WSF_00_00_50" ? sopMult : 1.0;
+      const metrics = getItemDoseMetrics(c, it, m, drumsCount);
+      tot[it.input_id] = (tot[it.input_id] || 0) + metrics.actualTotal3Ac;
     });
   });
   document.getElementById("shopBox").innerHTML = Object.keys(tot).map(id => {
@@ -2470,15 +2559,29 @@ function render() {
   }).join("");
 }
 
-// ============================================================================
-// GATE P1: PHENOLOGICAL ZERO-NITROGEN (>140 DAD) & PRE-HARVEST PHI LOCKS
-// ============================================================================
+// Interactive Drum Count Updater for Foliar Spray Cards (5, 6, 7, or 8 Drums)
+function setCardDrumCount(taskId, newDrums) {
+  const tk = tasks.find(x => x.id === taskId); if (!tk) return;
+  tk.drums_count = Number(newDrums) || CFG.drums;
+  const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
+  const sopMult = (taskDad >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
+
+  tk.resolved_recipe = (tk.resolved_recipe || []).map(it => {
+    const c = catalog[it.input_id];
+    const m = c?.id === "WSF_00_00_50" ? sopMult : 1.0;
+    const copy = { ...it };
+    delete copy.actual_total_3ac;
+    const metrics = getItemDoseMetrics(c, copy, m, tk.drums_count);
+    return { ...copy, actual_total_3ac: metrics.suggestedTotal3Ac };
+  });
+  render();
+}
+
 function checkPhenologyAndPhiLock(cat, effectiveDad) {
   if (!cat) return { ok: true };
   const dad = Number(effectiveDad);
   if (Number.isNaN(dad)) return { ok: true };
 
-  // Rule 1A: Zero-Nitrogen Lock during Ripening & Color Stage (140 to 195 DAD)
   const hasN = Boolean(cat.contains_nitrogen) || (Number(cat.n_pct) || 0) > 0;
   if (dad >= 140 && dad <= 195 && hasN) {
     return {
@@ -2489,7 +2592,6 @@ function checkPhenologyAndPhiLock(cat, effectiveDad) {
     };
   }
 
-  // Rule 1B: Pre-Harvest Interval (PHI) Residue Safety Lock before 1st Harvest (190 DAD)
   const phi = Number(cat.phi_days) || 0;
   const daysToFirstHarvest = 190 - dad;
   if (dad >= 165 && dad < 190 && phi > 0 && daysToFirstHarvest < phi) {
@@ -2504,11 +2606,28 @@ function checkPhenologyAndPhiLock(cat, effectiveDad) {
   return { ok: true };
 }
 
-// Sanitizes any numeric user input so NaN, negative values, or text strings never corrupt math
 function sanitizeNonNegativeNumber(rawVal, fallback = 0, maxVal = 1000000) {
   const n = Number(rawVal);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(maxVal, Math.max(0, Number(n.toFixed(2))));
+}
+
+// Calculates Capped Next-Task Dose for Drip Fertilizers:
+// - If COMPLETED with surplus/deficit: adjusts next task (floored at 0.5 kg/ac).
+// - If SKIPPED on a Drip Fertilizer: carries over skipped dose into next task, CAPPED at +50% (1.5x baseOrigDose) for Root-Zone EC safety!
+// - If FOLIAR spray: never alters concentration!
+function computeSafeNextDripDose(baseOrigDose, status, actual3Ac, suggested3Ac) {
+  const orig = Number(baseOrigDose) || 2.0;
+  if (status === "SKIPPED") {
+    return Number((orig * 1.5).toFixed(2)); // +50% max EC-safe make-up cap
+  }
+  if (status === "COMPLETED") {
+    const rawDiff3Ac = Number((actual3Ac - suggested3Ac).toFixed(2));
+    if (Math.abs(rawDiff3Ac) < 0.5) return orig;
+    const deltaPerAc = Number((rawDiff3Ac / CFG.acres).toFixed(2));
+    return Math.min(Number((orig * 1.5).toFixed(2)), Math.max(0.5, Number((orig - deltaPerAc).toFixed(2))));
+  }
+  return orig; // PENDING restores original baseline dose
 }
 
 function openSwap(taskId, idx, id) {
@@ -2563,8 +2682,9 @@ function openSwap(taskId, idx, id) {
     h += `<div class="font-extrabold text-emerald-900 pt-1">✅ ${LANG === "KN" ? "ಅನುಮೋದಿತ ಪರ್ಯಾಯಗಳು (ಹಿಂದಿನ ಸಿಂಪಡಣೆ ಆಧರಿಸಿ ಪರಿಶೀಲಿಸಲಾಗಿದೆ):" : "Approved Alternatives (Checked Against Past Sprays & Stage):"}</div>`;
     rawApproved.forEach(item => {
       const sc = item.cat;
+      const rateUnit = (sc.unit === "kg" || sc.unit === "g") ? "g" : "ml";
       const doseInfo = sc.base_dose_per_liter
-        ? (LANG === "KN" ? `${Math.round(sc.base_dose_per_liter * CFG.drumL)} ${sc.unit} / 200L ಡ್ರಮ್` : `${Math.round(sc.base_dose_per_liter * CFG.drumL)} ${sc.unit} / 200L Drum`)
+        ? (LANG === "KN" ? `${Math.round(sc.base_dose_per_liter * CFG.drumL)} ${rateUnit} / 200L ಡ್ರಮ್` : `${Math.round(sc.base_dose_per_liter * CFG.drumL)} ${rateUnit} / 200L Drum`)
         : (LANG === "KN" ? `${sc.base_dose_per_acre} ${sc.unit} / ಎಕರೆ` : `${sc.base_dose_per_acre} ${sc.unit} / Acre`);
 
       const isClean = item.rank === 0;
@@ -2634,8 +2754,9 @@ function evaluateDealerBrandInModal() {
     checks.push(`<div class="text-emerald-800 font-bold">✅ ${LANG === "KN" ? "ಪರೀಕ್ಷೆ 3 (ಡ್ರಮ್ ಮಿಶ್ರಣ ಮತ್ತು ಹಂತ): ಈ ಕಾರ್ಡ್‌ನಲ್ಲಿ ಬಳಸಲು ಸುರಕ್ಷಿತವಾಗಿದೆ." : "Check 3 (Tank-Mix & Stage/PHI Safety): Safe for this card and crop stage."}</div>`);
   }
 
+  const rateUnit = (candCat.unit === "kg" || candCat.unit === "g") ? "g" : "ml";
   const doseInfo = candCat.base_dose_per_liter
-    ? (LANG === "KN" ? `${Math.round(candCat.base_dose_per_liter * CFG.drumL)} ${candCat.unit} / 200L ಡ್ರಮ್` : `${Math.round(candCat.base_dose_per_liter * CFG.drumL)} ${candCat.unit}/Drum`)
+    ? (LANG === "KN" ? `${Math.round(candCat.base_dose_per_liter * CFG.drumL)} ${rateUnit} / 200L ಡ್ರಮ್` : `${Math.round(candCat.base_dose_per_liter * CFG.drumL)} ${rateUnit}/Drum`)
     : (LANG === "KN" ? `${candCat.base_dose_per_acre} ${candCat.unit} / ಎಕರೆ` : `${candCat.base_dose_per_acre} ${candCat.unit}/Acre`);
 
   checks.push(`<div class="p-2.5 bg-white border border-indigo-200 rounded-lg flex items-center justify-between gap-2 mt-1">
@@ -2663,6 +2784,23 @@ async function updateItemQty(taskId, idx, newVal, suggestedTotal3Ac) {
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
 }
 
+// Handles BOTH Completed Dose-Delta AND Skipped Drip Make-Up Carryover (+50% EC Cap)!
+async function syncNextDripDoseForItem(tk, item, newStatus, suggestedTotal3Ac) {
+  if (!item || !item.dose_per_acre) return; // Foliar sprays NEVER alter next spray's concentration!
+  const nextTask = tasks.find(f => f.id !== tk.id && f.status !== "COMPLETED" && f.status !== "SKIPPED" && f.originally_scheduled_date > tk.originally_scheduled_date && (f.resolved_recipe || []).some(r => r.input_id === item.input_id && r.dose_per_acre));
+  if (!nextTask) return;
+
+  nextTask.resolved_recipe = nextTask.resolved_recipe.map(r => {
+    if (r.input_id !== item.input_id || !r.dose_per_acre) return r;
+    const baseOrigDose = Number(r.orig_dose_per_acre !== undefined ? r.orig_dose_per_acre : r.dose_per_acre);
+    const newDose = computeSafeNextDripDose(baseOrigDose, newStatus, item.actual_total_3ac ?? suggestedTotal3Ac, suggestedTotal3Ac);
+    const updatedItem = { ...r, orig_dose_per_acre: baseOrigDose, dose_per_acre: newDose };
+    delete updatedItem.actual_total_3ac;
+    return updatedItem;
+  });
+  await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: nextTask.resolved_recipe }, matchCol: "id", matchVal: nextTask.id });
+}
+
 async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
   const tk = tasks.find(x => x.id === taskId); if (!tk || !tk.resolved_recipe[idx]) return;
   const item = tk.resolved_recipe[idx];
@@ -2673,26 +2811,7 @@ async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
   tk.status = all.every(r => r.item_status === "COMPLETED") ? "COMPLETED" : all.every(r => r.item_status === "SKIPPED") ? "SKIPPED" : all.every(r => r.item_status === "COMPLETED" || r.item_status === "SKIPPED") ? "COMPLETED" : "PENDING";
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
 
-  if (item.dose_per_acre) {
-    const rawDiff3Ac = (newStatus === "COMPLETED") ? Number((item.actual_total_3ac - suggestedTotal3Ac).toFixed(2)) : 0;
-    const desiredDeltaPerAcre = (Math.abs(rawDiff3Ac) >= 0.5) ? Number((rawDiff3Ac / CFG.acres).toFixed(2)) : 0;
-    const previouslyAppliedDelta = Number(item.applied_delta_per_acre || 0);
-    const netAdjustment = Number((desiredDeltaPerAcre - previouslyAppliedDelta).toFixed(2));
-
-    if (Math.abs(netAdjustment) >= 0.05) {
-      const nextTask = tasks.find(f => f.id !== tk.id && f.status !== "COMPLETED" && f.status !== "SKIPPED" && f.originally_scheduled_date > tk.originally_scheduled_date && (f.resolved_recipe || []).some(r => r.input_id === item.input_id));
-      if (nextTask) {
-        nextTask.resolved_recipe = nextTask.resolved_recipe.map(r => {
-          if (r.input_id !== item.input_id || !r.dose_per_acre) return r;
-          const baseOrigDose = Number(r.orig_dose_per_acre !== undefined ? r.orig_dose_per_acre : r.dose_per_acre);
-          const newDose = desiredDeltaPerAcre === 0 ? baseOrigDose : Math.max(0.5, Number((baseOrigDose - desiredDeltaPerAcre).toFixed(2)));
-          return { ...r, orig_dose_per_acre: baseOrigDose, dose_per_acre: newDose };
-        });
-        item.applied_delta_per_acre = desiredDeltaPerAcre;
-        await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: nextTask.resolved_recipe }, matchCol: "id", matchVal: nextTask.id });
-      }
-    }
-  }
+  await syncNextDripDoseForItem(tk, item, newStatus, suggestedTotal3Ac);
 
   render();
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { status: tk.status, resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
@@ -2721,17 +2840,30 @@ async function markWholeCard(taskId, st) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
   const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
   const sopMult = (taskDad >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
+  const drumsCount = Number(tk.drums_count) || CFG.drums;
 
   tk.status = st;
   tk.resolved_recipe = (tk.resolved_recipe || []).map(r => {
+    const c = catalog[r.input_id];
     const m = r.input_id === "WSF_00_00_50" ? sopMult : 1.0;
-    const suggested3Ac = r.dose_per_liter ? Math.round(r.dose_per_liter * m * CFG.drumL * CFG.drums) : Number(((r.dose_per_acre || 0) * m * CFG.acres).toFixed(2));
+    const metrics = getItemDoseMetrics(c, r, m, drumsCount);
     return {
       ...r,
       item_status: st,
-      actual_total_3ac: r.actual_total_3ac !== undefined ? r.actual_total_3ac : suggested3Ac
+      actual_total_3ac: metrics.actualTotal3Ac
     };
   });
+
+  // If a Drip card is marked COMPLETED or SKIPPED, propagate safe make-up / delta to next drip!
+  for (const r of tk.resolved_recipe) {
+    if (r.dose_per_acre) {
+      const c = catalog[r.input_id];
+      const m = r.input_id === "WSF_00_00_50" ? sopMult : 1.0;
+      const metrics = getItemDoseMetrics(c, r, m, drumsCount);
+      await syncNextDripDoseForItem(tk, r, st, metrics.suggestedTotal3Ac);
+    }
+  }
+
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString(); render();
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { status: st, resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
   await logAudit(st, cleanHardcodedDayPrefix(tk.target_description, false), `Date: ${tk.current_scheduled_date}`);
@@ -2802,7 +2934,7 @@ async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
 }
 
 // ============================================================================
-// 25-POINT ENTERPRISE QA, MATH, SOURCE & STATEFUL EDGE-CASE SUITE (STAGES 1 & 2)
+// 27-POINT ENTERPRISE QA, MATH, SOURCE & STATEFUL EDGE-CASE SUITE
 // ============================================================================
 function runEnterpriseQASuite() {
   const results = [];
@@ -2858,52 +2990,48 @@ function runEnterpriseQASuite() {
   assert("16. Offline Outbox RFC-4122 UUID Generator", /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(testUuid), `Generated valid UUID: ${testUuid.slice(0, 18)}...`);
   assert("17. 100% Kannada Salt Dictionary Coverage", missingKn.length === 0, `${Object.keys(catalog).length} catalog items verified in Kannada`);
 
-  // --- STAGE 2: STATEFUL INTEGRATION & BOUNDARY STRESS TESTS (TESTS 18–25) ---
-
-  // Test 18: Gate P1 140-DAD Zero-Nitrogen Color Lock
+  // --- STAGE 2: STATEFUL INTEGRATION & BOUNDARY STRESS TESTS (TESTS 18–27) ---
   const nFert = catalog["WSF_13_00_45"] || { contains_nitrogen: true, n_pct: 13 };
   const kFert = catalog["WSF_00_00_50"] || { contains_nitrogen: false, n_pct: 0 };
   assert("18. Gate P1 Zero-Nitrogen Lock (>=140 DAD)", checkPhenologyAndPhiLock(nFert, 135).ok && !checkPhenologyAndPhiLock(nFert, 145).ok && checkPhenologyAndPhiLock(kFert, 145).ok, "Allows 13:00:45 at 135 DAD; blocks at 145 DAD; allows 00:00:50 SOP at 145 DAD");
 
-  // Test 19: Gate P1 Pre-Harvest Interval (PHI) Residue Lock before 190 DAD Harvest
   const longPhiChem = catalog["FUN_CARBENDAZIM"] || { category: "FUNGICIDE", phi_days: 21 };
   const zeroPhiBio = catalog["INS_AZADIRACHTIN"] || { category: "INSECTICIDE", phi_days: 0 };
   assert("19. Gate P1 Pre-Harvest PHI Residue Lock (<190 DAD)", !checkPhenologyAndPhiLock(longPhiChem, 182).ok && checkPhenologyAndPhiLock(zeroPhiBio, 185).ok, "Blocks 21d-PHI Carbendazim at 182 DAD (8d to harvest); allows 0d-PHI Neemazal at 185 DAD");
 
-  // Test 20: Cascade Backward Floor Clamping (Never pulls earlier than originally_scheduled_date)
   const mockOrigDate = "2026-11-10", mockDelayedDate = "2026-11-14";
   const shiftedBack = addDaysYMD(mockDelayedDate, -10);
   const clampedDate = shiftedBack < mockOrigDate ? mockOrigDate : shiftedBack;
   assert("20. Cascade Backward Baseline Floor Clamp", clampedDate === "2026-11-10", `Shifting -10d from ${mockDelayedDate} clamps cleanly at baseline ${clampedDate}`);
 
-  // Test 21: SINGLE Mode Cross-Track Isolation (Moving Foliar Spray onto Drip Day)
   const movingFoliarIsDrip = "FOLIAR_SPRAY".startsWith("DRIP");
   const existingDripIsDrip = "DRIP_SAT".startsWith("DRIP");
-  const singleCollisionTriggered = (movingFoliarIsDrip === existingDripIsDrip);
-  assert("21. SINGLE Mode Cross-Track Isolation (Drip + Spray)", singleCollisionTriggered === false, "Moving Foliar Spray onto a Drip day in SINGLE mode does NOT bump the Drip task");
+  assert("21. SINGLE Mode Cross-Track Isolation (Drip + Spray)", (movingFoliarIsDrip === existingDripIsDrip) === false, "Moving Foliar Spray onto a Drip day in SINGLE mode does NOT bump the Drip task");
 
-  // Test 22: Dose-Delta Idempotency & 0.5 kg/ac Minimum Floor Guard
-  const baseNextDose = 2.5;
-  const hugeSurplusPerAc = Number(((50 - 6) / CFG.acres).toFixed(2)); // +14.67 kg/ac surplus
-  const flooredDose = Math.max(0.5, Number((baseNextDose - hugeSurplusPerAc).toFixed(2)));
-  const restoredDose = baseNextDose; // When unmarked back to PENDING (desiredDelta = 0)
-  assert("22. Dose-Delta 0.5 kg/ac Floor & Toggle Restore", flooredDose === 0.5 && restoredDose === 2.5, `50kg surplus clamps next task at ${flooredDose} kg/ac (never <=0); unchecking restores ${restoredDose} kg/ac`);
+  const flooredDose = computeSafeNextDripDose(2.5, "COMPLETED", 50, 6);
+  const restoredDose = computeSafeNextDripDose(2.5, "PENDING", 6, 6);
+  assert("22. Dose-Delta 0.5 kg/ac Floor & Toggle Restore", flooredDose === 0.5 && restoredDose === 2.5, `50kg surplus clamps next task at ${flooredDose} kg/ac; unchecking restores ${restoredDose} kg/ac`);
 
-  // Test 23: Warm-Night (>18°C) +15% SOP Boost Lock-In & Elemental P/K Conversion
   const warmNightSop3Ac = Number((4.0 * 1.15 * CFG.acres).toFixed(2));
   const npkSnapshot = getCumulativeNutrientsPerPlant();
   assert("23. Warm-Night (>18°C) +15% SOP Boost & Elemental Math", warmNightSop3Ac === 13.8 && typeof npkSnapshot.P_elem === "number" && typeof npkSnapshot.K_elem === "number", "4 kg/ac SOP × 1.15 × 3 ac = 13.8 kg; Elemental P & K verified");
 
-  // Test 24: Malformed / Negative / NaN User Input Sanitizer
   assert("24. Malformed & Negative Input Sanitizer Guard", sanitizeNonNegativeNumber("-250") === 0 && sanitizeNonNegativeNumber("abc", 7.5) === 7.5 && sanitizeNonNegativeNumber(Infinity, 0) === 0, "Clamps '-250' -> 0, 'abc' -> fallback 7.5, Infinity -> 0");
 
-  // Test 25: Partial Task Split & Shopping List Exclusion Integrity
   const mockSplitCard = [
     { input_id: "WSF_00_52_34", dose_per_acre: 2.0, actual_total_3ac: 6, item_status: "COMPLETED" },
     { input_id: "WSF_MGSO4", dose_per_acre: 2.5, actual_total_3ac: 7.5, item_status: "PENDING" }
   ];
   const pendingShopNeed = mockSplitCard.filter(i => i.item_status !== "COMPLETED" && i.item_status !== "SKIPPED").reduce((s, i) => s + i.actual_total_3ac, 0);
   assert("25. Partial Task Split & Shopping List Exclusion", pendingShopNeed === 7.5, "Excludes 6kg COMPLETED item; counts only 7.5kg PENDING item in Store List");
+
+  // Test 26: Nov 12 Dual-Use Foliar MKP (00:52:34) Unit Conversion Guard (4.2 kg, NOT 4,200 kg!)
+  const mkpFoliarMetrics = getItemDoseMetrics(mkp || { unit: "kg" }, { input_id: "WSF_00_52_34", dose_per_liter: 3.0 }, 1.0, 7);
+  assert("26. Dual-Use Foliar Fertilizer Unit Conversion (Nov 12 MKP)", mkpFoliarMetrics.perDrumQty === 600 && mkpFoliarMetrics.rateUnit === "g" && mkpFoliarMetrics.suggestedTotal3Ac === 4.2 && mkpFoliarMetrics.totalGrams3Ac === 4200, `3 g/L MKP = ${mkpFoliarMetrics.perDrumQty} g/drum & ${mkpFoliarMetrics.suggestedTotal3Ac} kg total (fixes 4,200 kg bug)`);
+
+  // Test 27: Skipped Drip Make-Up Carryover (+50% EC Cap) vs. Skipped Foliar Concentration Lock
+  const skippedDripNextDose = computeSafeNextDripDose(2.0, "SKIPPED", 0, 6.0);
+  assert("27. Skipped Drip Make-Up (+50% EC Cap) & Un-Skip Restore", skippedDripNextDose === 3.0 && computeSafeNextDripDose(2.0, "PENDING", 6, 6) === 2.0, `Skipping 2.0 kg/ac Drip boosts next Drip to ${skippedDripNextDose} kg/ac (+50% max EC cap); Foliar rate stays locked`);
 
   const sortedResults = [...results].sort((a, b) => Number(a.pass) - Number(b.pass));
   const passed = results.filter(r => r.pass).length;
@@ -2917,7 +3045,7 @@ function runEnterpriseQASuite() {
           <span class="px-2 py-0.5 rounded-full font-extrabold ${allPass ? 'bg-emerald-500 text-slate-950' : 'bg-rose-600 text-white'}">
             ${allPass ? '✅ ALL ' + passed + '/' + results.length + ' PASSED' : '⚠️ ' + passed + '/' + results.length + ' PASSED'}
           </span>
-          <span class="font-extrabold text-sm ml-2">Enterprise QA Suite (Stages 1 &amp; 2)</span>
+          <span class="font-extrabold text-sm ml-2">Enterprise QA Suite (27 Tests)</span>
         </div>
         <button onclick="render()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-2.5 py-1 rounded-lg">✕ Close</button>
       </div>
@@ -2946,6 +3074,7 @@ async function confirmDelayModal() {
 
 async function resetCardWithCascade(taskId) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
+  delete tk.drums_count;
   tk.resolved_recipe = (tk.resolved_recipe || []).map(r => { const c = { ...r }; delete c.item_status; delete c.actual_total_3ac; delete c.applied_delta_per_acre; return c; });
   if (tk.originally_scheduled_date && tk.current_scheduled_date !== tk.originally_scheduled_date) {
     const delta = diffDaysYMD(tk.current_scheduled_date, tk.originally_scheduled_date);
@@ -2990,7 +3119,6 @@ async function saveManualActivity() {
 
   const dyn = computeDynamicDadAndWeek(dateStr);
 
-  // Check Gate P1 Phenology (>140 DAD Zero-N & PHI) + Gate P2 Tank-Mix Compatibility before saving
   for (const cid of [chem1, chem2].filter(Boolean)) {
     const pheno = checkPhenologyAndPhiLock(catalog[cid], dyn.dad);
     if (!pheno.ok && !confirm((LANG === "KN" ? pheno.reasonKn : pheno.reasonEn) + "\n\nSave anyway?")) return;
@@ -3030,11 +3158,18 @@ async function saveLeftover(id, v) {
 
 function copyList() {
   const wkTasks = tasks.filter(t => Number(t.week_number) === curWk && t.status !== "SKIPPED" && t.status !== "COMPLETED"), tot = {};
-  wkTasks.forEach(tk => (tk.resolved_recipe || []).forEach(it => {
-    if (it.item_status === "COMPLETED" || it.item_status === "SKIPPED") return;
-    const defReq = it.dose_per_liter ? it.dose_per_liter * CFG.drumL * CFG.drums : it.dose_per_acre * CFG.acres;
-    tot[it.input_id] = (tot[it.input_id] || 0) + (it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : defReq);
-  }));
+  const dad1 = curWk === 0 ? -10 : (curWk - 1) * 7;
+  const sopMult = (dad1 >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
+  wkTasks.forEach(tk => {
+    const drumsCount = Number(tk.drums_count) || CFG.drums;
+    (tk.resolved_recipe || []).forEach(it => {
+      if (it.item_status === "COMPLETED" || it.item_status === "SKIPPED") return;
+      const c = catalog[it.input_id];
+      const m = c?.id === "WSF_00_00_50" ? sopMult : 1.0;
+      const metrics = getItemDoseMetrics(c, it, m, drumsCount);
+      tot[it.input_id] = (tot[it.input_id] || 0) + metrics.actualTotal3Ac;
+    });
+  });
   const lines = [`🍎 Hosahalli Orchard Week ${curWk} Store List (3 Acres):`];
   Object.keys(tot).forEach(id => {
     const c = catalog[id], net = Math.max(0, Number((tot[id] - (leftovers[id] || 0)).toFixed(2)));
