@@ -759,8 +759,8 @@ function updateSyncBadge() {
 }
 
 async function dbMutate(op) {
-  // Ensure any insert on daily_task_queue or activity_audit_log has a valid UUID before hitting DB or Outbox
-  if (op.type === "insert" && Array.isArray(op.payload) && (op.table === "daily_task_queue" || op.table === "activity_audit_log")) {
+  // ONLY daily_task_queue uses a UUID primary key; activity_audit_log & other tables use SERIAL integers!
+  if (op.type === "insert" && Array.isArray(op.payload) && op.table === "daily_task_queue") {
     op.payload = op.payload.map(row => ({ id: row.id && /^[0-9a-f-]{36}$/i.test(row.id) ? row.id : genUUID(), ...row }));
   }
   if (!navigator.onLine) { const q = getOutbox(); q.push(op); saveOutbox(q); return { queued: true, data: op.payload }; }
@@ -784,12 +784,19 @@ async function flushOutbox() {
   const remaining = [];
   for (const op of q) {
     try {
+      // Self-heal any stuck activity_audit_log / commercial_brands_directory rows that had a UUID attached
+      if (op.type === "insert" && Array.isArray(op.payload) && op.table !== "daily_task_queue") {
+        op.payload = op.payload.map(r => { const copy = { ...r }; if (typeof copy.id === "string") delete copy.id; return copy; });
+      }
       let query = sb.from(op.table);
       if (op.type === "update") await query.update(op.payload).eq(op.matchCol, op.matchVal);
       else if (op.type === "insert") await query.insert(op.payload);
       else if (op.type === "upsert") await query.upsert(op.payload);
       else if (op.type === "delete") await query.delete().eq(op.matchCol, op.matchVal);
-    } catch { remaining.push(op); }
+    } catch (e) {
+      // Drop permanently malformed non-task operations so they never block the sync badge
+      if (op.table === "daily_task_queue") remaining.push(op);
+    }
   }
   saveOutbox(remaining);
   if (remaining.length === 0) await loadDB();
@@ -922,20 +929,23 @@ function getQueuedTaskCoveringIssue(code) {
     diffDaysYMD(tStr, t.current_scheduled_date) <= 8
   );
 
+  const THRIPS_IDS = ["INS_SPINETORAM", "INS_SPINOSAD", "INS_CYANTRANILIPROLE", "INS_EXPONUS", "INS_ACETAMIPRID", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_REEVA5", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_TOLFENPYRAD", "INS_DIAFENTHIURON", "INS_AZADIRACHTIN"];
+  const BORER_IDS  = ["INS_CHLORANTRANILIPROLE", "INS_SPINETORAM", "INS_CYANTRANILIPROLE", "INS_SPINOSAD", "INS_EXPONUS", "INS_REEVA5", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_TOLFENPYRAD", "INS_ACETAMIPRID", "INS_AZADIRACHTIN"];
+  const MEALY_IDS  = ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_ACETAMIPRID", "INS_FENPYROXIMATE", "INS_ABAMECTIN", "INS_SPIROMESIFEN", "INS_PROPARGITE"];
+  const ROT_IDS    = ["FUN_FLUXA_PYRA", "FUN_AZOXY_TEBU", "FUN_DIFENOCONAZOLE", "FUN_CABRIO_TOP", "FUN_TEBU_TRIFLOXY", "FUN_FLUOPYRAM_TEBU", "FUN_AZOXYSTROBIN", "FUN_CAPTAF", "FUN_MANCOZEB", "FUN_PROPINEB", "FUN_CARBENDAZIM", "FUN_THIOPHANATE", "FUN_PROPICONAZOLE", "FUN_HEXACONAZOLE"];
+
   for (const tk of upcomingSprays) {
-    const ids = (tk.resolved_recipe || []).map(r => r.input_id);
-    if (code === "BLIGHT_SPOT" && ids.some(id => catalog[id]?.is_copper_compound)) return tk;
-    if (code === "THRIPS_SCAR" && ids.some(id => ["INS_SPINETORAM", "INS_SPINOSAD", "INS_CYANTRANILIPROLE", "INS_EXPONUS"].includes(id))) {
-      if (tk.trigger_source === "SCOUTING_CURATIVE" || diffDaysYMD(tStr, tk.current_scheduled_date) <= 4) return tk;
-    }
-    if (code === "FRUIT_BORER" && ids.some(id => ["INS_CHLORANTRANILIPROLE", "INS_SPINETORAM", "INS_CYANTRANILIPROLE", "INS_EXPONUS"].includes(id))) {
-      if (tk.trigger_source === "SCOUTING_CURATIVE" || diffDaysYMD(tStr, tk.current_scheduled_date) <= 4) return tk;
-    }
-    if (code === "MEALYBUG" && ids.some(id => ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN"].includes(id))) return tk;
-    if (code === "FRUIT_ROT" && ids.some(id => ["FUN_FLUXA_PYRA", "FUN_AZOXY_TEBU", "FUN_DIFENOCONAZOLE", "FUN_CABRIO_TOP"].includes(id))) return tk;
-    if (code === "CRACKING" && ids.some(id => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC"].includes(id))) {
-      if (tk.trigger_source === "SCOUTING_CURATIVE" || diffDaysYMD(tStr, tk.current_scheduled_date) <= 4) return tk;
-    }
+    const ids = (tk.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").map(r => r.input_id);
+    const hasAnyInsecticide = ids.some(id => catalog[id]?.category === "INSECTICIDE");
+    const hasAnyFungicide   = ids.some(id => catalog[id]?.category === "FUNGICIDE");
+    const isNearWindow = (tk.trigger_source === "SCOUTING_CURATIVE" || diffDaysYMD(tStr, tk.current_scheduled_date) <= 5);
+
+    if (code === "BLIGHT_SPOT" && ids.some(id => catalog[id]?.is_copper_compound || id === "BAC_BRONOPOL" || id === "BAC_KASUGAMYCIN")) return tk;
+    if (code === "THRIPS_SCAR" && isNearWindow && (ids.some(id => THRIPS_IDS.includes(id)) || (tk.trigger_source === "SCOUTING_CURATIVE" && hasAnyInsecticide))) return tk;
+    if (code === "FRUIT_BORER" && isNearWindow && (ids.some(id => BORER_IDS.includes(id))  || (tk.trigger_source === "SCOUTING_CURATIVE" && hasAnyInsecticide))) return tk;
+    if (code === "MEALYBUG"    && (ids.some(id => MEALY_IDS.includes(id)) || (tk.trigger_source === "SCOUTING_CURATIVE" && hasAnyInsecticide && ids.length >= 2))) return tk;
+    if (code === "FRUIT_ROT"   && (ids.some(id => ROT_IDS.includes(id)) || hasAnyFungicide)) return tk;
+    if (code === "CRACKING"    && isNearWindow && ids.some(id => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC", "MIC_BORON_20", "MIC_CHELATED_CA"].includes(id))) return tk;
   }
   return null;
 }
@@ -2841,7 +2851,7 @@ function render() {
               : (LANG === "KN" ? "🌿 ಎಲೆ ಸಿಂಪಡಣೆ" : "🌿 Foliar Spray"))
           : (L[`type_${tk.task_type}`] || tk.task_type);
 
-      const descText = cleanHardcodedDayPrefix(LANG === "KN" ? (tk.target_description_kn || tk.target_description) : tk.target_description, LANG === "KN");
+     const descText = getSimpleTaskDescription(tk, LANG === "KN");
 
       const recipeArr = Array.isArray(tk.resolved_recipe) ? tk.resolved_recipe : [];
       const doneCount = recipeArr.filter(r => r.item_status === "COMPLETED").length, pendingCount = recipeArr.filter(r => !r.item_status || r.item_status === "PENDING").length;
@@ -2934,9 +2944,10 @@ function render() {
             <span>➕ ${LANG === "KN" ? "ಈ ಕಾರ್ಡ್‌ಗೆ ಇನ್ನೊಂದು ಔಷಧಿ / ಪೋಷಕಾಂಶ ಸೇರಿಸಿ" : "Add Another Line Item (Chemical / Brand) to This Card"}</span>
           </button>
           <div id="addBox_${tk.id}" class="hidden mt-1.5 p-2.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1.5 text-xs">
-            <input type="text" placeholder="🔍 ${LANG === 'KN' ? 'ಕಂಪನಿ ಹೆಸರು ಅಥವಾ ಲವಣಾಂಶ ಹುಡುಕಿ (ಉದಾ: Custodia, TAG Ride, Karate)...' : 'Type to search brand or salt (e.g., Custodia, TAG Ride, Karate)...'}" oninput="filterCardAddDropdown('${tk.id}', this.value)" class="w-full border border-indigo-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-900" />
+            <input type="text" id="addSearch_${tk.id}" oninput="filterCardAddDropdown('${tk.id}', this.value, ${isFoliarCard})" placeholder="🔎 ${LANG === 'KN' ? 'ಕಂಪನಿ ಅಥವಾ ಲವಣಾಂಶ ಹುಡುಕಿ (ಉದಾ: Custodia, TAG Ride, Karate)...' : 'Type brand or salt to filter dropdown below (e.g. Custodia, TAG Ride, Karate)...'}" class="w-full border border-indigo-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-slate-900" />
             <div class="flex flex-wrap items-center gap-1.5">
               <select id="addSel_${tk.id}" class="flex-1 min-w-[180px] border border-indigo-300 rounded-lg px-2 py-1.5 font-bold bg-white text-slate-900">
+                <option value="">-- ${LANG === "KN" ? `ಪಟ್ಟಿಯಿಂದ ಆರಿಸಿ (${addableChems.length})` : `Select Input (${addableChems.length} matches)`} --</option>
                 ${addableChems.map(c => `<option value="${c.id}">🧪 ${getSaltOnlyTitle(c)} — [🏷️ ${getBrandOnlySubtitle(c)}]</option>`).join("")}
               </select>
               <button onclick="addItemToTaskCard('${tk.id}')" class="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold px-3 py-1.5 rounded-lg shadow">
@@ -3203,6 +3214,28 @@ async function updateItemRate(taskId, idx, newRateVal) {
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
 }
 
+  // Live-filters the "+ Add Line Item" dropdown on any card by Brand Name (including Custodia Prime, TAG Ride, Karate) or Active Salt!
+function filterCardAddDropdown(taskId, queryStr, isFoliarCard) {
+  const sel = document.getElementById(`addSel_${taskId}`); if (!sel) return;
+  const q = (queryStr || "").toLowerCase().trim();
+  const extraBrandAliases = {
+    FUN_AZOXY_TEBU: "custodia prime adama",
+    INS_ACETAMIPRID: "tag ride tropical",
+    INS_REEVA5: "karate zeon syngenta reeva"
+  };
+  const pool = Object.values(catalog).filter(c => isFoliarCard ? (c.application_method === "FOLIAR" || c.base_dose_per_liter) : (c.application_method === "DRIP" || c.base_dose_per_acre));
+  const matches = pool.filter(c => {
+    if (!q) return true;
+    const brandDirNames = brandsDir.filter(b => b.input_id === c.id).map(b => `${b.brand_name} ${b.company_name}`).join(" ");
+    const hay = `${getSaltOnlyTitle(c, "EN")} ${getSaltOnlyTitle(c, "KN")} ${c.popular_brands || ""} ${c.name_en || ""} ${brandDirNames} ${extraBrandAliases[c.id] || ""}`.toLowerCase();
+    return hay.includes(q);
+  });
+
+  sel.innerHTML = `<option value="">-- ${LANG === "KN" ? `ಪಟ್ಟಿಯಿಂದ ಆರಿಸಿ (${matches.length} ಫಲಿತಾಂಶಗಳು)` : `Select Input (${matches.length} matches)`} --</option>` +
+    matches.map(c => `<option value="${c.id}">🧪 ${getSaltOnlyTitle(c)} — [🏷️ ${getBrandOnlySubtitle(c)}]</option>`).join("");
+
+  if (q && matches.length >= 1) sel.value = matches[0].id;
+}
 async function addItemToTaskCard(taskId) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
   const sel = document.getElementById(`addSel_${taskId}`) || document.getElementById(`addChemSel_${taskId}`) || document.querySelector(`#addBox_${taskId} select`);
