@@ -1967,22 +1967,6 @@ async function saveNewChemical() {
 }
 
 // Computes the exact cumulative NPK-Ca-Mg scheduled up to `todayYMD()` from your actual schedule
-function getScheduledTargetNutrientsToDate(refDateStr) {
-  const tgt = { N: 0, P: 0, K: 0, Ca: 0, Mg: 0 };
-  const tMap = {}; templates.forEach(t => tMap[t.id] = t);
-
-  tasks.filter(t => t.originally_scheduled_date && t.originally_scheduled_date >= "2026-08-15" && t.originally_scheduled_date <= refDateStr && (t.trigger_source === "BASELINE" || t.trigger_source === "KEEP_NOTE_HISTORY")).forEach(tk => {
-    const tmpl = tMap[tk.template_id];
-    const recipe = (tmpl && Array.isArray(tmpl.recipe_items)) ? tmpl.recipe_items : (tk.resolved_recipe || []);
-    recipe.forEach(it => {
-      const c = catalog[it.input_id]; if (!c) return;
-      const metrics = getItemDoseMetrics(c, it, 1.0, CFG.drums, CFG.drumL);
-      const gPlant = metrics. (metrics.isFoliar ? metrics.suggestedTotal3Ac * ((c.unit === "kg" || c.unit === "L") ? 1000 : 1) : metrics.suggestedTotal3Ac * ((c.unit === "kg" || c.unit === "L") ? 1000 : 1)) / CFG.plants;
-    });
-  });
-  return tgt;
-}
-
 function computeScheduleTrueTargetsToDate(refDateStr) {
   const tgt = { N: 0, P: 0, K: 0, Ca: 0, Mg: 0 };
   const tMap = {}; templates.forEach(t => tMap[t.id] = t);
