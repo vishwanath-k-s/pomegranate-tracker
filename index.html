@@ -1672,9 +1672,10 @@ async function switchEnv(newEnv) { APP_ENV = newEnv; localStorage.setItem("h_env
 async function loadWeather() {
   try {
     const tStr = todayYMD();
-    const tomorrowStr = addDaysYMD(tStr, 1);
+    // Fetch from Ethrel Day (2026-08-15) through +15 Days into the future (Live 15-Day Forecast)
+    const forecastEndStr = addDaysYMD(tStr, 15);
     const [r, rainRes] = await Promise.all([
-      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&current=temperature_2m,relative_humidity_2m,precipitation&hourly=precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&start_date=2026-08-15&end_date=${tomorrowStr}`),
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&current=temperature_2m,relative_humidity_2m,precipitation&hourly=precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&start_date=2026-08-15&end_date=${forecastEndStr}`),
       sb.from("farm_rain_logs").select("*").eq("log_date", tStr).maybeSingle()
     ]);
     const d = await r.json(), hr = new Date().getHours();
@@ -1694,20 +1695,35 @@ async function loadWeather() {
     const tMax = d.daily.temperature_2m_max[todayIdx] || 30.5;
     const tMin = d.daily.temperature_2m_min[todayIdx] || 18.2;
     const prob4 = Math.max(...(d.hourly?.precipitation_probability || []).slice(todayIdx * 24 + hr, todayIdx * 24 + hr + 4), 0);
-    const dailyGdd = computeDailyGdd(tMax, tMin);
 
-    // 1. Calculate 100% Real-World Cumulative GDD & Actual Mean GDD/Day from Ethrel Day (2026-08-15) to Today!
+    // 1. Accumulate Real Observed GDD (Aug 15 -> Today) AND Live 15-Day Forecast GDD (Tomorrow -> Today + 15d)
+    let runningCumGdd = 0;
     let realCumGdd = 0;
-    let dayCount = 0;
+    let observedDays = 0;
+    let forecast15dGddSum = 0;
+    let forecastDaysCount = 0;
     const telemetryUpserts = [];
-    for (let i = 0; i <= todayIdx; i++) {
+    const gddSeries = [];
+
+    for (let i = 0; i < datesArr.length; i++) {
       const dMax = d.daily.temperature_2m_max[i] ?? 30.0;
       const dMin = d.daily.temperature_2m_min[i] ?? 18.5;
       const dRain = i === todayIdx ? rain24 : Number((d.daily.precipitation_sum[i] || 0).toFixed(1));
       const dGdd = computeDailyGdd(dMax, dMin);
-      realCumGdd += dGdd;
-      dayCount++;
-      if (datesArr[i]) {
+      runningCumGdd += dGdd;
+
+      const isFutureForecast = i > todayIdx;
+      gddSeries.push({
+        dateStr: datesArr[i],
+        dad: i,
+        dailyGdd: dGdd,
+        cumGdd: Number(runningCumGdd.toFixed(1)),
+        isForecast: isFutureForecast
+      });
+
+      if (!isFutureForecast) {
+        realCumGdd = runningCumGdd;
+        observedDays++;
         telemetryUpserts.push({
           log_date: datesArr[i],
           temp_max_c: dMax,
@@ -1717,9 +1733,14 @@ async function loadWeather() {
           daily_gdd: dGdd,
           disease_risk_score: 25
         });
+      } else {
+        forecast15dGddSum += dGdd;
+        forecastDaysCount++;
       }
     }
-    const avgDailyGdd = dayCount > 0 ? Number((realCumGdd / dayCount).toFixed(2)) : 16.2;
+
+    const avgDailyGdd = observedDays > 0 ? Number((realCumGdd / observedDays).toFixed(2)) : 16.2;
+    const forecast15dDailyRate = forecastDaysCount > 0 ? Number((forecast15dGddSum / forecastDaysCount).toFixed(2)) : Number((avgDailyGdd * 0.94).toFixed(2));
 
     // 2. Build 6-Day Historical Rolling 72h Snapshots for Latent Biological Carryover
     const history6d = [];
@@ -1745,9 +1766,12 @@ async function loadWeather() {
       tempNow: d.current?.temperature_2m ?? 29.5,
       humidity: d.current?.relative_humidity_2m ?? 55,
       rain24, prob4, tMax, tMin, rh72Avg, rain72Sum, history6d,
+      gddSeries,
       cumulativeGdd: Number(realCumGdd.toFixed(1)),
       avgDailyGdd,
-      daysTracked: dayCount,
+      forecast15dDailyRate,
+      forecast15dTotalGdd: Number(forecast15dGddSum.toFixed(1)),
+      daysTracked: observedDays,
       updatedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       mode: farmRainToday ? "FARM_LOGGED" : "LIVE"
     };
@@ -1989,23 +2013,103 @@ function computeScheduleTrueTargetsToDate(refDateStr) {
   return tgt;
 }
 
-function renderAnalyticsTab() {
+// Unified Super Bhagwa GDD Stage & Date Window Calculator (Used by both Top Header & GDD Card)
+// 3-Tier Dynamic GDD Stage Model:
+// Tier 1 (Aug 15 -> Today): Real Observed Temps
+// Tier 2 (Tomorrow -> Today + 15d): Live 15-Day Open-Meteo Forecast Temps
+// Tier 3 (Beyond +15d): Hosahalli Monthly Climate Curve scaled by current season's thermal anomaly
+function getGddStageModel() {
   const tStr = todayYMD();
   const todayDad = Math.max(1, diffDaysYMD("2026-08-15", tStr));
   const actualGdd = Number(wState.cumulativeGdd || (todayDad * 16.25));
   const realDailyMeanGdd = Number(wState.avgDailyGdd || (actualGdd / (todayDad + 1)).toFixed(2));
+  const forecast15dRate = Number(wState.forecast15dDailyRate || (realDailyMeanGdd * 0.94).toFixed(2));
+  const series = Array.isArray(wState.gddSeries) ? wState.gddSeries : [];
+
+  // Hosahalli / Kudligi baseline monthly GDD/day (Base 10°C), scaled by how warm this season is running
+  const anomalyFactor = Math.min(1.15, Math.max(0.90, ((realDailyMeanGdd * 0.5) + (forecast15dRate * 0.5)) / 15.6));
+  const MONTHLY_BASE_GDD = { 1: 14.5, 2: 16.8, 3: 19.2, 8: 16.2, 9: 16.0, 10: 15.8, 11: 14.8, 12: 13.8 };
+  const getProjectedDailyRateForDate = (ymdStr) => {
+    const monthNum = Number((ymdStr || "2026-11-15").split("-")[1]) || 11;
+    const baseMonthRate = MONTHLY_BASE_GDD[monthNum] || 14.8;
+    return Number((baseMonthRate * anomalyFactor).toFixed(2));
+  };
+
+  // Finds exact date for any GDD target using Tier 1 (Observed), Tier 2 (15d Live Forecast), and Tier 3 (Seasonal Curve)
+  const getDateForGdd = (targetGdd) => {
+    if (targetGdd <= 0) return "2026-08-15";
+    // Check Tier 1 (Observed) & Tier 2 (15-Day Live Forecast) inside `gddSeries`
+    if (series.length > 0) {
+      const hit = series.find(x => x.cumGdd >= targetGdd);
+      if (hit) return hit.dateStr;
+      // If targetGdd is beyond the 15-day forecast window, step forward day-by-day from the last forecast day!
+      const lastPoint = series[series.length - 1];
+      let curDate = lastPoint.dateStr;
+      let curGdd = lastPoint.cumGdd;
+      let guard = 0;
+      while (curGdd < targetGdd && guard < 220) {
+        curDate = addDaysYMD(curDate, 1);
+        curGdd += getProjectedDailyRateForDate(curDate);
+        guard++;
+      }
+      return curDate;
+    }
+    const fallbackRate = forecast15dRate || 15.0;
+    return addDaysYMD(tStr, Math.round((targetGdd - actualGdd) / fallbackRate));
+  };
+
+  // Returns GDD & Stage for any DAD in the season (Past, Today, 15d Forecast, or Long-Range)
+  const getStageForDad = (dadVal) => {
+    if (dadVal < 0) return { gdd: 0, stage: { en: "Pre-Ethrel History", kn: "📜 ಎಥ್ರೆಲ್ ಮುಂಚಿನ ದಾಖಲೆಗಳು" } };
+    let estGdd = actualGdd;
+    if (series[dadVal]) {
+      estGdd = series[dadVal].cumGdd;
+    } else if (dadVal < todayDad) {
+      estGdd = Math.round(dadVal * realDailyMeanGdd);
+    } else if (series.length > 0) {
+      const lastPoint = series[series.length - 1];
+      let curDate = lastPoint.dateStr;
+      let curGdd = lastPoint.cumGdd;
+      const extraDays = dadVal - lastPoint.dad;
+      for (let d = 0; d < extraDays; d++) {
+        curDate = addDaysYMD(curDate, 1);
+        curGdd += getProjectedDailyRateForDate(curDate);
+      }
+      estGdd = curGdd;
+    } else {
+      estGdd = Math.round(actualGdd + (dadVal - todayDad) * forecast15dRate);
+    }
+    const stg = SUPER_BHAGWA_STAGES.find(s => estGdd >= s.minGdd && estGdd < s.maxGdd) || SUPER_BHAGWA_STAGES[SUPER_BHAGWA_STAGES.length - 1];
+    return { gdd: Math.round(estGdd), stage: stg };
+  };
+
   const currentStage = SUPER_BHAGWA_STAGES.find(s => actualGdd >= s.minGdd && actualGdd < s.maxGdd) || SUPER_BHAGWA_STAGES[SUPER_BHAGWA_STAGES.length - 1];
 
-  // Forecast remaining days to Super Bhagwa 1st Harvest (2,800 GDD) using real winter-adjusted daily rate (~92% of Aug-Oct rate)
-  const futureDailyGddRate = Math.max(13.5, Number((realDailyMeanGdd * 0.92).toFixed(2)));
-  const remGddToHarvest = Math.max(0, SUPER_BHAGWA_GDD_TARGET - actualGdd);
-  const estDaysToHarvest = Math.round(remGddToHarvest / futureDailyGddRate);
-  const estHarvestDateStr = addDaysYMD(tStr, estDaysToHarvest);
-  const estHarvestDad = todayDad + estDaysToHarvest;
+  return {
+    tStr,
+    todayDad,
+    actualGdd,
+    realDailyMeanGdd,
+    futureDailyGddRate: forecast15dRate,
+    currentStage,
+    getDateForGdd,
+    getStageForDad
+  };
+}
 
-  const remGddToZeroN = Math.max(0, 2150 - actualGdd);
-  const estDaysToZeroN = Math.round(remGddToZeroN / futureDailyGddRate);
-  const estZeroNDateStr = addDaysYMD(tStr, estDaysToZeroN);
+function formatShortStageDate(ymdStr) {
+  const [y, m, d] = (ymdStr || "2026-08-15").split("-").map(Number);
+  const loc = LANG === "KN" ? "kn-IN" : "en-IN";
+  return new Date(y, m - 1, d).toLocaleDateString(loc, { day: "2-digit", month: "short", year: "2-digit" });
+}
+
+function renderAnalyticsTab() {
+  const gModel = getGddStageModel();
+  const { tStr, todayDad, actualGdd, realDailyMeanGdd, currentStage, getDateForGdd } = gModel;
+
+  const estZeroNDateStr = getDateForGdd(2150);
+  const estHarvestDateStr = getDateForGdd(SUPER_BHAGWA_GDD_TARGET);
+  const estHarvestDad = diffDaysYMD("2026-08-15", estHarvestDateStr);
 
   document.getElementById("gddTotalValue").textContent = `${actualGdd.toLocaleString()} GDD / ${SUPER_BHAGWA_GDD_TARGET.toLocaleString()} GDD`;
 
@@ -2013,13 +2117,27 @@ function renderAnalyticsTab() {
     const isDone = actualGdd >= s.maxGdd;
     const isCurr = actualGdd >= s.minGdd && actualGdd < s.maxGdd;
     const pct = isDone ? 100 : isCurr ? Math.round(((actualGdd - s.minGdd) / (s.maxGdd - s.minGdd)) * 100) : 0;
-    const daysToStageStart = actualGdd < s.minGdd ? Math.round((s.minGdd - actualGdd) / futureDailyGddRate) : 0;
-    const startEtaStr = daysToStageStart > 0 ? addDaysYMD(tStr, daysToStageStart) : "";
+
+    const startYmd = getDateForGdd(s.minGdd);
+    const endYmd = getDateForGdd(s.maxGdd);
+    const startDad = diffDaysYMD("2026-08-15", startYmd);
+    const endDad = diffDaysYMD("2026-08-15", endYmd);
+
+    const dateBadgeLabel = isDone
+      ? (LANG === "KN" ? "ಪೂರ್ಣಗೊಂಡ ದಿನಾಂಕ" : "Actual")
+      : isCurr
+        ? (LANG === "KN" ? "ಪ್ರಾರಂಭ – ಅಂದಾಜು ಮುಕ್ತಾಯ" : "Started – Est. End")
+        : (LANG === "KN" ? "ಅಂದಾಜು ದಿನಾಂಕ" : "Est. Window");
+
     const rowCls = isCurr ? "bg-amber-50 border-amber-400 border-2" : isDone ? "bg-emerald-50/60 border-emerald-200" : "bg-slate-50 border-slate-200";
-    return `<div class="p-2 rounded-lg border ${rowCls} text-[11px] space-y-1">
+    return `<div class="p-2.5 rounded-lg border ${rowCls} text-[11px] space-y-1">
       <div class="flex flex-wrap justify-between items-center gap-1 font-bold">
-        <span>${isDone ? "✅" : isCurr ? "📍" : "⏳"} ${LANG === "KN" ? s.kn : s.en}</span>
-        <span class="font-mono text-[10px] text-slate-600">${s.minGdd}–${s.maxGdd} GDD ${startEtaStr ? `• ETA: ${startEtaStr}` : `(${pct}%)`}</span>
+        <span class="text-slate-900">${isDone ? "✅" : isCurr ? "📍" : "⏳"} ${LANG === "KN" ? s.kn : s.en}</span>
+        <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-white border text-slate-700">${s.minGdd}–${s.maxGdd} GDD (${pct}%)</span>
+      </div>
+      <div class="text-[10px] text-slate-600 font-semibold flex flex-wrap justify-between gap-1">
+        <span>📅 <b>${dateBadgeLabel}:</b> ${formatShortStageDate(startYmd)} – ${formatShortStageDate(endYmd)}</span>
+        <span class="text-emerald-800 font-bold">(${startDad}–${endDad} DAD)</span>
       </div>
       <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
         <div class="${isDone ? 'bg-emerald-600' : 'bg-amber-500'} h-1.5 rounded-full" style="width:${pct}%"></div>
@@ -2028,12 +2146,12 @@ function renderAnalyticsTab() {
   }).join("");
 
   document.getElementById("gddComparisonText").innerHTML = LANG === "KN"
-    ? `ನೈಜ ಉಷ್ಣಾಂಶ ಸರಾಸರಿ (15 Aug – ಇಂದು): <b>${realDailyMeanGdd} GDD/ದಿನ</b> • ಪ್ರಸ್ತುತ GDD ಹಂತ: <b>${currentStage.kn}</b><div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-2">${stageTimelineHtml}</div>`
-    : `Real Observed Rate (15 Aug – Today): <b>${realDailyMeanGdd} GDD/day</b> (${todayDad + 1} days) • Current Biological Stage: <b>${currentStage.en}</b><div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-2">${stageTimelineHtml}</div>`;
+    ? `ನೈಜ ಉಷ್ಣಾಂಶ ಸರಾಸರಿ (15 Aug – ಇಂದು): <b>${realDailyMeanGdd} GDD/ದಿನ</b> • ಪ್ರಸ್ತುತ GDD ಹಂತ: <b>${currentStage.kn}</b><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">${stageTimelineHtml}</div>`
+    : `Real Observed Rate (15 Aug – Today): <b>${realDailyMeanGdd} GDD/day</b> (${todayDad + 1} days) • Current Biological Stage: <b>${currentStage.en}</b><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">${stageTimelineHtml}</div>`;
 
   document.getElementById("gddHarvestForecast").innerHTML = LANG === "KN"
-    ? `🎯 <b>ಸೂಪರ್ ಭಾಗ್ವಾ GDD ಮುನ್ಸೂಚನೆ:</b> ಸಾರಜನಕ ಮುಕ್ತ ಬಣ್ಣದ ಹಂತ (2,150 GDD): <b>${estZeroNDateStr}</b> • 1ನೇ ಕಟಾವು (2,800 GDD): <b>${estHarvestDateStr} (~${estHarvestDad} DAD)</b>`
-    : `🎯 <b>Super Bhagwa GDD Forecast:</b> Zero-N Color Lock (2,150 GDD) ETA: <b>${estZeroNDateStr}</b> • 1st Harvest (2,800 GDD) ETA: <b>${estHarvestDateStr} (~${estHarvestDad} DAD)</b>`;
+    ? `🎯 <b>ಸೂಪರ್ ಭಾಗ್ವಾ GDD ಮುನ್ಸೂಚನೆ:</b> ಸಾರಜನಕ ಮುಕ್ತ ಬಣ್ಣದ ಹಂತ (2,150 GDD): <b>${formatShortStageDate(estZeroNDateStr)}</b> • 1ನೇ ಕಟಾವು (2,800 GDD): <b>${formatShortStageDate(estHarvestDateStr)} (~${estHarvestDad} DAD)</b>`
+    : `🎯 <b>Super Bhagwa GDD Forecast:</b> Zero-N Color Lock (2,150 GDD) ETA: <b>${formatShortStageDate(estZeroNDateStr)}</b> • 1st Harvest (2,800 GDD) ETA: <b>${formatShortStageDate(estHarvestDateStr)} (~${estHarvestDad} DAD)</b>`;
 
   const risks = computeAllSixRisks();
   document.getElementById("multiRiskGrid").innerHTML = SCOUT_ISSUES.map(iss => {
@@ -2075,7 +2193,6 @@ function renderAnalyticsTab() {
     </div>`;
   }).join("");
 
-  // Schedule-True Cumulative Nutrient Targets + Pure Elemental P & K Display
   const del = getCumulativeNutrientsPerPlant();
   const schedTgt = computeScheduleTrueTargetsToDate(tStr);
   const progressRatio = Math.min(1, Math.max(0.1, todayDad / 185));
@@ -2341,12 +2458,10 @@ function refreshDynamicTaskWeeks() {
   tasks.sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date) || (a.originally_scheduled_date || "").localeCompare(b.originally_scheduled_date || ""));
 }
 
-// Upgraded Reset DEV: Preserves COMPLETED tasks (syncing from PROD if needed) and ONLY resets uncompleted baseline tasks!
 async function resetEntireScheduleToBaseline() {
   if (APP_ENV !== "DEV" || !confirm("Reset DEV pending schedule back to clean baseline (while keeping completed sprays like Oct 25 Cosuit matched with PROD)?")) return;
   await sb.from("daily_task_queue").delete().eq("env", "DEV").in("trigger_source", ["SCOUTING_CURATIVE", "SPLIT_REMAINDER"]);
 
-  // Pull PROD's completed baseline tasks so DEV matches PROD's exact completed shields & NPK ledger!
   const { data: prodTasks } = await sb.from("daily_task_queue").select("*").eq("env", "PROD").eq("status", "COMPLETED");
   const prodDoneByTemplate = {};
   (prodTasks || []).forEach(pt => { if (pt.template_id) prodDoneByTemplate[pt.template_id] = pt; });
@@ -2356,7 +2471,6 @@ async function resetEntireScheduleToBaseline() {
   await Promise.all(baselineTasks.map(bt => {
     const prodDone = prodDoneByTemplate[bt.template_id];
     if (prodDone || bt.status === "COMPLETED") {
-      // Keep completed tasks intact so DEV matches PROD's shields (like Oct 25 Cosuit + Validacin)!
       const src = prodDone || bt;
       return sb.from("daily_task_queue").update({
         current_scheduled_date: src.current_scheduled_date,
@@ -2418,9 +2532,12 @@ function render() {
   } else {
     const { start, end, dadStart, dadEnd } = getWeekStartAndEndDates(curWk);
     const d1 = start.toLocaleDateString(loc, { day: "2-digit", month: "short" }), d2 = end.toLocaleDateString(loc, { day: "2-digit", month: "short", year: "numeric" });
-    const rawStage = wkTasks[0]?.stage_name || (curWk <= 9 ? "Completed Keep History" : "Stage A: Early Sizing");
+    const gModel = getGddStageModel();
+    const refDadForWeek = (gModel.todayDad >= dadStart && gModel.todayDad <= dadEnd) ? gModel.todayDad : (dadStart + 3);
+    const wkStageInfo = gModel.getStageForDad(refDadForWeek);
+    const stageText = LANG === "KN" ? wkStageInfo.stage.kn : wkStageInfo.stage.en;
     document.getElementById("wkTitle").textContent = `${L.weekWord} ${curWk} (${d1} – ${d2})`;
-    document.getElementById("dadTitle").textContent = `${dadStart}–${dadEnd} ${L.dadWord} • ${LANG === "KN" ? (STAGE_KN[rawStage] || rawStage) : rawStage}`;
+    document.getElementById("dadTitle").textContent = `${dadStart}–${dadEnd} ${L.dadWord} • ${stageText} (~${wkStageInfo.gdd} GDD)`;
   }
 
   const pendingWkFoliars = wkTasks.filter(t => t.status === "PENDING" && t.task_type === "FOLIAR_SPRAY");
