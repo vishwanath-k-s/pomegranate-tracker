@@ -151,3 +151,36 @@ INSERT INTO substitution_rules (primary_input_id, substitute_input_id, target_pu
 ('FUN_AZOXY_TEBU', 'FUN_FLUOPYRAM_TEBU', 'Anthracnose & Fruit Spot Control', 1, 'Switch dose from 1.0 ml/L (200 ml/drum) to 0.8 ml/L (160 ml/drum).'),
 ('FUN_AZOXY_TEBU', 'FUN_DIFENOCONAZOLE', 'Fungal Scab & Fruit Spot', 2, 'Switch dose from 1.0 ml/L (200 ml/drum) to 0.5 ml/L (100 ml/drum).'),
 ('FUN_FLUXA_PYRA', 'FUN_FLUOPYRAM_TEBU', 'Monsoon Fruit Rot Protection', 1, 'Switch dose from 0.6 ml/L (120 ml/drum) to 0.8 ml/L (160 ml/drum).');
+/* =========================================================================
+   V6–V7 SCHEMA EXTENSIONS (ALREADY APPLIED IN SUPABASE — SYNCED FOR GITHUB)
+   ========================================================================= */
+ALTER TABLE inputs_catalog ADD COLUMN IF NOT EXISTS formulation_type TEXT DEFAULT 'SC';
+ALTER TABLE inputs_catalog ADD COLUMN IF NOT EXISTS n_pct NUMERIC(5,2) DEFAULT 0;
+ALTER TABLE inputs_catalog ADD COLUMN IF NOT EXISTS p_pct NUMERIC(5,2) DEFAULT 0;
+ALTER TABLE inputs_catalog ADD COLUMN IF NOT EXISTS k_pct NUMERIC(5,2) DEFAULT 0;
+ALTER TABLE inputs_catalog ADD COLUMN IF NOT EXISTS ca_pct NUMERIC(5,2) DEFAULT 0;
+ALTER TABLE inputs_catalog ADD COLUMN IF NOT EXISTS mg_pct NUMERIC(5,2) DEFAULT 0;
+
+ALTER TABLE daily_task_queue ADD COLUMN IF NOT EXISTS cost_rs NUMERIC(10,2) DEFAULT 0;
+ALTER TABLE daily_task_queue ADD COLUMN IF NOT EXISTS version_int INT NOT NULL DEFAULT 1;
+ALTER TABLE daily_task_queue ADD COLUMN IF NOT EXISTS custom_title_en TEXT;
+ALTER TABLE daily_task_queue ADD COLUMN IF NOT EXISTS custom_title_kn TEXT;
+
+CREATE TABLE IF NOT EXISTS weather_telemetry_history (
+    log_date DATE PRIMARY KEY,
+    temp_max_c NUMERIC(4,1) NOT NULL DEFAULT 30.5,
+    temp_min_c NUMERIC(4,1) NOT NULL DEFAULT 18.5,
+    humidity_mean_pct INT NOT NULL DEFAULT 60,
+    rain_mm NUMERIC(5,1) NOT NULL DEFAULT 0,
+    daily_gdd NUMERIC(5,2) NOT NULL DEFAULT 14.5,
+    disease_risk_score INT NOT NULL DEFAULT 25,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS farm_rain_logs (
+    log_date DATE PRIMARY KEY,
+    rain_mm NUMERIC(5,1) NOT NULL DEFAULT 0,
+    rain_label TEXT,
+    logged_by TEXT DEFAULT 'Vishwanath',
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
