@@ -3274,6 +3274,19 @@ function applyHubAndSubPillRouting() {
 }
 
 function renderSeasonSprayAndDripGuides() {
+  // 0. Remove any leftover duplicate inline Spray Counter or Drip boxes from inside the GDD or NPK cards
+  ["gddTotalValue", "npkBarsContainer"].forEach(anchorId => {
+    const card = document.getElementById(anchorId)?.closest(".bg-white");
+    if (!card) return;
+    Array.from(card.querySelectorAll("div")).forEach(div => {
+      const txt = div.textContent || "";
+      if ((anchorId === "gddTotalValue" && txt.includes("Today's Drip Irrigation") && !div.contains(document.getElementById("gddTotalValue"))) ||
+          (anchorId === "npkBarsContainer" && txt.includes("Resistance Tracker") && !div.contains(document.getElementById("npkBarsContainer")))) {
+        div.remove();
+      }
+    });
+  });
+
   let extraBox = document.getElementById("extraOrchardGuidesBox");
   if (!extraBox) {
     const analyticsPanel = document.getElementById("panel_ANALYTICS");
@@ -3284,6 +3297,9 @@ function renderSeasonSprayAndDripGuides() {
     analyticsPanel.appendChild(extraBox);
   }
 
+  // ==========================================================================
+  // 1. 4-COLUMN (2x2) SEASONAL CHEMICAL SPRAY COUNTER & RESISTANCE TRACKER
+  // ==========================================================================
   const MAX_SEASON_SPRAYS = { BACTERICIDE: 6, FUNGICIDE: 3, INSECTICIDE: 2, BIOSTIMULANT: 8, FERTIGATION: 20 };
   const sprayCounts = {};
   tasks.filter(t => t.status === "COMPLETED" && t.current_scheduled_date >= "2026-08-15" && (t.task_type === "FOLIAR_SPRAY" || t.task_type === "STANDALONE_COPPER")).forEach(t => {
@@ -3296,71 +3312,151 @@ function renderSeasonSprayAndDripGuides() {
     });
   });
 
-  const sprayRowsHtml = Object.values(sprayCounts).sort((a, b) => b.count - a.count).map(entry => {
-    const c = entry.cat;
-    const isMultiSite = ["FRAC-M01", "FRAC-M03", "FRAC-M04"].includes(c.irac_frac_group || "") || c.is_copper_compound;
-    const maxAllowed = isMultiSite ? 6 : (MAX_SEASON_SPRAYS[c.category] || 3);
-    const overCap = entry.count >= maxAllowed;
-    const badgeCls = overCap ? "bg-red-100 text-red-900 border-red-300" : "bg-emerald-100 text-emerald-900 border-emerald-300";
-    return `<div class="py-2 flex flex-wrap items-center justify-between gap-2 text-xs border-b border-slate-100">
-      <div>
-        <span class="font-extrabold text-slate-900">🧪 ${getSaltOnlyTitle(c)}</span> ${getUniformGroupBadge(c)}
-        <div class="text-[11px] text-slate-500">🏷️ ${getBrandOnlySubtitle(c)} • 📅 ${LANG === "KN" ? "ಕೊನೆಯ ಸಿಂಪಡಣೆ:" : "Last sprayed:"} <b>${entry.lastDate}</b></div>
+  const sortedSprays = Object.values(sprayCounts).sort((a, b) => b.count - a.count);
+  const sprayGridHtml = sortedSprays.length ? `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 border border-slate-200 rounded-xl overflow-hidden">
+      <!-- Column Headers for Left Pair (Cols 1-2) and Right Pair (Cols 3-4) -->
+      <div class="bg-slate-100 px-3 py-2 text-[11px] font-extrabold text-slate-700 flex justify-between border-b border-slate-200">
+        <span>🧪 ${LANG === "KN" ? "ಲವಣಾಂಶ, ಕಂಪನಿ & ಕೊನೆಯ ದಿನಾಂಕ" : "Active Salt, Brand & Last Date"}</span>
+        <span>🛡️ ${LANG === "KN" ? "ಬಳಕೆ / ಗರಿಷ್ಠ ಮಿತಿ" : "Used / Max Cap"}</span>
       </div>
-      <span class="px-2.5 py-1 rounded-full border font-extrabold text-[11px] ${badgeCls}">
-        ${entry.count} / ${maxAllowed} ${LANG === "KN" ? "ಬಾರಿ (ಮಿತಿ)" : "Sprays Used"} ${overCap ? "⚠️ Rotate Group!" : "✅ Safe"}
-      </span>
-    </div>`;
-  }).join("") || `<div class="text-xs text-slate-500 py-2">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಎಲೆ ಸಿಂಪಡಣೆ ದಾಖಲಾಗಿಲ್ಲ." : "No completed foliar sprays recorded yet."}</div>`;
+      <div class="hidden md:flex bg-slate-100 px-3 py-2 text-[11px] font-extrabold text-slate-700 justify-between border-b border-l border-slate-200">
+        <span>🧪 ${LANG === "KN" ? "ಲವಣಾಂಶ, ಕಂಪನಿ & ಕೊನೆಯ ದಿನಾಂಕ" : "Active Salt, Brand & Last Date"}</span>
+        <span>🛡️ ${LANG === "KN" ? "ಬಳಕೆ / ಗರಿಷ್ಠ ಮಿತಿ" : "Used / Max Cap"}</span>
+      </div>
+      ${sortedSprays.map((entry, idx) => {
+        const c = entry.cat;
+        const isMultiSite = ["FRAC-M01", "FRAC-M03", "FRAC-M04"].includes(c.irac_frac_group || "") || c.is_copper_compound;
+        const maxAllowed = isMultiSite ? 6 : (MAX_SEASON_SPRAYS[c.category] || 3);
+        const overCap = entry.count >= maxAllowed;
+        const badgeCls = overCap ? "bg-red-100 text-red-900 border-red-300" : "bg-emerald-100 text-emerald-900 border-emerald-300";
+        const rightColBorder = (idx % 2 === 1) ? "md:border-l border-slate-200" : "";
+        return `<div class="px-3 py-2.5 flex items-center justify-between gap-2 text-xs border-b border-slate-100 bg-white ${rightColBorder}">
+          <div class="min-w-0">
+            <div class="font-extrabold text-slate-900 flex items-center gap-1 flex-wrap">
+              <span>🧪 ${getSaltOnlyTitle(c)}</span>
+              ${getUniformGroupBadge(c)}
+            </div>
+            <div class="text-[11px] text-slate-500 truncate">🏷️ ${getBrandOnlySubtitle(c)}</div>
+            <div class="text-[10px] text-slate-400">📅 ${LANG === "KN" ? "ಕೊನೆಯ ಸಿಂಪಡಣೆ:" : "Last sprayed:"} <b class="text-slate-600">${entry.lastDate}</b></div>
+          </div>
+          <span class="px-2.5 py-1 rounded-full border font-extrabold text-[11px] shrink-0 ${badgeCls}">
+            ${entry.count} / ${maxAllowed} ${overCap ? "⚠️ Rotate" : "✅ Safe"}
+          </span>
+        </div>`;
+      }).join("")}
+    </div>` : `<div class="text-xs text-slate-500 py-3">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಎಲೆ ಸಿಂಪಡಣೆ ದಾಖಲಾಗಿಲ್ಲ." : "No completed foliar sprays recorded yet."}</div>`;
 
+  // ==========================================================================
+  // 2. FAO-56 + 72h SOIL MOISTURE MEMORY DRIP IRRIGATION ENGINE (ICAR-NRCP)
+  // ==========================================================================
   const gModel = getGddStageModel();
-  const rainHold = wState.rain24 >= 15;
-  const hotBoost = wState.tMax >= 33 ? 1.15 : (wState.tMax <= 26 ? 0.85 : 1.0);
+  const emitterLphPerPlant = Number(localStorage.getItem("h_drip_lph") || 8);
+
+  // Parameter 1: Hargreaves-Samani FAO-56 Daily Reference Evapotranspiration (ET0 in mm/day)
+  // For Hosahalli (14.66°N), Extraterrestrial Radiation Ra ~ 13.8 mm/day equiv in Oct–Jan
+  const tMax = Number(wState.tMax) || 30.5;
+  const tMin = Number(wState.tMin) || 18.5;
+  const tMean = (tMax + tMin) / 2;
+  const tempRange = Math.max(4, tMax - tMin);
+  const et0Today = Number((0.0023 * 13.8 * (tMean + 17.8) * Math.sqrt(tempRange)).toFixed(2)); // ~4.4 to 5.4 mm/day
+
+  // Parameter 2: 72-Hour Rolling Humidity / Vapor Pressure Deficit (VPD) Modifier
+  const rh72 = Number(wState.rh72Avg) || 60;
+  const vpdMult = rh72 <= 45 ? 1.10 : rh72 >= 75 ? 0.88 : 1.00;
+
+  // Parameter 3: 72-Hour Soil Moisture Memory (Weighted Effective Rainfall from Today, Yesterday, 2d Ago)
+  const hist = Array.isArray(wState.history6d) ? wState.history6d : [];
+  const rainToday = Number(wState.rain24) || 0;
+  const rainYest  = hist.length >= 1 ? (Number(hist[hist.length - 1]?.rain24) || 0) : 0;
+  const rain2dAgo = hist.length >= 2 ? (Number(hist[hist.length - 2]?.rain24) || 0) : 0;
+  const effectiveRainMm = Number(((rainToday * 0.80) + (rainYest * 0.50) + (rain2dAgo * 0.25)).toFixed(1));
+  // 1 mm effective rain over wetted root zone (~3.5 m2) = 3.5 Liters/plant credit
+  const rainCreditLitersPerPlant = Math.round(effectiveRainMm * 3.5);
+
+  // Parameter 4: Super Bhagwa GDD Stage Crop Coefficient (Kc) & Effective Canopy Factor (4.79 m2)
+  const EFFECTIVE_AREA_M2 = 4.79; // (7.43 m2 spacing x 0.58 canopy cover) / 0.90 drip efficiency
   const DRIP_STAGES = [
-    { gddRange: "0–950 GDD",    dadRange: "0–58d",   stageEn: "Stage A: Flowering & Early Sizing",     stageKn: "ಹಂತ A: ಹೂವು & ಆರಂಭಿಕ ಕಾಯಿ", baseLiters: 14, freqEn: "Daily / Alternate Day", freqKn: "ಪ್ರತಿದಿನ / ದಿನ ಬಿಟ್ಟು ದಿನ" },
-    { gddRange: "950–1450 GDD", dadRange: "59–90d",  stageEn: "Stage B: Guava-Size Expansion",         stageKn: "ಹಂತ B: ಪೇರಳೆ ಗಾತ್ರದ ಹಂತ",    baseLiters: 20, freqEn: "Daily (Split Morning/Eve)", freqKn: "ಪ್ರತಿದಿನ" },
-    { gddRange: "1450–2150 GDD",dadRange: "91–135d", stageEn: "Stage C1: Aril Swelling & Weight Gain", stageKn: "ಹಂತ C1: ಕಾಳು ತುಂಬುವ ಹಂತ",     baseLiters: 26, freqEn: "Daily (Steady Moisture)", freqKn: "ಪ್ರತಿದಿನ (ಸಮಾನ ತೇವಾಂಶ)" },
-    { gddRange: "2150–2500 GDD",dadRange: "136–158d",stageEn: "Stage C2: Color Stage (Zero-N)",        stageKn: "ಹಂತ C2: ಕೆಂಪು ಬಣ್ಣದ ಹಂತ",    baseLiters: 22, freqEn: "Daily (Avoid Fluctuation)", freqKn: "ಪ್ರತಿದಿನ (ಏರುಪೇರು ಬೇಡ)" },
-    { gddRange: "2500–2800 GDD",dadRange: "159–178d",stageEn: "Stage D1: Deep Ripening & Brix Surge",  stageKn: "ಹಂತ D1: ಮಾಗುವ ಹಂತ (-20% ನೀರು)", baseLiters: 16, freqEn: "Controlled Deficit (-20%)", freqKn: "ನಿಯಂತ್ರಿತ ನೀರು (-20%)" },
-    { gddRange: "2800+ GDD",    dadRange: "178–190d",stageEn: "Stage D2: Pre-Harvest & Harvest",       stageKn: "ಹಂತ D2: ಕಟಾವು ಹಂತ",          baseLiters: 12, freqEn: "Light Pulsed Water Only", freqKn: "ಕಡಿಮೆ ಪ್ರಮಾಣದ ಶುದ್ಧ ನೀರು" }
+    { gddRange: "0–950 GDD",     dadRange: "0–58d",    kc: 0.60, baseLiters: 14, stageEn: "Stage A: Flowering & Early Sizing",     stageKn: "ಹಂತ A: ಹೂವು & ಆರಂಭಿಕ ಕಾಯಿ", freqEn: "Daily / Alternate Day",     freqKn: "ಪ್ರತಿದಿನ / ದಿನ ಬಿಟ್ಟು ದಿನ" },
+    { gddRange: "950–1450 GDD",  dadRange: "59–90d",   kc: 0.85, baseLiters: 20, stageEn: "Stage B: Guava-Size Expansion",         stageKn: "ಹಂತ B: ಪೇರಳೆ ಗಾತ್ರದ ಹಂತ",    freqEn: "Daily (Morning)",           freqKn: "ಪ್ರತಿದಿನ (ಬೆಳಿಗ್ಗೆ)" },
+    { gddRange: "1450–2150 GDD", dadRange: "91–135d",  kc: 1.10, baseLiters: 26, stageEn: "Stage C1: Aril Swelling & Weight Gain", stageKn: "ಹಂತ C1: ಕಾಳು ತುಂಬುವ ಹಂತ",     freqEn: "Split 2× (60% AM / 40% PM)", freqKn: "ದಿನಕ್ಕೆ 2 ಬಾರಿ (ಬೆಳಿಗ್ಗೆ 60% / ಸಂಜೆ 40%)" },
+    { gddRange: "2150–2500 GDD", dadRange: "136–158d", kc: 0.95, baseLiters: 22, stageEn: "Stage C2: Color Stage (Zero-N)",        stageKn: "ಹಂತ C2: ಕೆಂಪು ಬಣ್ಣದ ಹಂತ",    freqEn: "Split 2× (Steady Moisture)", freqKn: "ಸಮಾನ ತೇವಾಂಶ (ಏರುಪೇರು ಬೇಡ)" },
+    { gddRange: "2500–2800 GDD", dadRange: "159–178d", kc: 0.70, baseLiters: 16, stageEn: "Stage D1: Deep Ripening & Brix Surge",  stageKn: "ಹಂತ D1: ಮಾಗುವ ಹಂತ (-20% ನೀರು)", freqEn: "Controlled Deficit (-20%)",  freqKn: "ನಿಯಂತ್ರಿತ ನೀರು (-20%)" },
+    { gddRange: "2800+ GDD",     dadRange: "178–190d", kc: 0.52, baseLiters: 12, stageEn: "Stage D2: Pre-Harvest & Harvest",       stageKn: "ಹಂತ D2: ಕಟಾವು ಹಂತ",          freqEn: "Light Pulsed Water Only",   freqKn: "ಕಡಿಮೆ ಪ್ರಮಾಣದ ಶುದ್ಧ ನೀರು" }
   ];
 
-  const emitterLphPerPlant = Number(localStorage.getItem("h_drip_lph") || 8);
+  const curStageIdx = Math.max(0, SUPER_BHAGWA_STAGES.findIndex(s => s.en === gModel.currentStage.en));
+  const activeDripStage = DRIP_STAGES[curStageIdx] || DRIP_STAGES[1];
+
+  // Calculate Today's Exact Weather-Driven Gross Demand & Net Requirement after 72h Rain Credit
+  const grossTodayLiters = Math.round(et0Today * activeDripStage.kc * EFFECTIVE_AREA_M2 * vpdMult);
+  const netTodayLiters = (rainToday >= 15 || effectiveRainMm >= 8)
+    ? 0
+    : Math.max(0, grossTodayLiters - rainCreditLitersPerPlant);
+  const todayRunMins = Math.round((netTodayLiters / emitterLphPerPlant) * 60);
+  const todayOrchardKL = ((netTodayLiters * CFG.plants) / 1000).toFixed(1);
+  const splitPulseAdvice = netTodayLiters >= 20
+    ? (LANG === "KN" ? `⚡ ಕೆಂಪು ಮಣ್ಣಿನಲ್ಲಿ ಸೋರಿಕೆ ತಡೆಯಲು 2 ಬಾರಿ ನೀರು ಕೊಡಿ: ಬೆಳಿಗ್ಗೆ ${Math.round(todayRunMins * 0.6)} ನಿಮಿಷ + ಸಂಜೆ ${Math.round(todayRunMins * 0.4)} ನಿಮಿಷ` : `⚡ Red-Soil Split Pulse: Run ${Math.round(todayRunMins * 0.6)} mins in Morning + ${Math.round(todayRunMins * 0.4)} mins in Evening`)
+    : (netTodayLiters === 0
+        ? (LANG === "KN" ? "🌧️ ಕಳೆದ 72 ಗಂಟೆಗಳ ಮಳೆಯ ತೇವಾಂಶ ಮಣ್ಣಿನಲ್ಲಿದೆ — ಇಂದು ಡ್ರಿಪ್ ನೀರು ಬೇಡ" : "🌧️ 72h Root-Zone Moisture Sufficient — Pause Drip Irrigation Today")
+        : (LANG === "KN" ? `✅ ಬೆಳಿಗ್ಗೆ ಒಂದೇ ಬಾರಿ ${todayRunMins} ನಿಮಿಷ ಡ್ರಿಪ್ ಚಾಲನೆ ಮಾಡಿ` : `✅ Single Morning Run: ${todayRunMins} mins`));
+
   const dripRowsHtml = DRIP_STAGES.map((ds, i) => {
-    const isCurrent = SUPER_BHAGWA_STAGES[i]?.en === gModel.currentStage.en;
-    const adjLiters = rainHold && isCurrent ? 0 : Math.round(ds.baseLiters * (isCurrent ? hotBoost : 1.0));
-    const totalOrchardKL = ((adjLiters * CFG.plants) / 1000).toFixed(1);
-    const runMins = Math.round((adjLiters / emitterLphPerPlant) * 60);
+    const isCurrent = i === curStageIdx;
+    const stageLiters = isCurrent ? netTodayLiters : ds.baseLiters;
+    const totalOrchardKL = ((stageLiters * CFG.plants) / 1000).toFixed(1);
+    const runMins = Math.round((stageLiters / emitterLphPerPlant) * 60);
     const rowCls = isCurrent ? "bg-sky-50 border-2 border-sky-500 font-bold" : "bg-white border border-slate-200";
     return `<div class="p-2.5 rounded-xl ${rowCls} text-xs flex flex-wrap items-center justify-between gap-2">
       <div>
-        <div class="font-extrabold text-slate-900">${isCurrent ? "📍 " : ""}${LANG === "KN" ? ds.stageKn : ds.stageEn} <span class="text-[10px] font-mono text-slate-500">(${ds.gddRange})</span></div>
-        <div class="text-[11px] text-slate-600">${LANG === "KN" ? ds.freqKn : ds.freqEn} • 🚜 3 Acres: <b>${totalOrchardKL} kL/day</b> (${(adjLiters * CFG.plants).toLocaleString()} L)</div>
+        <div class="font-extrabold text-slate-900">${isCurrent ? "📍 " : ""}${LANG === "KN" ? ds.stageKn : ds.stageEn} <span class="text-[10px] font-mono text-slate-500">(${ds.gddRange} • Kc=${ds.kc})</span></div>
+        <div class="text-[11px] text-slate-600">${LANG === "KN" ? ds.freqKn : ds.freqEn} • 🚜 3 Acres: <b>${totalOrchardKL} kL/day</b> (${(stageLiters * CFG.plants).toLocaleString()} L)</div>
       </div>
       <div class="text-right">
-        <div class="text-sm font-extrabold text-sky-900">💧 ${adjLiters} L / ${LANG === "KN" ? "ಗಿಡ/ದಿನ" : "plant/day"}</div>
+        <div class="text-sm font-extrabold text-sky-900">💧 ${stageLiters} L / ${LANG === "KN" ? "ಗಿಡ/ದಿನ" : "plant/day"}</div>
         <div class="text-[11px] text-slate-600">⏱️ <b>~${runMins} mins</b> (@ ${emitterLphPerPlant} LPH/plant)</div>
       </div>
     </div>`;
   }).join("");
 
   extraBox.innerHTML = `
-    <div id="sprayCounterCard" class="bg-white rounded-2xl p-4 shadow-sm border space-y-2">
-      <div class="font-extrabold text-sm text-slate-900">🛡️ ${LANG === "KN" ? "ಈ ಹಂಗಾಮಿನಲ್ಲಿ ಬಳಸಿದ ಔಷಧಿಗಳ ಲೆಕ್ಕ ಮತ್ತು ಗರಿಷ್ಠ ಮಿತಿ (Anti-Resistance Tracker)" : "Seasonal Chemical Spray Counter & Max Allowed Cap (ICAR-NRCP / IRAC-FRAC)"}</div>
-      <div class="text-xs text-slate-500">${LANG === "KN" ? "ಒಂದೇ ಔಷಧಿಯನ್ನು ಮಿತಿಗಿಂತ ಹೆಚ್ಚು ಬಾರಿ ಸಿಂಪಡಿಸಿದರೆ ಕೀಟ/ರೋಗಗಳಿಗೆ ನಿರೋಧಕ ಶಕ್ತಿ ಬರುತ್ತದೆ:" : "Tracks how many times each active salt has been sprayed since 15 Aug 2026 vs. maximum recommended seasonal limit:"}</div>
-      <div class="divide-y">${sprayRowsHtml}</div>
-    </div>
-    <div id="dripWaterCard" class="bg-white rounded-2xl p-4 shadow-sm border space-y-2.5">
+    <div id="sprayCounterCard" class="bg-white rounded-2xl p-4 shadow-sm border space-y-2.5">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div class="font-extrabold text-sm text-sky-950">💧 ${LANG === "KN" ? "ಹಂತವಾರು ಡ್ರಿಪ್ ನೀರಿನ ವೇಳಾಪಟ್ಟಿ (1,500 ಗಿಡಗಳು • 10×8 ಅಡಿ)" : "Stage-Wise Drip Irrigation Water Schedule (1,500 Super Bhagwa Plants)"}</div>
-          <div class="text-xs text-slate-500">${rainHold ? "🌧️ <b>48h Rain Pause Active (>15mm rain)</b>" : `Adjusted for today's max temp (${wState.tMax}°C) & GDD stage:`}</div>
+          <div class="font-extrabold text-sm text-slate-900">🛡️ ${LANG === "KN" ? "ಈ ಹಂಗಾಮಿನಲ್ಲಿ ಬಳಸಿದ ಔಷಧಿಗಳ ಲೆಕ್ಕ ಮತ್ತು ಗರಿಷ್ಠ ಮಿತಿ (4-ಕಾಲಮ್ ಪಟ್ಟಿ)" : "Seasonal Chemical Spray Counter & Max Allowed Cap (ICAR-NRCP / IRAC-FRAC)"}</div>
+          <div class="text-xs text-slate-500">${LANG === "KN" ? "ಒಂದೇ ಔಷಧಿಯನ್ನು ಮಿತಿಗಿಂತ ಹೆಚ್ಚು ಬಾರಿ ಸಿಂಪಡಿಸಿದರೆ ಕೀಟ/ರೋಗಗಳಿಗೆ ನಿರೋಧಕ ಶಕ್ತಿ ಬರುತ್ತದೆ:" : "Tracks completed foliar sprays since 15 Aug 2026 vs. maximum seasonal anti-resistance limit:"}</div>
         </div>
-        <div class="flex items-center gap-1 text-xs bg-sky-50 border border-sky-200 rounded-lg px-2 py-1">
+      </div>
+      ${sprayGridHtml}
+    </div>
+
+    <div id="dripWaterCard" class="bg-white rounded-2xl p-4 shadow-sm border space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-2.5">
+        <div>
+          <div class="font-extrabold text-sm text-sky-950">💧 ${LANG === "KN" ? "ಹಂತವಾರು ಮತ್ತು ಇಂದಿನ ಡ್ರಿಪ್ ನೀರಿನ ವೇಳಾಪಟ್ಟಿ (1,500 ಗಿಡಗಳು • 10×8 ಅಡಿ)" : "FAO-56 & ICAR-NRCP Drip Irrigation Schedule (1,500 Super Bhagwa Plants)"}</div>
+          <div class="text-[11px] text-slate-500">📚 <b>${LANG === "KN" ? "ಮೂಲ:" : "Source:"}</b> ICAR-NRCP Solapur Micro-Irrigation Bulletin &amp; FAO-56 Penman/Hargreaves (ET₀ × Kc × 4.79m² eff. canopy)</div>
+        </div>
+        <div class="flex items-center gap-1 text-xs bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1">
           <span>💧 ${LANG === "KN" ? "ಡ್ರಿಪರ್ ವೇಗ (LPH/ಗಿಡ):" : "Dripper Flow (LPH/plant):"}</span>
           <input type="number" step="1" min="2" max="32" value="${emitterLphPerPlant}" onchange="localStorage.setItem('h_drip_lph',this.value);renderSeasonSprayAndDripGuides();" class="w-12 bg-white border rounded px-1 text-center font-extrabold" />
         </div>
       </div>
+
+      <!-- Today's Live 5-Parameter Weather-Adjusted Irrigation Prescription Banner -->
+      <div class="p-3 rounded-xl bg-sky-900 text-white space-y-1.5 text-xs shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <span class="font-extrabold text-sm text-sky-200">📍 ${LANG === "KN" ? "ಇಂದಿನ ನಿಖರ ಡ್ರಿಪ್ ನೀರಿನ ಶಿಫಾರಸು (5-ಪ್ಯಾರಾಮೀಟರ್ ಹವಾಮಾನ ಲೆಕ್ಕ):" : "Today's Weather-Adjusted Drip Target (5-Parameter Model):"}</span>
+          <span class="px-2.5 py-0.5 rounded-full bg-emerald-400 text-slate-950 font-extrabold text-xs">💧 ${netTodayLiters} L/plant • ⏱️ ${todayRunMins} mins (${todayOrchardKL} kL)</span>
+        </div>
+        <div class="text-[11px] text-sky-100 flex flex-wrap gap-x-3 gap-y-1">
+          <span>☀️ <b>ET₀ (Today):</b> ${et0Today} mm/d (${tMax}°/${tMin}°C)</span>
+          <span>🌱 <b>Stage Kc:</b> ${activeDripStage.kc} (${grossTodayLiters} L gross)</span>
+          <span>💨 <b>72h RH (${rh72}%):</b> ${vpdMult === 1 ? "Normal" : (vpdMult > 1 ? "+10% Dry VPD" : "-12% Humid")}</span>
+          <span>🌧️ <b>72h Rain Credit:</b> -${rainCreditLitersPerPlant} L/plant (${effectiveRainMm}mm eff. rain)</span>
+        </div>
+        <div class="text-[11px] font-bold text-amber-300 pt-0.5">${splitPulseAdvice}</div>
+      </div>
+
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${dripRowsHtml}</div>
     </div>
   `;
