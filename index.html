@@ -904,26 +904,71 @@ function getItemDoseMetrics(cat, it, mult = 1.0, drumsCount = CFG.drums, drumLit
   }
 }
 
+// Extracts FCO Nutrient % from catalog columns, with automatic fallback parsing for N:P:K grades & Ca/Mg/B salts
+function getEffectiveNutrientPct(c) {
+  if (!c) return { n: 0, p: 0, k: 0, ca: 0, mg: 0, b: 0 };
+  let n  = Number(c.n_pct)  || 0;
+  let p  = Number(c.p_pct)  || 0;
+  let k  = Number(c.k_pct)  || 0;
+  let ca = Number(c.ca_pct) || 0;
+  let mg = Number(c.mg_pct) || 0;
+  let b  = Number(c.b_pct)  || 0;
+
+  const txt = `${c.id || ""} ${c.name_en || ""} ${c.active_ingredient || ""}`;
+  // Auto-parse NPK ratio patterns like "19:19:19", "00:52:34", "12-61-00", "13_00_45" if DB columns are 0
+  if (n === 0 && p === 0 && k === 0) {
+    const m = txt.match(/\b(\d{1,2})[:\-_](\d{1,2})[:\-_](\d{1,2})\b/);
+    if (m) { n = Number(m[1]); p = Number(m[2]); k = Number(m[3]); }
+  }
+  if (ca === 0 && /calcium nitrate/i.test(txt)) { ca = 18.8; if (n === 0) n = 15.5; }
+  if (ca === 0 && /ca[\-\s]?b|chelated ca/i.test(txt)) { ca = 10.0; if (b === 0) b = 2.0; }
+  if (mg === 0 && /magnesium sulphate|mgso4/i.test(txt)) { mg = 9.6; }
+  if (b === 0  && /boron\s*20|solubor/i.test(txt)) { b = 20.0; }
+
+  return { n, p, k, ca, mg, b };
+}
+
 function getCumulativeNutrientsPerPlant() {
-  const del = { N: 0, P: 0, K: 0, Ca: 0, Mg: 0 };
-  tasks.filter(t => t.status === "COMPLETED" && t.current_scheduled_date >= "2026-08-15").forEach(tk => {
+  const del = {
+    N: 0, P: 0, K: 0, Ca: 0, Mg: 0, B: 0,
+    drip:   { N: 0, P: 0, K: 0, Ca: 0, Mg: 0, B: 0 },
+    foliar: { N: 0, P: 0, K: 0, Ca: 0, Mg: 0, B: 0 }
+  };
+
+  tasks.filter(t => t.current_scheduled_date >= "2026-08-15" && t.status !== "SKIPPED").forEach(tk => {
     const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
     const sopMult = (taskDad >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
     const drumsUsed = Number(tk.drums_count) || CFG.drums;
     const drumLUsed = Number(tk.drum_liters) || CFG.drumL;
+
     (tk.resolved_recipe || []).forEach(it => {
-      if (it.item_status === "SKIPPED") return;
+      // Count item if explicitly marked COMPLETED, or if whole card is COMPLETED and item wasn't SKIPPED
+      const isItemDone = it.item_status === "COMPLETED" || (!it.item_status && tk.status === "COMPLETED");
+      if (!isItemDone) return;
+
       const c = catalog[it.input_id]; if (!c) return;
+      const pct = getEffectiveNutrientPct(c);
       const m = c.id === "WSF_00_00_50" ? sopMult : 1.0;
       const metrics = getItemDoseMetrics(c, it, m, drumsUsed, drumLUsed);
       const gPlant = metrics.totalGrams3Ac / CFG.plants;
-      del.N  += gPlant * ((Number(c.n_pct) || 0) / 100);
-      del.P  += gPlant * ((Number(c.p_pct) || 0) / 100);
-      del.K  += gPlant * ((Number(c.k_pct) || 0) / 100);
-      del.Ca += gPlant * ((Number(c.ca_pct) || 0) / 100);
-      del.Mg += gPlant * ((Number(c.mg_pct) || 0) / 100);
+      const bucket = metrics.isFoliar ? del.foliar : del.drip;
+
+      const addN  = gPlant * (pct.n  / 100);
+      const addP  = gPlant * (pct.p  / 100);
+      const addK  = gPlant * (pct.k  / 100);
+      const addCa = gPlant * (pct.ca / 100);
+      const addMg = gPlant * (pct.mg / 100);
+      const addB  = gPlant * (pct.b  / 100);
+
+      del.N  += addN;  bucket.N  += addN;
+      del.P  += addP;  bucket.P  += addP;
+      del.K  += addK;  bucket.K  += addK;
+      del.Ca += addCa; bucket.Ca += addCa;
+      del.Mg += addMg; bucket.Mg += addMg;
+      del.B  += addB;  bucket.B  += addB;
     });
   });
+
   del.P_elem = del.P * 0.4364;
   del.K_elem = del.K * 0.8301;
   return del;
@@ -2188,25 +2233,40 @@ async function saveCustomChemToCatalog() {
 }
 
 function computeScheduleTrueTargetsToDate(refDateStr) {
-  const tgt = { N: 0, P: 0, K: 0, Ca: 0, Mg: 0 };
+  const toDate = { N: 0, P: 0, K: 0, Ca: 0, Mg: 0, B: 0 };
+  const fullSeason = { N: 0, P: 0, K: 0, Ca: 0, Mg: 0, B: 0 };
   const tMap = {}; templates.forEach(t => tMap[t.id] = t);
 
-  tasks.filter(t => t.originally_scheduled_date && t.originally_scheduled_date >= "2026-08-15" && t.originally_scheduled_date <= refDateStr && (t.trigger_source === "BASELINE" || t.trigger_source === "KEEP_NOTE_HISTORY")).forEach(tk => {
+  tasks.filter(t => t.originally_scheduled_date && t.originally_scheduled_date >= "2026-08-15" && (t.trigger_source === "BASELINE" || t.trigger_source === "KEEP_NOTE_HISTORY")).forEach(tk => {
     const tmpl = tMap[tk.template_id];
     const recipe = (tmpl && Array.isArray(tmpl.recipe_items)) ? tmpl.recipe_items : (tk.resolved_recipe || []);
+    const isUpToDate = tk.originally_scheduled_date <= refDateStr;
+
     recipe.forEach(it => {
       const c = catalog[it.input_id]; if (!c) return;
+      const pct = getEffectiveNutrientPct(c);
       const metrics = getItemDoseMetrics(c, it, 1.0, CFG.drums, CFG.drumL);
       const totalGrams = (c.unit === "kg" || c.unit === "L") ? metrics.suggestedTotal3Ac * 1000 : metrics.suggestedTotal3Ac;
       const gPlant = totalGrams / CFG.plants;
-      tgt.N  += gPlant * ((Number(c.n_pct) || 0) / 100);
-      tgt.P  += gPlant * ((Number(c.p_pct) || 0) / 100);
-      tgt.K  += gPlant * ((Number(c.k_pct) || 0) / 100);
-      tgt.Ca += gPlant * ((Number(c.ca_pct) || 0) / 100);
-      tgt.Mg += gPlant * ((Number(c.mg_pct) || 0) / 100);
+
+      const nG  = gPlant * (pct.n  / 100);
+      const pG  = gPlant * (pct.p  / 100);
+      const kG  = gPlant * (pct.k  / 100);
+      const caG = gPlant * (pct.ca / 100);
+      const mgG = gPlant * (pct.mg / 100);
+      const bG  = gPlant * (pct.b  / 100);
+
+      fullSeason.N  += nG;  fullSeason.P  += pG;  fullSeason.K  += kG;
+      fullSeason.Ca += caG; fullSeason.Mg += mgG; fullSeason.B  += bG;
+
+      if (isUpToDate) {
+        toDate.N  += nG;  toDate.P  += pG;  toDate.K  += kG;
+        toDate.Ca += caG; toDate.Mg += mgG; toDate.B  += bG;
+      }
     });
   });
-  return tgt;
+
+  return { ...toDate, fullSeason };
 }
 
 function getGddStageModel() {
@@ -2519,30 +2579,123 @@ function renderAnalyticsTab() {
   const del = getCumulativeNutrientsPerPlant();
   const schedTgt = computeScheduleTrueTargetsToDate(tStr);
   const progressRatio = Math.min(1, Math.max(0.1, todayDad / 185));
+  const fs = schedTgt.fullSeason || {};
+
+  // Agronomic Ratio & Antagonism Diagnostics (ICAR-NRCP Solapur)
+  const kToNRatio = del.N > 0.5 ? Number((del.K / del.N).toFixed(2)) : 0;
+  const reqKToN = actualGdd < 950 ? 1.2 : actualGdd < 1450 ? 2.0 : actualGdd < 2150 ? 3.5 : 5.0;
+  const kToNOk = kToNRatio >= reqKToN * 0.85;
+
+  const caTargetNow = Math.max(1, Number((schedTgt.Ca || 45 * progressRatio).toFixed(1)));
+  const caPctNow = Math.round((del.Ca / caTargetNow) * 100);
+  const kTargetNow = Math.max(1, Number((schedTgt.K || 240 * progressRatio).toFixed(1)));
+  const kPctNow = Math.round((del.K / kTargetNow) * 100);
+  const caKAntagonism = (kPctNow >= 95 && caPctNow < 75);
 
   const seasonTargets = [
-    { key: "N",  labelEn: "Nitrogen (N) — Vegetative & Early Sizing", labelKn: "ಸಾರಜನಕ (N) — ಆರಂಭಿಕ ಬೆಳವಣಿಗೆ", targetToDate: Math.max(1, Number((schedTgt.N || 65 * Math.min(1, todayDad / 140)).toFixed(1))), fullSeason: 65, color: "bg-sky-600", elemSub: "" },
-    { key: "P",  labelEn: "Phosphorus (P₂O₅) — Flowering & Cell Division", labelKn: "ರಂಜಕ (P₂O₅) — ಹೂವು ಮತ್ತು ಕಾಯಿ ಬೆಳವಣಿಗೆ", targetToDate: Math.max(1, Number((schedTgt.P || 145 * progressRatio).toFixed(1))), fullSeason: 145, color: "bg-amber-500", elemSub: LANG === "KN" ? ` • ಶುದ್ಧ ರಂಜಕ (Pure P): ${del.P_elem.toFixed(1)} g / ${((schedTgt.P || 50) * 0.4364).toFixed(1)} g` : ` • Pure Elemental P: ${del.P_elem.toFixed(1)} g / ${((schedTgt.P || 50) * 0.4364).toFixed(1)} g` },
-    { key: "K",  labelEn: "Potassium (K₂O) — Fruit Weight, Brix & Redness", labelKn: "ಪೊಟ್ಯಾಷ್ (K₂O) — ತೂಕ, ಸಿಹಿ ಮತ್ತು ಕೆಂಪು ಬಣ್ಣ", targetToDate: Math.max(1, Number((schedTgt.K || 240 * progressRatio).toFixed(1))), fullSeason: 240, color: "bg-rose-600", elemSub: LANG === "KN" ? ` • ಶುದ್ಧ ಪೊಟ್ಯಾಷ್ (Pure K): ${del.K_elem.toFixed(1)} g / ${((schedTgt.K || 80) * 0.8301).toFixed(1)} g` : ` • Pure Elemental K: ${del.K_elem.toFixed(1)} g / ${((schedTgt.K || 80) * 0.8301).toFixed(1)} g` },
-    { key: "Ca", labelEn: "Calcium (Ca) — Rind Strength & Anti-Cracking", labelKn: "ಕ್ಯಾಲ್ಸಿಯಂ (Ca) — ಸಿಪ್ಪೆ ಗಟ್ಟಿತನ (ಸೀಳುವಿಕೆ ತಡೆ)", targetToDate: Math.max(1, Number((schedTgt.Ca || 45 * progressRatio).toFixed(1))), fullSeason: 45, color: "bg-indigo-600", elemSub: "" },
-    { key: "Mg", labelEn: "Magnesium (Mg) — Chlorophyll & Sugar Flow", labelKn: "ಮೆಗ್ನೀಸಿಯಮ್ (Mg) — ಎಲೆ ಹಸಿರು ಮತ್ತು ಸಿಹಿ", targetToDate: Math.max(1, Number((schedTgt.Mg || 25 * progressRatio).toFixed(1))), fullSeason: 25, color: "bg-emerald-600", elemSub: "" }
+    {
+      key: "N", labelEn: "Nitrogen (N) — Canopy & Early Fruit Sizing", labelKn: "ಸಾರಜನಕ (N) — ಚಿಗುರು ಮತ್ತು ಆರಂಭಿಕ ಕಾಯಿ ಬೆಳವಣಿಗೆ",
+      targetToDate: Math.max(1, Number((schedTgt.N || 65 * Math.min(1, todayDad / 140)).toFixed(1))),
+      fullSeason: Math.round(fs.N || 65), nrcpRef: "65g (Locks @ 2,150 GDD)", color: "bg-sky-600", elemSub: ""
+    },
+    {
+      key: "P", labelEn: "Phosphorus (P₂O₅) — Flowering, Root Flush & Cell Division", labelKn: "ರಂಜಕ (P₂O₅) — ಹೂವು, ಬೇರು ಮತ್ತು ಕೋಶ ವಿಭಜನೆ",
+      targetToDate: Math.max(1, Number((schedTgt.P || 145 * progressRatio).toFixed(1))),
+      fullSeason: Math.round(fs.P || 145), nrcpRef: "145g P₂O₅ (63.3g Pure P)", color: "bg-amber-500",
+      elemSub: LANG === "KN"
+        ? `⚛️ ಶುದ್ಧ ರಂಜಕ (Pure Elemental P = P₂O₅ × 0.4364): <b>${del.P_elem.toFixed(1)} g</b> / ${((schedTgt.P || 50) * 0.4364).toFixed(1)} g`
+        : `⚛️ Pure Elemental P (P₂O₅ × 0.4364): <b>${del.P_elem.toFixed(1)} g</b> / ${((schedTgt.P || 50) * 0.4364).toFixed(1)} g scheduled`
+    },
+    {
+      key: "K", labelEn: "Potassium (K₂O) — Aril Weight, TSS Sweetness & Red Color", labelKn: "ಪೊಟ್ಯಾಷ್ (K₂O) — ಕಾಳಿನ ತೂಕ, ಸಿಹಿ ಮತ್ತು ಕೆಂಪು ಬಣ್ಣ",
+      targetToDate: Math.max(1, Number((schedTgt.K || 240 * progressRatio).toFixed(1))),
+      fullSeason: Math.round(fs.K || 240), nrcpRef: "240g K₂O (199.2g Pure K)", color: "bg-rose-600",
+      elemSub: LANG === "KN"
+        ? `⚛️ ಶುದ್ಧ ಪೊಟ್ಯಾಷ್ (Pure Elemental K = K₂O × 0.8301): <b>${del.K_elem.toFixed(1)} g</b> / ${((schedTgt.K || 80) * 0.8301).toFixed(1)} g`
+        : `⚛️ Pure Elemental K (K₂O × 0.8301): <b>${del.K_elem.toFixed(1)} g</b> / ${((schedTgt.K || 80) * 0.8301).toFixed(1)} g scheduled`
+    },
+    {
+      key: "Ca", labelEn: "Calcium (Ca) — Rind Pectin Wall & Anti-Cracking", labelKn: "ಕ್ಯಾಲ್ಸಿಯಂ (Ca) — ಸಿಪ್ಪೆ ಗಟ್ಟಿತನ (ಸೀಳುವಿಕೆ ತಡೆ)",
+      targetToDate: caTargetNow,
+      fullSeason: Math.round(fs.Ca || 45), nrcpRef: "45g Pure Ca", color: "bg-indigo-600", elemSub: ""
+    },
+    {
+      key: "Mg", labelEn: "Magnesium (Mg) — Chlorophyll & Sugar Translocation", labelKn: "ಮೆಗ್ನೀಸಿಯಮ್ (Mg) — ಎಲೆ ಹಸಿರು ಮತ್ತು ಸಿಹಿ ಸಾಗಾಣಿಕೆ",
+      targetToDate: Math.max(1, Number((schedTgt.Mg || 25 * progressRatio).toFixed(1))),
+      fullSeason: Math.round(fs.Mg || 25), nrcpRef: "25g Pure Mg", color: "bg-emerald-600", elemSub: ""
+    }
   ];
 
-  document.getElementById("npkBarsContainer").innerHTML = seasonTargets.map(n => {
-    const actual = Number(del[n.key].toFixed(1));
-    const target = Math.max(0.5, n.targetToDate);
-    const pct = Math.min(100, Math.round((actual / target) * 100));
-    return `<div>
-      <div class="flex flex-wrap justify-between font-bold mb-0.5 gap-1">
-        <span>${LANG === "KN" ? n.labelKn : n.labelEn}</span>
-        <span>${actual} g / ${target} g ${LANG === "KN" ? "ಇಂದಿನ ಗುರಿ" : "scheduled to date"} (${pct}%) <span class="text-slate-400 font-normal">[Season: ${n.fullSeason}g]</span></span>
+  // 3-Box Agronomic Ratio & Balance Header
+  const ratioHeaderHtml = `
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3 text-[11px]">
+      <div class="p-2.5 rounded-xl border ${kToNOk ? 'bg-emerald-50/70 border-emerald-200' : 'bg-amber-50 border-amber-300'} space-y-0.5">
+        <div class="font-extrabold text-slate-900">⚖️ ${LANG === "KN" ? "K₂O : N ಅನುಪಾತ (ಕಾಯಿ ಗಾತ್ರ & ಸಿಹಿ)" : "K₂O : N Ratio (Sizing vs. Vegetative)"}</div>
+        <div class="font-bold text-slate-800">${LANG === "KN" ? "ಪ್ರಸ್ತುತ:" : "Current:"} <b>${kToNRatio} : 1</b> <span class="text-slate-500 font-normal">(Target: ≥${reqKToN}:1)</span></div>
+        <div class="text-[10px] ${kToNOk ? 'text-emerald-800' : 'text-amber-900 font-bold'}">
+          ${kToNOk
+            ? (LANG === "KN" ? "✅ ಈ ಹಂತಕ್ಕೆ ಸೂಕ್ತ ಅನುಪಾತದಲ್ಲಿದೆ" : "✅ Balanced for current GDD stage")
+            : (LANG === "KN" ? "⚠️ ಪೊಟ್ಯಾಷ್ (00:52:34 / 00:00:50) ಪ್ರಮಾಣ ಹೆಚ್ಚಿಸಿ" : "⚠️ Needs higher K₂O relative to Nitrogen")}
+        </div>
       </div>
-      ${n.elemSub ? `<div class="text-[11px] text-slate-500 mb-1 font-semibold">${n.elemSub}</div>` : ""}
+
+      <div class="p-2.5 rounded-xl border ${caKAntagonism ? 'bg-red-50 border-red-300' : 'bg-indigo-50/70 border-indigo-200'} space-y-0.5">
+        <div class="font-extrabold text-slate-900">🛡️ ${LANG === "KN" ? "Ca : K ಸಿಪ್ಪೆ ರಕ್ಷಣೆ (ಸೀಳುವಿಕೆ ತಡೆ)" : "Ca : K Rind Elasticity Balance"}</div>
+        <div class="font-bold text-slate-800">Ca: <b>${caPctNow}%</b> vs K₂O: <b>${kPctNow}%</b></div>
+        <div class="text-[10px] ${caKAntagonism ? 'text-red-800 font-bold' : 'text-indigo-900'}">
+          ${caKAntagonism
+            ? (LANG === "KN" ? "🚨 ಎಚ್ಚರಿಕೆ: ಹೆಚ್ಚಿನ ಪೊಟ್ಯಾಷ್ ಕ್ಯಾಲ್ಸಿಯಂ ಹೀರಿಕೊಳ್ಳುವಿಕೆಯನ್ನು ತಡೆಯುತ್ತಿದೆ!" : "🚨 High K is competing with low Ca (Cracking risk!)")
+            : (LANG === "KN" ? "✅ ಕ್ಯಾಲ್ಸಿಯಂ ಮತ್ತು ಪೊಟ್ಯಾಷ್ ಸಮತೋಲನದಲ್ಲಿದೆ" : "✅ No K-induced Calcium lock detected")}
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-xl border bg-slate-50 border-slate-200 space-y-0.5">
+        <div class="font-extrabold text-slate-900">🔬 ${LANG === "KN" ? "ಬೋರಾನ್ (B) ಮತ್ತು ಮೂಲ ಗೊಬ್ಬರ" : "Boron (B) & Post-Ethrel Scope"}</div>
+        <div class="font-bold text-slate-800">${LANG === "KN" ? "ಬೋರಾನ್:" : "Boron Delivered:"} <b>${del.B.toFixed(2)} g/plant</b></div>
+        <div class="text-[10px] text-slate-500">
+          ${LANG === "KN" ? "ಇದು 15 Aug ನಂತರದ ಡ್ರಿಪ್ + ಎಲೆ ಸಿಂಪಡಣೆ ಲೆಕ್ಕ (ಮೂಲ ಗೊಬ್ಬರ ಹೊರತುಪಡಿಸಿ)" : "Tracks post-15 Aug WSF Drip + Foliar (excludes solid basal ring FYM/DAP)"}
+        </div>
+      </div>
+    </div>
+  `;
+
+  const barsHtml = seasonTargets.map(n => {
+    const actual = Number(del[n.key].toFixed(1));
+    const dripG  = Number(del.drip[n.key].toFixed(1));
+    const folG   = Number(del.foliar[n.key].toFixed(1));
+    const target = Math.max(0.5, n.targetToDate);
+    const rawPct = Math.round((actual / target) * 100);
+    const barWidthPct = Math.min(100, rawPct);
+
+    let statusBadge = "";
+    if (rawPct < 80) {
+      statusBadge = `<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-extrabold">⚠️ ${LANG === "KN" ? "ಕೊರತೆ" : "Deficit"} (${rawPct}%)</span>`;
+    } else if (rawPct <= 115) {
+      statusBadge = `<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 text-[10px] font-extrabold">✅ ${LANG === "KN" ? "ಸರಿಯಾಗಿದೆ" : "On Track"} (${rawPct}%)</span>`;
+    } else {
+      statusBadge = `<span class="px-1.5 py-0.5 rounded bg-rose-100 text-rose-900 text-[10px] font-extrabold">🚨 ${LANG === "KN" ? "ಹೆಚ್ಚುವರಿ" : "Surplus"} (${rawPct}%)</span>`;
+    }
+
+    return `<div class="p-2.5 rounded-xl bg-slate-50/70 border border-slate-200/90 space-y-1">
+      <div class="flex flex-wrap justify-between items-center font-bold gap-1">
+        <span class="text-slate-900">${LANG === "KN" ? n.labelKn : n.labelEn}</span>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span><b>${actual} g</b> / ${target} g ${LANG === "KN" ? "ಇಂದಿನ ಗುರಿ" : "to date"}</span>
+          ${statusBadge}
+        </div>
+      </div>
+      <div class="text-[11px] text-slate-600 flex flex-wrap justify-between gap-1">
+        <span>💧 <b>${LANG === "KN" ? "ಡ್ರಿಪ್ (ಬೇರು):" : "Drip (Root):"}</b> ${dripG} g • 🌿 <b>${LANG === "KN" ? "ಎಲೆ ಸಿಂಪಡಣೆ:" : "Foliar (Leaf):"}</b> ${folG} g</span>
+        <span class="text-slate-500">🎯 ${LANG === "KN" ? "ಪೂರ್ಣ ಹಂಗಾಮಿನ ಗುರಿ:" : "Full Season Plan:"} <b>${n.fullSeason} g/plant</b> <span class="text-[10px]">(NRCP: ${n.nrcpRef})</span></span>
+      </div>
+      ${n.elemSub ? `<div class="text-[11px] text-slate-700 font-medium">${n.elemSub}</div>` : ""}
       <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-        <div class="${n.color} h-2.5 rounded-full" style="width:${pct}%"></div>
+        <div class="${n.color} h-2.5 rounded-full transition-all" style="width:${barWidthPct}%"></div>
       </div>
     </div>`;
   }).join("");
+
+  document.getElementById("npkBarsContainer").innerHTML = ratioHeaderHtml + `<div class="space-y-2.5">${barsHtml}</div>`;
 }
 
 function exportScheduleCSV() {
