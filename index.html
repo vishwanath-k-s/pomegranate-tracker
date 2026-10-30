@@ -2332,78 +2332,149 @@ function computeDailyDripIrrigationPlan(actualGdd) {
 
 function renderAnalyticsTab() {
   const gModel = getGddStageModel();
-  const { tStr, todayDad, actualGdd, realDailyMeanGdd, currentStage, getDateForGdd } = gModel;
+  const { tStr, todayDad, actualGdd, realDailyMeanGdd, futureDailyGddRate, currentStage, getDateForGdd } = gModel;
 
-  const estZeroNDateStr = getDateForGdd(2150);
-  const estHarvestDateStr = getDateForGdd(SUPER_BHAGWA_GDD_TARGET);
-  const estHarvestDad = diffDaysYMD("2026-08-15", estHarvestDateStr);
+  // 1. Today's Daily GDD, Heat-Stress Arrest Status (>38°C), and Historical Baseline Comparison
+  const tMax = Number(wState.tMax) || 30.5;
+  const tMin = Number(wState.tMin) || 18.2;
+  const todayDailyGdd = computeDailyGdd(tMax, tMin);
+  const heatArrestActive = tMax > 38.0;
+  const heatPenalty = heatArrestActive ? Number(((tMax - 38.0) * 0.5).toFixed(2)) : 0;
 
-  document.getElementById("gddTotalValue").textContent = `${actualGdd.toLocaleString()} GDD / ${SUPER_BHAGWA_GDD_TARGET.toLocaleString()} GDD`;
+  // Kudligi/Hosahalli long-term historical mean (14.2 GDD/day on Base 10°C) vs. Real Observed (Aug 15 -> Today)
+  const histExpectedGddToDate = Math.round((todayDad + 1) * 14.2);
+  const gddDiffVsNormal = Math.round(actualGdd - histExpectedGddToDate);
+  const biologicalThermalAgeDays = Math.round(actualGdd / 14.2);
+  const daysAheadBehind = biologicalThermalAgeDays - (todayDad + 1);
 
-  const stageTimelineHtml = SUPER_BHAGWA_STAGES.map(s => {
+  // Tier 2 (15-Day Live Forecast) & Tier 3 (Seasonal Anomaly Multiplier)
+  const forecast15dTotal = Number(wState.forecast15dTotalGdd || (futureDailyGddRate * 15).toFixed(1));
+  const anomalyFactor = Math.min(1.15, Math.max(0.90, ((realDailyMeanGdd * 0.5) + (futureDailyGddRate * 0.5)) / 15.6));
+  const anomalyPct = Math.round((anomalyFactor - 1.0) * 100);
+
+  // Key Super Bhagwa Milestones (2,150 GDD Zero-N Lock | 2,800 GDD 1st Harvest | 2,950 GDD 2nd Harvest)
+  const estZeroNDateStr    = getDateForGdd(2150);
+  const estZeroNDad        = diffDaysYMD("2026-08-15", estZeroNDateStr);
+  const estHarvest1DateStr = getDateForGdd(SUPER_BHAGWA_GDD_TARGET); // 2,800 GDD
+  const estHarvest1Dad     = diffDaysYMD("2026-08-15", estHarvest1DateStr);
+  const estHarvest2DateStr = getDateForGdd(2950); // 2,950 GDD (2nd/Final Harvest)
+  const estHarvest2Dad     = diffDaysYMD("2026-08-15", estHarvest2DateStr);
+
+  const overallGddPct = Math.min(100, Math.round((actualGdd / SUPER_BHAGWA_GDD_TARGET) * 100));
+  document.getElementById("gddTotalValue").textContent = `${actualGdd.toLocaleString()} / ${SUPER_BHAGWA_GDD_TARGET.toLocaleString()} GDD (${overallGddPct}%)`;
+  const masterBar = document.getElementById("gddProgressBar");
+  if (masterBar) masterBar.style.width = `${overallGddPct}%`;
+
+  // Stage-specific physiological & management notes
+  const STAGE_NOTES = [
+    { en: "Cell division, root flush & rind wall formation",       kn: "ಕೋಶ ವಿಭಜನೆ, ಬೇರು ವೃದ್ಧಿ ಮತ್ತು ಸಿಪ್ಪೆ ರಚನೆ" },
+    { en: "Rapid fruit volume expansion & rind elasticity",        kn: "ಕಾಯಿ ಗಾತ್ರ ವೇಗವಾಗಿ ಹಿಗ್ಗುವ ಮತ್ತು ಸಿಪ್ಪೆ ಹಿಗ್ಗುವ ಹಂತ" },
+    { en: "Aril filling, seed hardening & peak K₂O + Ca demand",   kn: "ಕಾಳು ತುಂಬುವ, ತೂಕ ಹೆಚ್ಚುವ ಮತ್ತು ಗರಿಷ್ಠ ಪೊಟ್ಯಾಷ್/ಕ್ಯಾಲ್ಸಿಯಂ ಹಂತ" },
+    { en: "🔴 Gate P1 Zero-Nitrogen Lock (Anthocyanin red color)", kn: "🔴 ಸಾರಜನಕ ಮುಕ್ತ ಹಂತ (ಕೆಂಪು ಬಣ್ಣ ವೃದ್ಧಿಸಲು 0% N)" },
+    { en: "Brix sugar surge & RDI (-20% controlled water)",        kn: "ಸಿಹಿ (Brix) ಹೆಚ್ಚಳ ಮತ್ತು ನಿಯಂತ್ರಿತ ನೀರು (-20%)" },
+    { en: "1st Harvest (2,800 GDD) to 2nd Harvest (2,950 GDD)",    kn: "ಮೊದಲ ಕಟಾವು (2,800 GDD) ರಿಂದ ಎರಡನೇ ಕಟಾವು (2,950 GDD)" }
+  ];
+
+  const stageTimelineHtml = SUPER_BHAGWA_STAGES.map((s, idx) => {
     const isDone = actualGdd >= s.maxGdd;
     const isCurr = actualGdd >= s.minGdd && actualGdd < s.maxGdd;
     const pct = isDone ? 100 : isCurr ? Math.round(((actualGdd - s.minGdd) / (s.maxGdd - s.minGdd)) * 100) : 0;
 
-    const startYmd = getDateForGdd(s.minGdd), endYmd = getDateForGdd(s.maxGdd);
-    const startDad = diffDaysYMD("2026-08-15", startYmd), endDad = diffDaysYMD("2026-08-15", endYmd);
-    const dateBadgeLabel = isDone ? (LANG === "KN" ? "ಪೂರ್ಣಗೊಂಡ ದಿನಾಂಕ" : "Actual") : isCurr ? (LANG === "KN" ? "ಪ್ರಾರಂಭ – ಅಂದಾಜು ಮುಕ್ತಾಯ" : "Started – Est. End") : (LANG === "KN" ? "ಅಂದಾಜು ದಿನಾಂಕ" : "Est. Window");
-    const rowCls = isCurr ? "bg-amber-50 border-amber-400 border-2" : isDone ? "bg-emerald-50/60 border-emerald-200" : "bg-slate-50 border-slate-200";
+    const startYmd = getDateForGdd(s.minGdd);
+    const endYmd   = getDateForGdd(s.maxGdd);
+    const startDad = diffDaysYMD("2026-08-15", startYmd);
+    const endDad   = diffDaysYMD("2026-08-15", endYmd);
 
-    return `<div class="p-2.5 rounded-lg border ${rowCls} text-[11px] space-y-1">
+    const dateBadgeLabel = isDone
+      ? (LANG === "KN" ? "ಪೂರ್ಣಗೊಂಡ ದಿನಾಂಕ" : "Observed")
+      : isCurr
+        ? (LANG === "KN" ? "ಪ್ರಾರಂಭ – ಅಂದಾಜು ಮುಕ್ತಾಯ" : "Started – Est. End")
+        : (LANG === "KN" ? "3-ಹಂತದ ಮುನ್ಸೂಚನೆ" : "3-Tier Forecast");
+
+    const rowCls = isCurr ? "bg-amber-50 border-amber-400 border-2 shadow-sm" : isDone ? "bg-emerald-50/60 border-emerald-200" : "bg-slate-50 border-slate-200";
+    const noteObj = STAGE_NOTES[idx] || { en: "", kn: "" };
+
+    return `<div class="p-2.5 rounded-xl border ${rowCls} text-[11px] space-y-1">
       <div class="flex flex-wrap justify-between items-center gap-1 font-bold">
         <span class="text-slate-900">${isDone ? "✅" : isCurr ? "📍" : "⏳"} ${LANG === "KN" ? s.kn : s.en}</span>
         <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-white border text-slate-700">${s.minGdd}–${s.maxGdd} GDD (${pct}%)</span>
       </div>
-      <div class="text-[10px] text-slate-600 font-semibold flex flex-wrap justify-between gap-1">
+      <div class="text-[10px] text-slate-700 font-semibold flex flex-wrap justify-between gap-1">
         <span>📅 <b>${dateBadgeLabel}:</b> ${formatShortStageDate(startYmd)} – ${formatShortStageDate(endYmd)}</span>
-        <span class="text-emerald-800 font-bold">(${startDad}–${endDad} DAD)</span>
+        <span class="text-emerald-800 font-extrabold">${startDad}–${endDad} DAD <span class="text-slate-400 font-normal">(Ref: ${s.dadRange})</span></span>
       </div>
+      <div class="text-[10px] text-slate-500">${LANG === "KN" ? noteObj.kn : noteObj.en}</div>
       <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
         <div class="${isDone ? 'bg-emerald-600' : 'bg-amber-500'} h-1.5 rounded-full" style="width:${pct}%"></div>
       </div>
     </div>`;
   }).join("");
 
-  // Daily Drip Irrigation Schedule Card (Appended inside GDD & Stage card)
-  const dripPlan = computeDailyDripIrrigationPlan(actualGdd);
-  const dripScheduleHtml = `
-    <div class="mt-3 p-3 bg-sky-50 border-2 border-sky-200 rounded-xl space-y-1.5 text-xs">
+  // 4-Box Scientific & Weather Telemetry Strip + 6-Stage Timeline
+  const telemetryBoxesHtml = `
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 my-2 text-[11px]">
+      <div class="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 space-y-0.5">
+        <div class="font-extrabold text-amber-950">🌡️ ${LANG === "KN" ? "ಇಂದಿನ ಉಷ್ಣಾಂಶ & GDD" : "Today's Real-Time GDD"}</div>
+        <div class="text-slate-800 font-bold">+${todayDailyGdd} GDD <span class="font-normal text-slate-600">(${tMax}°C / ${tMin}°C)</span></div>
+        <div class="text-[10px] ${heatArrestActive ? 'text-red-700 font-bold' : 'text-emerald-800'}">
+          ${heatArrestActive
+            ? (LANG === "KN" ? `⚠️ >38°C ಬಿಸಿಲು ತಡೆ (-${heatPenalty} GDD ಕಡಿತ)` : `⚠️ >38°C Stomatal Arrest (-${heatPenalty} GDD)`)
+            : (LANG === "KN" ? "✅ <38°C ಸೂಕ್ತ ದ್ಯುತಿಸಂಶ್ಲೇಷಣೆ (ಸಕ್ರಿಯ ಬೆಳವಣಿಗೆ)" : "✅ <38°C Optimal Stomatal Assimilation")}
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-0.5">
+        <div class="font-extrabold text-emerald-950">📡 ${LANG === "KN" ? "ಹಂತ 1: ನೈಜ ಸರಾಸರಿ (15 Aug – ಇಂದು)" : "Tier 1: Observed (15 Aug – Today)"}</div>
+        <div class="text-slate-800 font-bold">${realDailyMeanGdd} GDD/day <span class="font-normal text-slate-600">(${todayDad + 1}d)</span></div>
+        <div class="text-[10px] text-slate-600">
+          ${LANG === "KN"
+            ? `ವಾಡಿಕೆ ಸರಾಸರಿ (14.2/d): ${histExpectedGddToDate} GDD (${gddDiffVsNormal >= 0 ? '+' + gddDiffVsNormal : gddDiffVsNormal} GDD)`
+            : `Vs. Historical 14.2/d (${histExpectedGddToDate} GDD): <b>${gddDiffVsNormal >= 0 ? '+' + gddDiffVsNormal : gddDiffVsNormal} GDD</b>`}
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-xl bg-indigo-50/80 border border-indigo-200 space-y-0.5">
+        <div class="font-extrabold text-indigo-950">🧬 ${LANG === "KN" ? "ಜೈವಿಕ ವಯಸ್ಸು vs ಕ್ಯಾಲೆಂಡರ್ ದಿನ" : "Biological Age vs. Calendar DAD"}</div>
+        <div class="text-slate-800 font-bold">${biologicalThermalAgeDays} GDD-Days <span class="font-normal text-slate-600">vs ${todayDad} DAD</span></div>
+        <div class="text-[10px] font-bold ${daysAheadBehind >= 0 ? 'text-emerald-800' : 'text-amber-800'}">
+          ${daysAheadBehind >= 0
+            ? (LANG === "KN" ? `⚡ ವಾಡಿಕೆಗಿಂತ +${daysAheadBehind} ದಿನ ಮುಂದಿದೆ` : `⚡ Crop is +${daysAheadBehind} days ahead of normal`)
+            : (LANG === "KN" ? `⏳ ವಾಡಿಕೆಗಿಂತ ${daysAheadBehind} ದಿನ ಹಿಂದಿದೆ` : `⏳ Crop is ${daysAheadBehind} days behind normal`)}
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-xl bg-sky-50/80 border border-sky-200 space-y-0.5">
+        <div class="font-extrabold text-sky-950">🔮 ${LANG === "KN" ? "ಹಂತ 2 & 3: ಮುಂದಿನ 15 ದಿನಗಳ ಮುನ್ಸೂಚನೆ" : "Tier 2 & 3: 15d Forecast + Curve"}</div>
+        <div class="text-slate-800 font-bold">${futureDailyGddRate} GDD/day <span class="font-normal text-slate-600">(+${forecast15dTotal} / 15d)</span></div>
+        <div class="text-[10px] text-slate-600">
+          ${LANG === "KN"
+            ? `ಹಂಗಾಮಿನ ಉಷ್ಣಾಂಶ ವ್ಯತ್ಯಾಸ: ${anomalyPct >= 0 ? '+' + anomalyPct : anomalyPct}% (ಮಾಸಿಕ ವಕ್ರರೇಖೆ)`
+            : `Season Anomaly: <b>${anomalyPct >= 0 ? '+' + anomalyPct : anomalyPct}%</b> applied to Dec–Feb curve`}
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("gddComparisonText").innerHTML = `
+    <div class="text-xs text-slate-700 font-semibold">
+      📍 ${LANG === "KN" ? "ಪ್ರಸ್ತುತ ಜೈವಿಕ ಹಂತ:" : "Active Biological Stage:"} <b class="text-emerald-900">${LANG === "KN" ? currentStage.kn : currentStage.en}</b>
+    </div>
+    ${telemetryBoxesHtml}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">${stageTimelineHtml}</div>
+  `;
+
+  document.getElementById("gddHarvestForecast").innerHTML = `
+    <div class="space-y-1.5">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <div class="font-extrabold text-sky-950 text-sm">💧 ${LANG === "KN" ? "ಇಂದಿನ ಡ್ರಿಪ್ ನೀರಿನ ವೇಳಾಪಟ್ಟಿ (FAO-56 / ICAR-NRCP):" : "Today's Drip Irrigation Water Schedule (1,500 Plants):"}</div>
-        <div class="flex items-center gap-1 text-[11px] bg-white border border-sky-300 rounded-lg px-2 py-0.5">
-          <span class="text-slate-600 font-semibold">${LANG === "KN" ? "ಡ್ರಿಪ್ಪರ್ ವೇಗ (ಪ್ರತಿ ಗಿಡಕ್ಕೆ):" : "Emitter Flow/Plant:"}</span>
-          <input type="number" step="2" min="2" value="${emitterLitersPerHourPerPlant}" onchange="setDripEmitterRate(this.value)" class="w-10 font-extrabold text-sky-900 text-center focus:outline-none" />
-          <span class="font-bold text-slate-600">L/hr</span>
-        </div>
+        <span>🔴 <b>${LANG === "KN" ? "ಸಾರಜನಕ ಮುಕ್ತ ಬಣ್ಣದ ಹಂತ (2,150 GDD):" : "Gate P1 Zero-N Color Lock (2,150 GDD):"}</b> ${formatShortStageDate(estZeroNDateStr)} (~${estZeroNDad} DAD)</span>
+        <span>🍎 <b>${LANG === "KN" ? "1ನೇ ಕಟಾವು (2,800 GDD):" : "1st Harvest (2,800 GDD):"}</b> ${formatShortStageDate(estHarvest1DateStr)} (~${estHarvest1Dad} DAD)</span>
+        <span>🧺 <b>${LANG === "KN" ? "2ನೇ ಕಟಾವು (2,950 GDD):" : "2nd Harvest (2,950 GDD):"}</b> ${formatShortStageDate(estHarvest2DateStr)} (~${estHarvest2Dad} DAD)</span>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-        <div class="bg-white p-2 rounded-lg border border-sky-200">
-          <div class="text-[10px] text-slate-500 font-bold uppercase">${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ ದಿನಕ್ಕೆ ನೀರು" : "Water / Plant / Day"}</div>
-          <div class="text-base font-extrabold text-sky-900">🌱 ${dripPlan.litersPerPlant} L / ${LANG === "KN" ? "ಗಿಡ" : "plant"}</div>
-        </div>
-        <div class="bg-white p-2 rounded-lg border border-sky-200">
-          <div class="text-[10px] text-slate-500 font-bold uppercase">${LANG === "KN" ? "ಮೋಟಾರ್ ಚಾಲನೆ ಸಮಯ" : "Daily Pump Runtime"}</div>
-          <div class="text-base font-extrabold text-emerald-800">⏱️ ${dripPlan.runtimeStr}</div>
-        </div>
-        <div class="bg-white p-2 rounded-lg border border-sky-200">
-          <div class="text-[10px] text-slate-500 font-bold uppercase">${LANG === "KN" ? "3 ಎಕರೆಗೆ ಒಟ್ಟು ನೀರು" : "Total 3-Acre Volume"}</div>
-          <div class="text-base font-extrabold text-indigo-900">🚜 ${dripPlan.totalLiters3Ac.toLocaleString("en-IN")} L</div>
-        </div>
+      <div class="text-[10px] text-amber-900/90 border-t border-amber-200/80 pt-1 font-normal">
+        📚 <b>${LANG === "KN" ? "ಮಾನದಂಡ ಉಲ್ಲೇಖ:" : "Model Reference:"}</b> Super Bhagwa Base 10°C / Cap 38°C model (2,800–2,950 GDD to harvest, matching Syngenta Base-10°C telemetry from 15 Aug 2026; corresponds to ~4,105 heat units on IAHS Base-4.5°C scale).Formula: <code>max(0, (min(Tmax,38)+max(Tmin,10))/2 - 10 - max(0, (Tmax-38)*0.5))</code>.
       </div>
-      <div class="text-[11px] text-sky-900 flex flex-wrap justify-between gap-1 pt-0.5">
-        <span><b>${LANG === "KN" ? "ವಿಧಾನ:" : "Mode:"}</b> ${LANG === "KN" ? dripPlan.splitKn : dripPlan.splitEn}</span>
-        <span>${LANG === "KN" ? dripPlan.noteKn : dripPlan.noteEn}</span>
-      </div>
-    </div>`;
-
-  document.getElementById("gddComparisonText").innerHTML = (LANG === "KN"
-    ? `ನೈಜ ಉಷ್ಣಾಂಶ ಸರಾಸರಿ (15 Aug – ಇಂದು): <b>${realDailyMeanGdd} GDD/ದಿನ</b> • ಪ್ರಸ್ತುತ GDD ಹಂತ: <b>${currentStage.kn}</b><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">${stageTimelineHtml}</div>`
-    : `Real Observed Rate (15 Aug – Today): <b>${realDailyMeanGdd} GDD/day</b> (${todayDad + 1} days) • Current Biological Stage: <b>${currentStage.en}</b><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">${stageTimelineHtml}</div>`) + dripScheduleHtml;
-
-  document.getElementById("gddHarvestForecast").innerHTML = LANG === "KN"
-    ? `🎯 <b>ಸೂಪರ್ ಭಾಗ್ವಾ GDD ಮುನ್ಸೂಚನೆ (15-ದಿನದ ಹವಾಮಾನ ಆಧರಿಸಿ):</b> ಸಾರಜನಕ ಮುಕ್ತ ಬಣ್ಣದ ಹಂತ (2,150 GDD): <b>${formatShortStageDate(estZeroNDateStr)}</b> • 1ನೇ ಕಟಾವು (2,800 GDD): <b>${formatShortStageDate(estHarvestDateStr)} (~${estHarvestDad} DAD)</b>`
-    : `🎯 <b>Super Bhagwa Live Forecast:</b> Zero-N Color Lock (2,150 GDD) ETA: <b>${formatShortStageDate(estZeroNDateStr)}</b> • 1st Harvest (2,800 GDD) ETA: <b>${formatShortStageDate(estHarvestDateStr)} (~${estHarvestDad} DAD)</b>`;
+    </div>
+  `;
 
   const risks = computeAllSixRisks();
   document.getElementById("multiRiskGrid").innerHTML = SCOUT_ISSUES.map(iss => {
@@ -2457,38 +2528,6 @@ function renderAnalyticsTab() {
     { key: "Mg", labelEn: "Magnesium (Mg) — Chlorophyll & Sugar Flow", labelKn: "ಮೆಗ್ನೀಸಿಯಮ್ (Mg) — ಎಲೆ ಹಸಿರು ಮತ್ತು ಸಿಹಿ", targetToDate: Math.max(1, Number((schedTgt.Mg || 25 * progressRatio).toFixed(1))), fullSeason: 25, color: "bg-emerald-600", elemSub: "" }
   ];
 
-  // Season Chemical Spray Counter & Max Allowed Limit Table
-  const { saltCounts } = getSeasonSprayStats();
-  const sprayedChemIds = Object.keys(saltCounts).filter(id => catalog[id] && catalog[id].category !== "FERTIGATION");
-  const sprayHistoryRowsHtml = sprayedChemIds.map(id => {
-    const c = catalog[id];
-    const st = getSeasonSprayStats(id);
-    const badgeColor = st.exceededSalt ? "bg-red-100 text-red-800 border-red-300" : st.usedSalt === st.maxSalt - 1 ? "bg-amber-100 text-amber-900 border-amber-300" : "bg-emerald-100 text-emerald-900 border-emerald-300";
-    return `<tr class="border-b border-slate-100">
-      <td class="py-1.5 font-bold text-slate-900">🧪 ${getSaltOnlyTitle(c)} ${getUniformGroupBadge(c)}</td>
-      <td class="py-1.5 text-slate-600">${st.dates.join(", ")}</td>
-      <td class="py-1.5 font-extrabold"><span class="px-2 py-0.5 rounded border ${badgeColor}">${st.usedSalt} / ${st.maxSalt} ${LANG === "KN" ? "ಬಾರಿ" : "sprays"}</span></td>
-    </tr>`;
-  }).join("");
-
-  const sprayCounterSectionHtml = `
-    <div class="mt-4 pt-3 border-t border-slate-200 space-y-2">
-      <div class="font-extrabold text-sm text-slate-900">🛡️ ${LANG === "KN" ? "ಈ ಹಂಗಾಮಿನಲ್ಲಿ ಸಿಂಪಡಿಸಿದ ಔಷಧಿಗಳ ಲೆಕ್ಕ ಮತ್ತು ಗರಿಷ್ಠ ಮಿತಿ (ICAR-NRCP):" : "Season Chemical Spray Counter & Max Allowed Limits (Resistance Tracker):"}</div>
-      <div class="text-[11px] text-slate-500">${LANG === "KN" ? "ಸಿಸ್ಟೆಮಿಕ್ ಕೀಟನಾಶಕ/ಶಿಲೀಂಧ್ರನಾಶಕ: ಗರಿಷ್ಠ 2 ಬಾರಿ • ಬ್ಯಾಕ್ಟೀರಿಯಾ ನಾಶಕ: 4 ಬಾರಿ • ಕಾಪರ್/ಮ್ಯಾಂಕೋಜೆಬ್/ಕ್ಯಾಪ್ಟಾನ್: 6 ಬಾರಿ" : "Systemic Insecticide/Fungicide: Max 2 sprays/season • Bactericide: Max 4 • Multi-site (Copper/Captan/Mancozeb): Max 6"}</div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-xs">
-          <thead class="bg-slate-100 text-slate-600">
-            <tr>
-              <th class="p-1.5">${LANG === "KN" ? "ಲವಣಾಂಶ (Active Salt)" : "Active Salt"}</th>
-              <th class="p-1.5">${LANG === "KN" ? "ಸಿಂಪಡಿಸಿದ ದಿನಾಂಕಗಳು" : "Dates Applied"}</th>
-              <th class="p-1.5">${LANG === "KN" ? "ಬಳಕೆ / ಗರಿಷ್ಠ ಮಿತಿ" : "Sprayed / Max Allowed"}</th>
-            </tr>
-          </thead>
-          <tbody>${sprayHistoryRowsHtml || `<tr><td colspan="3" class="py-2 text-slate-400">No foliar sprays marked COMPLETED yet.</td></tr>`}</tbody>
-        </table>
-      </div>
-    </div>`;
-
   document.getElementById("npkBarsContainer").innerHTML = seasonTargets.map(n => {
     const actual = Number(del[n.key].toFixed(1));
     const target = Math.max(0.5, n.targetToDate);
@@ -2503,7 +2542,7 @@ function renderAnalyticsTab() {
         <div class="${n.color} h-2.5 rounded-full" style="width:${pct}%"></div>
       </div>
     </div>`;
-  }).join("") + sprayCounterSectionHtml;
+  }).join("");
 }
 
 function exportScheduleCSV() {
@@ -3274,15 +3313,16 @@ function applyHubAndSubPillRouting() {
 }
 
 function renderSeasonSprayAndDripGuides() {
-  // 0. Remove any leftover duplicate inline Spray Counter or Drip boxes from inside the GDD or NPK cards
+  // Safely remove ONLY the old inline duplicate containers if they exist, without ever touching GDD or NPK elements
   ["gddTotalValue", "npkBarsContainer"].forEach(anchorId => {
     const card = document.getElementById(anchorId)?.closest(".bg-white");
     if (!card) return;
-    Array.from(card.querySelectorAll("div")).forEach(div => {
-      const txt = div.textContent || "";
-      if ((anchorId === "gddTotalValue" && txt.includes("Today's Drip Irrigation") && !div.contains(document.getElementById("gddTotalValue"))) ||
-          (anchorId === "npkBarsContainer" && txt.includes("Resistance Tracker") && !div.contains(document.getElementById("npkBarsContainer")))) {
-        div.remove();
+    Array.from(card.children).forEach(child => {
+      if (child.id === "gddComparisonText" || child.id === "gddHarvestForecast" || child.id === "npkBarsContainer") return;
+      if (child.querySelector("#gddTotalValue, #gddProgressBar, #gddComparisonText, #gddHarvestForecast, #npkBarsContainer")) return;
+      const txt = child.textContent || "";
+      if (txt.includes("Today's Drip Irrigation") || txt.includes("Resistance Tracker")) {
+        child.remove();
       }
     });
   });
