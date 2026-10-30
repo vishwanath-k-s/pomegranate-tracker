@@ -951,24 +951,56 @@ function getQueuedTaskCoveringIssue(code) {
 }
 
 // Evaluates active spray shields relative to ANY target date (fixes Bug #4!)
+// Returns exact days elapsed since the most recent completed spray for each category (null if none within window)
 function getShieldsActiveOnDate(refDateStr) {
   const doneTasks = tasks.filter(t => t.status === "COMPLETED");
-  const hasRecent = (maxDays, pred) => doneTasks.some(t => {
-    const d = diffDaysYMD(t.current_scheduled_date, refDateStr);
-    return d >= 0 && d <= maxDays && (t.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").some(pred);
-  });
-  return {
-    copper:        hasRecent(6,  r => catalog[r.input_id]?.is_copper_compound),
-    fungicide:     hasRecent(7,  r => catalog[r.input_id]?.category === "FUNGICIDE"),
-    insecticide:   hasRecent(7,  r => catalog[r.input_id]?.category === "INSECTICIDE"),
-    mealy:         hasRecent(10, r => ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN"].includes(r.input_id)),
-    calciumFoliar: hasRecent(7,  r => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC"].includes(r.input_id)),
-    pyrethroid25d: hasRecent(25, r => {
-      const c = catalog[r.input_id]; if (!c) return false;
-      const g = c.irac_frac_group || "";
-      return g.includes("3A") || g.includes("1B") || ["INS_REEVA5", "INS_ASATAF", "INS_THIA_LAMBDA", "INS_BETA_IMIDA"].includes(r.input_id);
-    })
+  const minDaysSince = (maxDays, pred) => {
+    let best = null;
+    doneTasks.forEach(t => {
+      const d = diffDaysYMD(t.current_scheduled_date, refDateStr);
+      if (d >= 0 && d <= maxDays && (t.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").some(pred)) {
+        if (best === null || d < best) best = d;
+      }
+    });
+    return best;
   };
+
+  const copDays   = minDaysSince(9,  r => catalog[r.input_id]?.is_copper_compound || r.input_id === "BAC_BRONOPOL");
+  const funDays   = minDaysSince(9,  r => catalog[r.input_id]?.category === "FUNGICIDE");
+  const insDays   = minDaysSince(9,  r => catalog[r.input_id]?.category === "INSECTICIDE");
+  const mealyDays = minDaysSince(12, r => ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_THIAMETHOXAM", "INS_ACETAMIPRID", "INS_IMIDACLOPRID"].includes(r.input_id));
+  const caDays    = minDaysSince(9,  r => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC", "MIC_CHELATED_CA"].includes(r.input_id));
+  const pyrethroidDays = minDaysSince(25, r => {
+    const c = catalog[r.input_id]; if (!c) return false;
+    const g = c.irac_frac_group || "";
+    return g.includes("3A") || g.includes("1B") || ["INS_REEVA5", "INS_ASATAF", "INS_THIA_LAMBDA", "INS_BETA_IMIDA"].includes(r.input_id);
+  });
+
+  return {
+    copper:        copDays !== null,   copDays,
+    fungicide:     funDays !== null,   funDays,
+    insecticide:   insDays !== null,   insDays,
+    mealy:         mealyDays !== null, mealyDays,
+    calciumFoliar: caDays !== null,    caDays,
+    pyrethroid25d: pyrethroidDays !== null
+  };
+}
+
+// Time-Decaying Multiplicative Knockdown Curve (ICAR-NRCP Field Epidemiology):
+// Days 0–3: 70% knockdown (x0.30 -> LOW) | Days 4–6: 50% shield (x0.50 -> MOD) | Days 7–9: 25% tapering (x0.75)
+function applyTimeDecayingShield(rawScore, daysSinceSpray) {
+  if (daysSinceSpray === null || daysSinceSpray === undefined || daysSinceSpray < 0 || daysSinceSpray > 9) return rawScore;
+  if (daysSinceSpray <= 3) return Math.round(rawScore * 0.30);
+  if (daysSinceSpray <= 6) return Math.round(rawScore * 0.50);
+  return Math.round(rawScore * 0.75);
+}
+
+function formatShieldTag(daysSinceSpray, isKn) {
+  if (daysSinceSpray === null || daysSinceSpray === undefined || daysSinceSpray > 9) return "";
+  const pct = daysSinceSpray <= 3 ? "-70%" : daysSinceSpray <= 6 ? "-50%" : "-25%";
+  return isKn
+    ? `• 🛡️ ಸಿಂಪಡಣೆ ರಕ್ಷಣೆ (${daysSinceSpray} ದಿನಗಳ ಹಿಂದೆ: ${pct})`
+    : `• 🛡️ Spray shield (${daysSinceSpray}d ago: ${pct} knockdown)`;
 }
 
 function computeInstantRisksForDay(daySnap, dayDad, caDeficit, shieldsOnDay) {
@@ -978,36 +1010,37 @@ function computeInstantRisksForDay(daySnap, dayDad, caDeficit, shieldsOnDay) {
   let blight = rh72Avg >= 80 ? 45 : rh72Avg >= 70 ? 30 : rh72Avg >= 60 ? 18 : 8;
   blight += (tMax >= 25 && tMax <= 33 && tMin >= 18) ? 25 : 12;
   blight += rain72Sum >= 15 ? 30 : rain72Sum >= 3 ? 18 : prob4 >= 60 ? 12 : 0;
-  if (shieldsOnDay.copper) blight -= 20;
+  blight = applyTimeDecayingShield(blight, shieldsOnDay.copDays);
 
   let rot = rh72Avg >= 82 ? 45 : rh72Avg >= 72 ? 30 : rh72Avg >= 62 ? 16 : 6;
   rot += (tMax >= 22 && tMax <= 30) ? 20 : 10;
   rot += rain72Sum >= 10 ? 25 : rain72Sum >= 2 ? 14 : prob4 >= 60 ? 10 : 0;
   if (dayDad >= 90) rot += 10;
-  if (shieldsOnDay.fungicide) rot -= 20;
+  rot = applyTimeDecayingShield(rot, shieldsOnDay.funDays);
 
   let thrips = rh72Avg <= 50 ? 42 : rh72Avg <= 62 ? 30 : rh72Avg <= 72 ? 18 : 8;
   thrips += tMax >= 31 ? 25 : tMax >= 28 ? 16 : 8;
   thrips += rain72Sum === 0 ? 15 : rain72Sum >= 10 ? -15 : 0;
   thrips += dayDad <= 115 ? 15 : 5;
-  if (shieldsOnDay.insecticide) thrips -= 20;
+  thrips = applyTimeDecayingShield(thrips, shieldsOnDay.insDays);
 
   let borer = (dayDad >= 30 && dayDad <= 125) ? 35 : 12;
   borer += (tMax >= 27 && tMax <= 33) ? 22 : 10;
   borer += (rh72Avg >= 55 && rh72Avg <= 78) ? 15 : 8;
-  borer += shieldsOnDay.insecticide ? -20 : 18;
+  if (!shieldsOnDay.insecticide) borer += 18;
+  borer = applyTimeDecayingShield(borer, shieldsOnDay.insDays);
 
   let mealy = tMax >= 31 ? 25 : tMax >= 28 ? 16 : 8;
   mealy += tMin >= 18.5 ? 15 : 6;
   mealy += rain72Sum < 5 ? 15 : 0;
   if (shieldsOnDay.pyrethroid25d) mealy += 25;
-  if (shieldsOnDay.mealy) mealy -= 25;
+  mealy = applyTimeDecayingShield(mealy, shieldsOnDay.mealyDays);
 
   let crack = tempSwing >= 13.0 ? 30 : tempSwing >= 11.0 ? 20 : 10;
   crack += tMax >= 33 ? 25 : tMax >= 30.5 ? 15 : 8;
   crack += rain24 >= 10 ? 25 : 0;
   if (caDeficit) crack += 22;
-  if (shieldsOnDay.calciumFoliar) crack -= 18;
+  crack = applyTimeDecayingShield(crack, shieldsOnDay.caDays);
 
   const clamp = v => Math.min(100, Math.max(5, Math.round(v)));
   return {
@@ -1028,7 +1061,7 @@ function wasThreatTreatedSince(code, spikeDateStr) {
     if (code === "FRUIT_ROT")   return ids.some(id => catalog[id]?.category === "FUNGICIDE");
     if (code === "THRIPS_SCAR") return ids.some(id => catalog[id]?.category === "INSECTICIDE");
     if (code === "FRUIT_BORER") return ids.some(id => catalog[id]?.category === "INSECTICIDE");
-    if (code === "MEALYBUG")    return ids.some(id => ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_THIAMETHOXAM", "INS_FENPYROXIMATE", "INS_ABAMECTIN", "INS_SPIROMESIFEN"].includes(id));
+    if (code === "MEALYBUG")    return ids.some(id => ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_THIAMETHOXAM", "INS_ACETAMIPRID", "INS_IMIDACLOPRID", "INS_FENPYROXIMATE", "INS_ABAMECTIN", "INS_SPIROMESIFEN"].includes(id));
     if (code === "CRACKING")    return ids.some(id => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC", "WSF_CALCIUM_NITRATE", "MIC_CHELATED_CA", "MIC_BORON_20"].includes(id));
     return false;
   });
@@ -1062,7 +1095,6 @@ function computeAllSixRisks() {
       if (wasThreatTreatedSince(code, pastDay.dateStr)) return;
       if (code === "THRIPS_SCAR" && rain24 >= 15) return;
 
-      // Uses shields active ON that specific past date (fixes Bug #4)
       const shieldsOnPastDay = getShieldsActiveOnDate(pastDay.dateStr);
       const pastRisks = computeInstantRisksForDay(pastDay, todayDad - daysAgo, caDeficit, shieldsOnPastDay);
       const rawPastScore = pastRisks[code] || 0;
@@ -1096,12 +1128,12 @@ function computeAllSixRisks() {
   };
 
   return {
-    BLIGHT_SPOT: withCarryWhy("BLIGHT_SPOT", `72h RH: ${rh72Avg}% • Rain: ${rain72Sum}mm ${shieldsToday.copper ? "• 🛡️ Copper shield active (-20%)" : ""}`, `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಮಳೆ: ${rain72Sum}mm ${shieldsToday.copper ? "• 🛡️ ಕಾಪರ್ ರಕ್ಷಣೆ ಇದೆ (-20%)" : ""}`),
-    FRUIT_ROT:   withCarryWhy("FRUIT_ROT",   `72h RH: ${rh72Avg}% • Temp: ${tMax}°C ${shieldsToday.fungicide ? "• 🛡️ Fungicide active (-20%)" : ""}`, `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಉಷ್ಣಾಂಶ: ${tMax}°C ${shieldsToday.fungicide ? "• 🛡️ ಶಿಲೀಂಧ್ರನಾಶಕ ರಕ್ಷಣೆ ಇದೆ (-20%)" : ""}`),
-    THRIPS_SCAR: withCarryWhy("THRIPS_SCAR", `${rh72Avg <= 60 ? "Dry air speeds thrips" : "Mod RH"} (${rh72Avg}%) • ${rain72Sum === 0 ? "0mm rain (+15%)" : "Rain wash-off"}`, `ತೇವಾಂಶ: ${rh72Avg}% • ${rain72Sum === 0 ? "ಮಳೆ ಇಲ್ಲದ ಒಣ ಹವೆ (+15%)" : "ಮಳೆಯಿಂದ ಕಡಿಮೆ"}`),
-    FRUIT_BORER: withCarryWhy("FRUIT_BORER", `Sizing stage (${todayDad} DAD: +35%) • ${shieldsToday.insecticide ? "🛡️ Spray active (-20%)" : ">7d since last insecticide (+18%)"}`, `ಕಾಯಿ ಬೆಳವಣಿಗೆ ಹಂತ (${todayDad} DAD) • ${shieldsToday.insecticide ? "🛡️ ಸಿಂಪಡಣೆ ರಕ್ಷಣೆ ಇದೆ" : ">7 ದಿನದಿಂದ ಕೀಟನಾಶಕ ಸಿಂಪಡಿಸಿಲ್ಲ (+18%)"}`),
-    MEALYBUG:    withCarryWhy("MEALYBUG",    `Max ${tMax}°C / Night ${tMin}°C ${shieldsToday.pyrethroid25d ? "• ⚠️ +25% Reeva-5/Asataf resurgence watch" : ""}`, `ಗರಿಷ್ಠ ${tMax}°C ${shieldsToday.pyrethroid25d ? "• ⚠️ ರೀವಾ-5/ಅಸಟಾಫ್ ನಂತರ ನುಸಿ/ತಿಗಣೆ ಎಚ್ಚರಿಕೆ (+25%)" : ""}`),
-    CRACKING:    withCarryWhy("CRACKING",    `Day-Night Swing: ${tempSwing}°C ${caDeficit ? "• ⚠️ Low Rind Calcium reserve (+22%)" : "• ✅ Good Ca reserve"}`, `ಹಗಲು-ರಾತ್ರಿ ವ್ಯತ್ಯಾಸ: ${tempSwing}°C ${caDeficit ? "• ⚠️ ಕ್ಯಾಲ್ಸಿಯಂ ಕೊರತೆ (+22%)" : ""}`)
+    BLIGHT_SPOT: withCarryWhy("BLIGHT_SPOT", `72h RH: ${rh72Avg}% • Rain: ${rain72Sum}mm ${formatShieldTag(shieldsToday.copDays, false)}`, `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಮಳೆ: ${rain72Sum}mm ${formatShieldTag(shieldsToday.copDays, true)}`),
+    FRUIT_ROT:   withCarryWhy("FRUIT_ROT",   `72h RH: ${rh72Avg}% • Temp: ${tMax}°C ${formatShieldTag(shieldsToday.funDays, false)}`, `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಉಷ್ಣಾಂಶ: ${tMax}°C ${formatShieldTag(shieldsToday.funDays, true)}`),
+    THRIPS_SCAR: withCarryWhy("THRIPS_SCAR", `${rh72Avg <= 60 ? "Dry air" : "Mod RH"} (${rh72Avg}%) ${formatShieldTag(shieldsToday.insDays, false)}`, `ತೇವಾಂಶ: ${rh72Avg}% ${formatShieldTag(shieldsToday.insDays, true)}`),
+    FRUIT_BORER: withCarryWhy("FRUIT_ROT" === "X" ? "" : "FRUIT_BORER", `Sizing (${todayDad} DAD) ${shieldsToday.insecticide ? formatShieldTag(shieldsToday.insDays, false) : "• >9d since last insecticide (+18%)"}`, `ಕಾಯಿ ಬೆಳವಣಿಗೆ (${todayDad} DAD) ${shieldsToday.insecticide ? formatShieldTag(shieldsToday.insDays, true) : "• >9 ದಿನದಿಂದ ಕೀಟನಾಶಕ ಸಿಂಪಡಿಸಿಲ್ಲ (+18%)"}`),
+    MEALYBUG:    withCarryWhy("MEALYBUG",    `Max ${tMax}°C / Night ${tMin}°C ${shieldsToday.mealy ? formatShieldTag(shieldsToday.mealyDays, false) : (shieldsToday.pyrethroid25d ? "• ⚠️ +25% Reeva-5/Asataf resurgence watch" : "")}`, `ಗರಿಷ್ಠ ${tMax}°C ${shieldsToday.mealy ? formatShieldTag(shieldsToday.mealyDays, true) : (shieldsToday.pyrethroid25d ? "• ⚠️ ರೀವಾ-5/ಅಸಟಾಫ್ ನಂತರ ತಿಗಣೆ ಎಚ್ಚರಿಕೆ (+25%)" : "")}`),
+    CRACKING:    withCarryWhy("CRACKING",    `Swing: ${tempSwing}°C ${shieldsToday.calciumFoliar ? formatShieldTag(shieldsToday.caDays, false) : (caDeficit ? "• ⚠️ Low Rind Calcium (+22%)" : "• ✅ Good Ca reserve")}`, `ವ್ಯತ್ಯಾಸ: ${tempSwing}°C ${shieldsToday.calciumFoliar ? formatShieldTag(shieldsToday.caDays, true) : (caDeficit ? "• ⚠️ ಕ್ಯಾಲ್ಸಿಯಂ ಕೊರತೆ (+22%)" : "")}`)
   };
 }
 
