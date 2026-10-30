@@ -9,11 +9,19 @@
 </head>
 <body class="bg-slate-100 text-slate-800 pb-24 font-sans">
 
-  <header id="mainHeader" class="bg-emerald-900 text-white sticky top-0 z-30 shadow-md">
-    <div class="max-w-4xl mx-auto px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+  <style>
+  @media (max-width: 639px) {
+    #panel_TASKS input[type="number"] { min-width: 3.2rem; }
+    .hub-btn-text { font-size: 10px; line-height: 1.15; }
+  }
+</style>
+
+<header id="mainHeader" class="bg-emerald-900 text-white sticky top-0 z-30 shadow-md">
+  <div class="max-w-7xl mx-auto px-3 sm:px-6 py-2.5">
+    <div class="flex flex-wrap items-center justify-between gap-2">
       <div>
         <div class="flex items-center gap-2 flex-wrap">
-          <h1 id="ui_appTitle" class="font-bold text-base sm:text-lg">🍎 Hosahalli Pomegranate Tracker</h1>
+          <h1 id="ui_appTitle" class="text-sm sm:text-lg font-extrabold tracking-tight">🍎 Hosahalli Pomegranate Tracker</h1>
           <select id="envSelect" onchange="switchEnv(this.value)" class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950 cursor-pointer">
             <option value="PROD">🟢 PROD (Live)</option>
             <option value="DEV">🧪 DEV (Test)</option>
@@ -21,73 +29,73 @@
         </div>
         <p id="ui_appSub" class="text-[11px] text-emerald-200">3 Acres • 1,500 Plants (10×8) • Wk 1 (Ethrel): 15 Aug 2026</p>
       </div>
-      <div class="flex items-center gap-1.5">
-        <div class="flex items-center bg-emerald-800 rounded-lg px-2 py-1 text-xs border border-emerald-700">
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <div class="flex items-center bg-emerald-950/90 border border-emerald-600 rounded-lg px-2 py-1 text-xs">
           <span class="mr-1">👤</span>
-          <select id="userSelect" onchange="changeActiveUser(this.value)" class="bg-transparent text-white font-bold focus:outline-none max-w-[95px]"></select>
-          <button onclick="openUserModal()" class="ml-1 pl-1 border-l border-emerald-600 text-amber-300 font-bold">✏️</button>
+          <select id="userSelect" onchange="changeActiveUser(this.value)" class="bg-transparent text-white font-bold focus:outline-none cursor-pointer"></select>
+          <button onclick="openUserModal()" title="Manage Users" class="ml-1.5 text-emerald-300 hover:text-white font-bold">⚙️</button>
         </div>
-        <button onclick="flushOutbox()" id="syncBadge" class="text-[10px] px-2 py-1 rounded-full bg-emerald-700 font-bold">...</button>
-        <button onclick="toggleLanguage()" id="langBtn" class="bg-amber-400 text-slate-900 font-extrabold text-xs px-2.5 py-1.5 rounded-lg shadow">ಕನ್ನಡ</button>
+        <button onclick="openNewChemModal()" class="text-[11px] px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold shadow-sm">➕ New Chemical</button>
+        <button onclick="openRainModal()" id="ui_btnLogRain" class="text-[11px] px-2.5 py-1 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold shadow-sm">🌧️ Log Farm Rain</button>
+        <span id="syncBadge" class="text-[10px] px-2 py-1 rounded-full bg-emerald-700 font-bold">🟢 Synced</span>
+        <button onclick="toggleLanguage()" id="langBtn" class="bg-amber-400 text-slate-900 font-extrabold text-xs px-2.5 py-1 rounded-lg">ಕನ್ನಡ</button>
       </div>
     </div>
 
-    <div class="bg-emerald-950 px-3 py-1.5 text-xs border-t border-emerald-800">
-      <div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2">
-        <div class="flex flex-wrap items-center gap-2">
-          <span id="wTemp" class="text-amber-300 font-semibold">🌡️ ...</span>
-          <span id="wHum" class="text-sky-300 font-semibold">💧 ...</span>
-          <span id="wRain">🌧️ ...</span>
-          <span id="wRiskBadge" onclick="showTab('ANALYTICS')" class="cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-800 text-white">🦠 Risk: ...</span>
-          <button onclick="loadWeather().then(render)" id="wUpdatedTime" class="text-[10px] text-emerald-300 underline">🔄</button>
-        </div>
-        <div class="flex items-center gap-2">
-          <button onclick="openRainModal()" id="ui_btnLogRain" class="bg-sky-600 hover:bg-sky-500 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] shadow">🌧️ Log Farm Rain</button>
-          <div id="devToolsBar" class="hidden flex items-center gap-1.5">
-            <button onclick="document.getElementById('simBox').classList.toggle('hidden')" class="underline text-amber-300 text-[11px]">⚙️ Sim</button>
-            <button onclick="runEnterpriseQASuite()" class="bg-emerald-600 text-white font-bold px-2 py-0.5 rounded text-[11px]">🧪 QA Suite</button>
-            <button onclick="resetEntireScheduleToBaseline()" class="bg-rose-700 text-white font-bold px-2 py-0.5 rounded text-[11px]">🧪 Reset DEV</button>
-          </div>
+    <div class="mt-2 pt-2 border-t border-emerald-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="wTemp">🌡️ --°C</span>
+        <span id="wHum">💧 --%</span>
+        <span id="wRain">🌧️ --mm</span>
+        <span id="wRiskBadge" onclick="showHub('PEST_HUB','RISK_RADAR')" class="cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-700">Risk: --</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="wUpdatedTime" class="text-[10px] text-emerald-200"></span>
+        <button onclick="loadWeather().then(render)" class="underline text-emerald-200 text-[11px]">🔄</button>
+        <div id="devToolsBar" class="hidden flex items-center gap-1.5">
+          <button onclick="document.getElementById('simBox').classList.toggle('hidden')" class="underline text-amber-300 text-[11px]">⚙️ Sim</button>
+          <button onclick="runEnterpriseQASuite()" class="bg-emerald-600 text-white font-bold px-2 py-0.5 rounded text-[11px]">🧪 QA Suite</button>
+          <button onclick="resetEntireScheduleToBaseline()" class="bg-rose-700 text-white font-bold px-2 py-0.5 rounded text-[11px]">🧪 Reset DEV</button>
         </div>
       </div>
     </div>
-  </header>
 
-  <div id="simBox" class="hidden bg-slate-800 text-white px-3 py-2 text-xs">
-    <div class="max-w-4xl mx-auto flex flex-wrap items-center gap-2">
+    <div id="simBox" class="hidden mt-2 p-2 bg-indigo-950 rounded-lg text-xs flex flex-wrap gap-1.5 items-center">
       <span class="font-bold text-amber-300">DEV Weather Sim:</span>
-      <button onclick="setWeather('LIVE')" class="bg-slate-600 px-2 py-1 rounded">☀️ Live GPS</button>
-      <button onclick="setWeather('RAIN')" class="bg-blue-600 px-2 py-1 rounded">🌧️ Heavy Rain (&gt;15mm)</button>
-      <button onclick="setWeather('HIGH_BLIGHT')" class="bg-rose-600 px-2 py-1 rounded">🦠 Humid Blight Weather (RH 86%)</button>
-      <button onclick="setWeather('DRY_PEST')" class="bg-amber-600 px-2 py-1 rounded">🦗 Hot Dry Thrips/Cracking (34°C, RH 42%)</button>
+      <button onclick="setWeather('LIVE')" class="px-2 py-1 bg-emerald-700 rounded">📡 Live</button>
+      <button onclick="setWeather('RAIN')" class="px-2 py-1 bg-blue-700 rounded">🌧️ 24mm Rain</button>
+      <button onclick="setWeather('HIGH_BLIGHT')" class="px-2 py-1 bg-rose-700 rounded">🦠 High Blight</button>
+      <button onclick="setWeather('DRY_PEST')" class="px-2 py-1 bg-amber-700 rounded">🦗 Dry Thrips/Mite</button>
+      <button onclick="setWeather('PAST_BLIGHT_NOW_SUNNY')" class="px-2 py-1 bg-purple-700 rounded font-bold">🧬 Rain 2d Ago → Sunny Today</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-3 sm:px-6 pt-3 space-y-3">
+  <div id="sameDayMergeBanner" class="space-y-2"></div>
+  <div id="alertsBox" class="space-y-2"></div>
+
+  <!-- 1. PRIMARY 5-DOMAIN HUB BAR -->
+  <div id="hubNavBar" class="grid grid-cols-5 gap-1 sm:gap-1.5 bg-slate-200/90 p-1.5 rounded-2xl shadow-inner text-center"></div>
+
+  <!-- 2. AUTO-VISIBLE SUB-PILL BAR (+ Desktop Split-View Toggle) -->
+  <div id="subPillBar" class="flex flex-wrap items-center justify-between gap-2 bg-white border border-slate-200 rounded-xl px-2.5 py-2 shadow-sm"></div>
+
+  <!-- 3. CONTEXTUAL WEEK SELECTOR BAR (Shown on Weekly Tasks & Weekly Store List) -->
+  <div id="weekNavCard" class="bg-white rounded-2xl p-3 shadow-sm border flex flex-col sm:flex-row items-center justify-between gap-2">
+    <div class="text-center sm:text-left">
+      <div id="wkTitle" class="text-sm sm:text-base font-extrabold text-slate-900">Week 11</div>
+      <div id="dadTitle" class="text-xs text-emerald-700 font-bold"></div>
+    </div>
+    <div class="flex items-center gap-1.5 w-full sm:w-auto justify-center">
+      <button onclick="stepWeek(-1)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-xs">◀</button>
+      <select id="wkSelect" onchange="goWeek(this.value)" class="border rounded-xl px-2.5 py-1.5 text-xs font-bold bg-slate-50 flex-1 sm:flex-initial"></select>
+      <button onclick="stepWeek(1)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-xs">▶</button>
     </div>
   </div>
 
-  <main class="max-w-4xl mx-auto px-3 pt-3">
-    <div class="bg-white rounded-xl p-3 mb-3 shadow-sm border flex flex-wrap items-center justify-between gap-2">
-      <div>
-        <div id="wkTitle" class="font-extrabold text-base">Week 11</div>
-        <div id="dadTitle" class="text-xs text-emerald-700 font-semibold">70–76 DAD</div>
-      </div>
-      <div class="flex items-center gap-1.5">
-        <button onclick="stepWeek(-1)" class="bg-slate-100 px-3 py-1.5 rounded-lg font-bold text-sm">◀</button>
-        <select id="wkSelect" onchange="goWeek(this.value)" class="bg-emerald-50 border border-emerald-300 font-bold text-xs sm:text-sm rounded-lg px-2 py-1.5"></select>
-        <button onclick="stepWeek(1)" class="bg-slate-100 px-3 py-1.5 rounded-lg font-bold text-sm">▶</button>
-      </div>
-    </div>
-
-    <div id="alertsBox" class="space-y-2 mb-3"></div>
-    <div id="sameDayMergeBanner" class="mb-3 space-y-2"></div>
-
-    <div class="grid grid-cols-5 gap-1 bg-slate-200 p-1 rounded-xl mb-3 text-[10px] sm:text-xs font-bold">
-      <button onclick="showTab('TASKS')" id="tBtn_TASKS" class="py-2 rounded-lg bg-white text-emerald-900 shadow-sm">📋 <span id="ui_tabTasks">Tasks</span></button>
-      <button onclick="showTab('ANALYTICS')" id="tBtn_ANALYTICS" class="py-2 rounded-lg text-slate-600">📊 <span id="ui_tabAnalytics">Risk &amp; NPK</span></button>
-      <button onclick="showTab('MANUAL')" id="tBtn_MANUAL" class="py-2 rounded-lg text-slate-600">➕ <span id="ui_tabManual">Log Work</span></button>
-      <button onclick="showTab('SHOP')" id="tBtn_SHOP" class="py-2 rounded-lg text-slate-600">🏪 <span id="ui_tabShop">Store &amp; ₹</span></button>
-      <button onclick="showTab('SCOUT')" id="tBtn_SCOUT" class="py-2 rounded-lg text-slate-600">🔍 <span id="ui_tabScout">Scout/Log</span></button>
-    </div>
-
-    <section id="panel_TASKS" class="space-y-3"></section>
+  <!-- WEEKLY TASK CARDS (1-Col on Mobile, 2-Col Grid on Laptop) -->
+  <div id="panel_TASKS" class="grid grid-cols-1 lg:grid-cols-2 gap-3.5 items-start"></div>
 
     <section id="panel_ANALYTICS" class="hidden space-y-3">
       <div class="bg-white rounded-xl p-4 shadow-sm border space-y-3">
@@ -2745,11 +2753,11 @@ function prefillManualQty(slot) {
 function goWeek(w) { curWk = Number(w); render(); }
 function stepWeek(d) { const maxWk = Math.max(30, ...tasks.map(t => Number(t.week_number) || 11)); curWk = Math.min(maxWk, Math.max(0, curWk + d)); render(); }
 function showTab(t) {
-  ["TASKS", "ANALYTICS", "MANUAL", "SHOP", "SCOUT"].forEach(k => {
-    document.getElementById(`panel_${k}`).classList.toggle("hidden", k !== t);
-    document.getElementById(`tBtn_${k}`).className = k === t ? "py-2 rounded-lg bg-white text-emerald-900 shadow-sm" : "py-2 rounded-lg text-slate-600";
-  });
-  if (t === "ANALYTICS") renderAnalyticsTab();
+  if (t === "TASKS")     showHub("TASKS_HUB", "WEEKLY_TASKS");
+  else if (t === "MANUAL")    showHub("TASKS_HUB", "LOG_MANUAL");
+  else if (t === "ANALYTICS") showHub("PEST_HUB",  "RISK_RADAR");
+  else if (t === "SHOP")      showHub("STORE_HUB", "SHOP_LIST");
+  else if (t === "SCOUT")     showHub("AUDIT_HUB", "AUDIT_LOG");
 }
 
 function refreshDynamicTaskWeeks() {
@@ -3121,6 +3129,150 @@ function render() {
 }
 
 // Renders (1) Seasonal Chemical Spray Counter vs Max Allowed Cap & (2) FAO-56 / ICAR-NRCP Drip Water Schedule
+let ACTIVE_HUB = "TASKS_HUB";
+let ACTIVE_SUB = "WEEKLY_TASKS";
+let DESKTOP_SPLIT_VIEW = false;
+
+const HUB_CONFIG = {
+  TASKS_HUB: {
+    icon: "📋", en: "Tasks & Plan", kn: "ಕೆಲಸ & ವೇಳಾಪಟ್ಟಿ",
+    subs: [
+      { key: "WEEKLY_TASKS", icon: "🗓️", en: "This Week's Tasks", kn: "ಈ ವಾರದ ಕೆಲಸಗಳು" },
+      { key: "LOG_MANUAL",   icon: "➕", en: "Log Manual Work",   kn: "ಮಾಡಿದ ಕೆಲಸ ದಾಖಲಿಸಿ" },
+      { key: "MASTER_PLAN",  icon: "📅", en: "All 30 Weeks Plan", kn: "ಪೂರ್ಣ 30 ವಾರಗಳ ಪಟ್ಟಿ" }
+    ]
+  },
+  PEST_HUB: {
+    icon: "🛡️", en: "Pest & Disease", kn: "ರೋಗ & ಕೀಟ ರಕ್ಷಣೆ",
+    subs: [
+      { key: "RISK_RADAR",    icon: "🚨", en: "6-Threat Risk Radar & Queue", kn: "6-ರೋಗ ಅಪಾಯ ರೇಡಾರ್" },
+      { key: "SPRAY_COUNTER", icon: "🧪", en: "Seasonal Spray Counter",      kn: "ಔಷಧಿ ಬಳಕೆ ಮಿತಿ ಲೆಕ್ಕ" }
+    ]
+  },
+  CROP_HUB: {
+    icon: "🌱", en: "GDD, NPK & Water", kn: "GDD, ಪೋಷಕಾಂಶ & ನೀರು",
+    subs: [
+      { key: "GDD_STAGES", icon: "☀️", en: "Thermal GDD & Stages", kn: "ಉಷ್ಣಾಂಶ (GDD) ಹಂತಗಳು" },
+      { key: "NPK_LEDGER", icon: "⚖️", en: "NPK-Ca-Mg Ledger",     kn: "ಪೋಷಕಾಂಶಗಳ ಲೆಕ್ಕ (NPK)" },
+      { key: "DRIP_WATER", icon: "💧", en: "Drip Water Schedule",  kn: "ಡ್ರಿಪ್ ನೀರಿನ ವೇಳಾಪಟ್ಟಿ" }
+    ]
+  },
+  STORE_HUB: {
+    icon: "🏪", en: "Store & ₹", kn: "ಅಂಗಡಿ & ಖರ್ಚು",
+    subs: [
+      { key: "SHOP_LIST",     icon: "🛒", en: "Weekly Shopping List",     kn: "ಖರೀದಿ ಪಟ್ಟಿ & ಶೆಡ್ ಉಳಿಕೆ" },
+      { key: "BRAND_CHECKER", icon: "🔍", en: "Brand & Tank-Mix Checker", kn: "ಕಂಪನಿ ಹೆಸರು & ಮಿಶ್ರಣ ಪರೀಕ್ಷಕ" },
+      { key: "SPEND_TRACKER", icon: "💰", en: "Orchard Spend (₹)",        kn: "ಒಟ್ಟು ತೋಟದ ಖರ್ಚು (₹)" }
+    ]
+  },
+  AUDIT_HUB: {
+    icon: "👤", en: "Activity Log", kn: "ದಾಖಲೆ ಪಟ್ಟಿ",
+    subs: [
+      { key: "AUDIT_LOG", icon: "🕒", en: "User Activity & Audit Log", kn: "ಬದಲಾವಣೆಗಳ ದಾಖಲೆ ಪಟ್ಟಿ" }
+    ]
+  }
+};
+
+function showHub(hubKey, subKey) {
+  if (!HUB_CONFIG[hubKey]) hubKey = "TASKS_HUB";
+  ACTIVE_HUB = hubKey;
+  const validSubs = HUB_CONFIG[hubKey].subs.map(s => s.key);
+  ACTIVE_SUB = (subKey && validSubs.includes(subKey)) ? subKey : validSubs[0];
+  applyHubAndSubPillRouting();
+}
+
+function toggleDesktopSplitView() {
+  DESKTOP_SPLIT_VIEW = !DESKTOP_SPLIT_VIEW;
+  applyHubAndSubPillRouting();
+}
+
+function applyHubAndSubPillRouting() {
+  const hubBar = document.getElementById("hubNavBar");
+  const subBar = document.getElementById("subPillBar");
+  if (!hubBar || !subBar) return;
+
+  // 1. Render 5 Main Hub Buttons
+  hubBar.innerHTML = Object.entries(HUB_CONFIG).map(([hKey, cfg]) => {
+    const isAct = hKey === ACTIVE_HUB;
+    const btnCls = isAct
+      ? "bg-emerald-800 text-white shadow-md font-extrabold"
+      : "bg-transparent text-slate-700 hover:bg-white/70 font-bold";
+    return `<button onclick="showHub('${hKey}')" class="py-2 px-1 sm:px-3 rounded-xl transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${btnCls}">
+      <span class="text-sm sm:text-base">${cfg.icon}</span>
+      <span class="hub-btn-text text-[11px] sm:text-xs">${LANG === "KN" ? cfg.kn : cfg.en}</span>
+    </button>`;
+  }).join("");
+
+  // 2. Render Auto-Visible Sub-Pills for Active Hub
+  const curHubCfg = HUB_CONFIG[ACTIVE_HUB];
+  if (curHubCfg.subs.length <= 1) {
+    subBar.classList.add("hidden");
+  } else {
+    subBar.classList.remove("hidden");
+    const pillsHtml = curHubCfg.subs.map(s => {
+      const isSubAct = !DESKTOP_SPLIT_VIEW && s.key === ACTIVE_SUB;
+      const pillCls = isSubAct
+        ? "bg-emerald-700 text-white font-extrabold shadow-sm"
+        : "bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold";
+      return `<button onclick="DESKTOP_SPLIT_VIEW=false;showHub('${ACTIVE_HUB}','${s.key}')" class="px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 ${pillCls}">
+        <span>${s.icon}</span>
+        <span>${LANG === "KN" ? s.kn : s.en}</span>
+      </button>`;
+    }).join("");
+
+    const splitBtnHtml = `<button onclick="toggleDesktopSplitView()" class="hidden lg:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-extrabold border ${DESKTOP_SPLIT_VIEW ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-slate-50 text-slate-700 border-slate-300'}">
+      🖥️ ${DESKTOP_SPLIT_VIEW ? (LANG === "KN" ? "ಒಂದೊಂದಾಗಿ ನೋಡಿ" : "Single View") : (LANG === "KN" ? "ಎಲ್ಲವನ್ನೂ ಒಟ್ಟಿಗೆ ನೋಡಿ" : "Show All in Hub")}
+    </button>`;
+
+    subBar.innerHTML = `<div class="flex flex-wrap items-center gap-1.5">${pillsHtml}</div>${splitBtnHtml}`;
+  }
+
+  // 3. Show Week Selector Bar ONLY when viewing Weekly Tasks or Weekly Shopping List
+  const wkNav = document.getElementById("weekNavCard");
+  if (wkNav) {
+    const needsWeekBar = (ACTIVE_HUB === "TASKS_HUB" && (ACTIVE_SUB === "WEEKLY_TASKS" || DESKTOP_SPLIT_VIEW)) ||
+                         (ACTIVE_HUB === "STORE_HUB" && (ACTIVE_SUB === "SHOP_LIST" || DESKTOP_SPLIT_VIEW));
+    wkNav.classList.toggle("hidden", !needsWeekBar);
+  }
+
+  // 4. Locate all content cards & panels by their inner IDs and toggle visibility cleanly
+  const cardMap = {
+    WEEKLY_TASKS:  document.getElementById("panel_TASKS"),
+    LOG_MANUAL:    document.getElementById("panel_MANUAL"),
+    MASTER_PLAN:   document.getElementById("allWeeksBody")?.closest(".bg-white"),
+    RISK_RADAR:    document.getElementById("multiRiskGrid")?.closest(".bg-white"),
+    SPRAY_COUNTER: document.getElementById("sprayCounterCard"),
+    GDD_STAGES:    document.getElementById("gddTotalValue")?.closest(".bg-white"),
+    NPK_LEDGER:    document.getElementById("npkBarsContainer")?.closest(".bg-white"),
+    DRIP_WATER:    document.getElementById("dripWaterCard"),
+    SHOP_LIST:     document.getElementById("shopBox")?.closest(".bg-white"),
+    BRAND_CHECKER: document.getElementById("standaloneCheckerResult")?.closest(".bg-white"),
+    SPEND_TRACKER: document.getElementById("totalSeasonCost")?.closest(".bg-white"),
+    AUDIT_LOG:     document.getElementById("auditLogBox")?.closest(".bg-white")
+  };
+
+  // Always hide the duplicate Scout card (#scoutGrid) since #multiRiskGrid is the unified Risk & Scout Radar
+  const dupScoutCard = document.getElementById("scoutGrid")?.closest(".bg-white");
+  if (dupScoutCard) dupScoutCard.classList.add("hidden");
+
+  // Unhide parent containers (#panel_ANALYTICS, #panel_SHOP, #panel_SCOUT) when any of their child cards are active
+  const activeSubKeys = new Set(DESKTOP_SPLIT_VIEW ? curHubCfg.subs.map(s => s.key) : [ACTIVE_SUB]);
+  Object.entries(cardMap).forEach(([k, el]) => {
+    if (!el) return;
+    el.classList.toggle("hidden", !activeSubKeys.has(k));
+  });
+
+  const pAnalytics = document.getElementById("panel_ANALYTICS");
+  const pShop      = document.getElementById("panel_SHOP");
+  const pScout     = document.getElementById("panel_SCOUT");
+  const extraBox   = document.getElementById("extraOrchardGuidesBox");
+
+  if (pAnalytics) pAnalytics.classList.toggle("hidden", !(ACTIVE_HUB === "PEST_HUB" || ACTIVE_HUB === "CROP_HUB"));
+  if (extraBox)   extraBox.classList.toggle("hidden", !(activeSubKeys.has("SPRAY_COUNTER") || activeSubKeys.has("DRIP_WATER")));
+  if (pShop)      pShop.classList.toggle("hidden", ACTIVE_HUB !== "STORE_HUB");
+  if (pScout)     pScout.classList.toggle("hidden", !(activeSubKeys.has("MASTER_PLAN") || activeSubKeys.has("AUDIT_LOG")));
+}
+
 function renderSeasonSprayAndDripGuides() {
   let extraBox = document.getElementById("extraOrchardGuidesBox");
   if (!extraBox) {
@@ -3128,11 +3280,10 @@ function renderSeasonSprayAndDripGuides() {
     if (!analyticsPanel) return;
     extraBox = document.createElement("div");
     extraBox.id = "extraOrchardGuidesBox";
-    extraBox.className = "space-y-4 mt-4";
+    extraBox.className = "space-y-4";
     analyticsPanel.appendChild(extraBox);
   }
 
-  // 1. Seasonal Chemical Spray Counter & Max Allowed Resistance Cap
   const MAX_SEASON_SPRAYS = { BACTERICIDE: 6, FUNGICIDE: 3, INSECTICIDE: 2, BIOSTIMULANT: 8, FERTIGATION: 20 };
   const sprayCounts = {};
   tasks.filter(t => t.status === "COMPLETED" && t.current_scheduled_date >= "2026-08-15" && (t.task_type === "FOLIAR_SPRAY" || t.task_type === "STANDALONE_COPPER")).forEach(t => {
@@ -3162,20 +3313,18 @@ function renderSeasonSprayAndDripGuides() {
     </div>`;
   }).join("") || `<div class="text-xs text-slate-500 py-2">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಎಲೆ ಸಿಂಪಡಣೆ ದಾಖಲಾಗಿಲ್ಲ." : "No completed foliar sprays recorded yet."}</div>`;
 
-  // 2. Stage-Wise Drip Irrigation Water Schedule (Liters/Plant/Day & Pump Run-Time for 1,500 Super Bhagwa Plants)
   const gModel = getGddStageModel();
   const rainHold = wState.rain24 >= 15;
   const hotBoost = wState.tMax >= 33 ? 1.15 : (wState.tMax <= 26 ? 0.85 : 1.0);
   const DRIP_STAGES = [
-    { gddRange: "0–950 GDD",    dadRange: "0–58d",    stageEn: "Stage A: Flowering & Early Sizing",     stageKn: "ಹಂತ A: ಹೂವು & ಆರಂಭಿಕ ಕಾಯಿ", baseLiters: 14, freqEn: "Daily / Alternate Day", freqKn: "ಪ್ರತಿದಿನ / ದಿನ ಬಿಟ್ಟು ದಿನ" },
-    { gddRange: "950–1450 GDD", dadRange: "59–90d",   stageEn: "Stage B: Guava-Size Expansion",         stageKn: "ಹಂತ B: ಪೇರಳೆ ಗಾತ್ರದ ಹಂತ",    baseLiters: 20, freqEn: "Daily (Split Morning/Eve)", freqKn: "ಪ್ರತಿದಿನ" },
-    { gddRange: "1450–2150 GDD",dadRange: "91–135d",  stageEn: "Stage C1: Aril Swelling & Weight Gain", stageKn: "ಹಂತ C1: ಕಾಳು ತುಂಬುವ ಹಂತ",     baseLiters: 26, freqEn: "Daily (Steady Moisture)", freqKn: "ಪ್ರತಿದಿನ (ಸಮಾನ ತೇವಾಂಶ)" },
-    { gddRange: "2150–2500 GDD",dadRange: "136–158d", stageEn: "Stage C2: Color Stage (Zero-N)",        stageKn: "ಹಂತ C2: ಕೆಂಪು ಬಣ್ಣದ ಹಂತ",    baseLiters: 22, freqEn: "Daily (Avoid Fluctuation)", freqKn: "ಪ್ರತಿದಿನ (ಏರುಪೇರು ಬೇಡ)" },
-    { gddRange: "2500–2800 GDD",dadRange: "159–178d", stageEn: "Stage D1: Deep Ripening & Brix Surge",  stageKn: "ಹಂತ D1: ಮಾಗುವ ಹಂತ (-20% ನೀರು)", baseLiters: 16, freqEn: "Controlled Deficit (-20%)", freqKn: "ನಿಯಂತ್ರಿತ ನೀರು (-20%)" },
-    { gddRange: "2800+ GDD",    dadRange: "178–190d", stageEn: "Stage D2: Pre-Harvest & Harvest",       stageKn: "ಹಂತ D2: ಕಟಾವು ಹಂತ",          baseLiters: 12, freqEn: "Light Pulsed Water Only", freqKn: "ಕಡಿಮೆ ಪ್ರಮಾಣದ ಶುದ್ಧ ನೀರು" }
+    { gddRange: "0–950 GDD",    dadRange: "0–58d",   stageEn: "Stage A: Flowering & Early Sizing",     stageKn: "ಹಂತ A: ಹೂವು & ಆರಂಭಿಕ ಕಾಯಿ", baseLiters: 14, freqEn: "Daily / Alternate Day", freqKn: "ಪ್ರತಿದಿನ / ದಿನ ಬಿಟ್ಟು ದಿನ" },
+    { gddRange: "950–1450 GDD", dadRange: "59–90d",  stageEn: "Stage B: Guava-Size Expansion",         stageKn: "ಹಂತ B: ಪೇರಳೆ ಗಾತ್ರದ ಹಂತ",    baseLiters: 20, freqEn: "Daily (Split Morning/Eve)", freqKn: "ಪ್ರತಿದಿನ" },
+    { gddRange: "1450–2150 GDD",dadRange: "91–135d", stageEn: "Stage C1: Aril Swelling & Weight Gain", stageKn: "ಹಂತ C1: ಕಾಳು ತುಂಬುವ ಹಂತ",     baseLiters: 26, freqEn: "Daily (Steady Moisture)", freqKn: "ಪ್ರತಿದಿನ (ಸಮಾನ ತೇವಾಂಶ)" },
+    { gddRange: "2150–2500 GDD",dadRange: "136–158d",stageEn: "Stage C2: Color Stage (Zero-N)",        stageKn: "ಹಂತ C2: ಕೆಂಪು ಬಣ್ಣದ ಹಂತ",    baseLiters: 22, freqEn: "Daily (Avoid Fluctuation)", freqKn: "ಪ್ರತಿದಿನ (ಏರುಪೇರು ಬೇಡ)" },
+    { gddRange: "2500–2800 GDD",dadRange: "159–178d",stageEn: "Stage D1: Deep Ripening & Brix Surge",  stageKn: "ಹಂತ D1: ಮಾಗುವ ಹಂತ (-20% ನೀರು)", baseLiters: 16, freqEn: "Controlled Deficit (-20%)", freqKn: "ನಿಯಂತ್ರಿತ ನೀರು (-20%)" },
+    { gddRange: "2800+ GDD",    dadRange: "178–190d",stageEn: "Stage D2: Pre-Harvest & Harvest",       stageKn: "ಹಂತ D2: ಕಟಾವು ಹಂತ",          baseLiters: 12, freqEn: "Light Pulsed Water Only", freqKn: "ಕಡಿಮೆ ಪ್ರಮಾಣದ ಶುದ್ಧ ನೀರು" }
   ];
 
-  // Assume standard 2 inline/online drippers per plant @ 4 LPH each = 8 LPH/plant (adjustable mentally: Liters / 8 LPH = Hours)
   const emitterLphPerPlant = Number(localStorage.getItem("h_drip_lph") || 8);
   const dripRowsHtml = DRIP_STAGES.map((ds, i) => {
     const isCurrent = SUPER_BHAGWA_STAGES[i]?.en === gModel.currentStage.en;
@@ -3186,7 +3335,7 @@ function renderSeasonSprayAndDripGuides() {
     return `<div class="p-2.5 rounded-xl ${rowCls} text-xs flex flex-wrap items-center justify-between gap-2">
       <div>
         <div class="font-extrabold text-slate-900">${isCurrent ? "📍 " : ""}${LANG === "KN" ? ds.stageKn : ds.stageEn} <span class="text-[10px] font-mono text-slate-500">(${ds.gddRange})</span></div>
-        <div class="text-[11px] text-slate-600">${LANG === "KN" ? ds.freqKn : ds.freqEn} • 🚜 3 Acres (1,500 plants): <b>${totalOrchardKL} kL/day</b> (${(adjLiters * CFG.plants).toLocaleString()} L)</div>
+        <div class="text-[11px] text-slate-600">${LANG === "KN" ? ds.freqKn : ds.freqEn} • 🚜 3 Acres: <b>${totalOrchardKL} kL/day</b> (${(adjLiters * CFG.plants).toLocaleString()} L)</div>
       </div>
       <div class="text-right">
         <div class="text-sm font-extrabold text-sky-900">💧 ${adjLiters} L / ${LANG === "KN" ? "ಗಿಡ/ದಿನ" : "plant/day"}</div>
@@ -3196,12 +3345,12 @@ function renderSeasonSprayAndDripGuides() {
   }).join("");
 
   extraBox.innerHTML = `
-    <div class="bg-white rounded-2xl p-4 shadow-sm border space-y-2">
+    <div id="sprayCounterCard" class="bg-white rounded-2xl p-4 shadow-sm border space-y-2">
       <div class="font-extrabold text-sm text-slate-900">🛡️ ${LANG === "KN" ? "ಈ ಹಂಗಾಮಿನಲ್ಲಿ ಬಳಸಿದ ಔಷಧಿಗಳ ಲೆಕ್ಕ ಮತ್ತು ಗರಿಷ್ಠ ಮಿತಿ (Anti-Resistance Tracker)" : "Seasonal Chemical Spray Counter & Max Allowed Cap (ICAR-NRCP / IRAC-FRAC)"}</div>
       <div class="text-xs text-slate-500">${LANG === "KN" ? "ಒಂದೇ ಔಷಧಿಯನ್ನು ಮಿತಿಗಿಂತ ಹೆಚ್ಚು ಬಾರಿ ಸಿಂಪಡಿಸಿದರೆ ಕೀಟ/ರೋಗಗಳಿಗೆ ನಿರೋಧಕ ಶಕ್ತಿ ಬರುತ್ತದೆ:" : "Tracks how many times each active salt has been sprayed since 15 Aug 2026 vs. maximum recommended seasonal limit:"}</div>
       <div class="divide-y">${sprayRowsHtml}</div>
     </div>
-    <div class="bg-white rounded-2xl p-4 shadow-sm border space-y-2.5">
+    <div id="dripWaterCard" class="bg-white rounded-2xl p-4 shadow-sm border space-y-2.5">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div class="font-extrabold text-sm text-sky-950">💧 ${LANG === "KN" ? "ಹಂತವಾರು ಡ್ರಿಪ್ ನೀರಿನ ವೇಳಾಪಟ್ಟಿ (1,500 ಗಿಡಗಳು • 10×8 ಅಡಿ)" : "Stage-Wise Drip Irrigation Water Schedule (1,500 Super Bhagwa Plants)"}</div>
@@ -3215,6 +3364,8 @@ function renderSeasonSprayAndDripGuides() {
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${dripRowsHtml}</div>
     </div>
   `;
+
+  applyHubAndSubPillRouting();
 }
 
 function setCardTankSpec(taskId, newDrumLiters, newDrumsCount) {
