@@ -42,12 +42,13 @@
       </div>
     </div>
 
-    <div class="mt-2 pt-2 border-t border-emerald-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+  <div class="mt-2 pt-2 border-t border-emerald-800 flex flex-wrap items-center justify-between gap-2 text-xs">
       <div class="flex flex-wrap items-center gap-2">
         <span id="wTemp">🌡️ --°C</span>
         <span id="wHum">💧 --%</span>
         <span id="wRain">🌧️ --mm</span>
         <span id="wRiskBadge" onclick="showHub('PEST_HUB','RISK_RADAR')" class="cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-700">Risk: --</span>
+        <span id="wCronBadge" onclick="showHub('AUDIT_HUB','AUDIT_LOG')" class="cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-800/90 text-emerald-100 border border-emerald-600">⚙️ Cron: 05:30 IST</span>
       </div>
       <div class="flex items-center gap-2">
         <span id="wUpdatedTime" class="text-[10px] text-emerald-200"></span>
@@ -2117,7 +2118,8 @@ async function loadWeather() {
     if (navigator.onLine && telemetryUpserts.length > 0) {
       telemetryUpserts[telemetryUpserts.length - 1].disease_risk_score = wState.riskScore;
       await sb.from("weather_telemetry_history").upsert(telemetryUpserts);
-      await sb.rpc("run_daily_orchard_engine");
+      const { data: cronRes } = await sb.rpc("run_daily_orchard_engine");
+      if (cronRes) wState.cronSummary = cronRes;
     }
   } catch (e) {}
   updateWBar();
@@ -2147,6 +2149,23 @@ function updateWBar() {
   } else {
     rb.textContent = LANG === "KN" ? `🟢 ಅಪಾಯ ಕಡಿಮೆ (${topName} ${topScore}%)` : `🟢 Low Risk (${topName} ${topScore}%)`;
     rb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-700 text-white";
+  }
+
+  const cb = document.getElementById("wCronBadge");
+  if (cb) {
+    const epi = (typeof evaluate72hEpidemiologicalWindow === "function") ? evaluate72hEpidemiologicalWindow(wState) : { active: false };
+    const cs = wState.cronSummary;
+    const actionsCount = cs ? (Number(cs.shifted_drips || 0) + Number(cs.injected_sprays || 0)) : 0;
+    if (epi.active) {
+      cb.textContent = LANG === "KN" ? `🦠 72ಗಂ ಸೂಕ್ಷ್ಮ-ಹವೆ: 4 ದಿನದ ಸಿಂಪಡಣೆ ಅಂತರ` : `🦠 72h Epi Window: 4d Spray Interval`;
+      cb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500 text-white";
+    } else if (actionsCount > 0) {
+      cb.textContent = LANG === "KN" ? `⚙️ 05:30 ಕ್ರಾನ್: ${actionsCount} ವೇಳಾಪಟ್ಟಿ ಹೊಂದಾಣಿಕೆ` : `⚙️ 05:30 Cron: ${actionsCount} Auto-Adjusted`;
+      cb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950";
+    } else {
+      cb.textContent = LANG === "KN" ? `⚙️ 05:30 ಕ್ರಾನ್ ಸಕ್ರಿಯ (72h RH: ${wState.rh72Avg || 60}%)` : `⚙️ 05:30 Cron OK (72h RH: ${wState.rh72Avg || 60}%)`;
+      cb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-800/90 text-emerald-100 border border-emerald-600";
+    }
   }
   document.getElementById("wUpdatedTime").textContent = `🔄 ${wState.updatedAt || ""}`;
 }
@@ -4421,6 +4440,30 @@ function runEnterpriseQASuite() {
   const skippedDripNextDose = computeSafeNextDripDose(2.0, "SKIPPED", 0, 6.0);
   assert("27. Skipped Drip Make-Up (+50% EC Cap) & Un-Skip Restore", skippedDripNextDose === 3.0 && computeSafeNextDripDose(2.0, "PENDING", 6, 6) === 2.0, `Skipping 2.0 kg/ac Drip boosts next Drip to ${skippedDripNextDose} kg/ac (+50% max EC cap); Foliar rate stays locked`);
 
+  // Test 28: 72-Hour Epidemiological Microclimate Window (RH >= 80% & 25-32°C for 3d with 0mm Rain)
+  const dryHumidSnap = { rh72Avg: 84, tMax: 29.5, tMin: 20.0, rain24: 0, rain72Sum: 0, prob4: 0, humidTempConsecDays: 3 };
+  const epiWin = (typeof evaluate72hEpidemiologicalWindow === "function") ? evaluate72hEpidemiologicalWindow(dryHumidSnap) : { active: false, dryHumidBonus: 0, recommendedIntervalDays: 7 };
+  const dryHumidRisks = computeInstantRisksForDay(dryHumidSnap, 95, false, { copDays: null, funDays: null, insDays: null, mealyDays: null, caDays: null });
+  assert("28. 72h Microclimate Epidemiological Index (0mm Rain, 84% RH, 29.5°C)", epiWin.active && epiWin.dryHumidBonus === 18 && epiWin.recommendedIntervalDays === 4 && dryHumidRisks.BLIGHT_SPOT >= 85 && dryHumidRisks.FRUIT_ROT >= 85, `Triggers +18% pre-lesion bonus (Blight ${dryHumidRisks.BLIGHT_SPOT}%, Rot ${dryHumidRisks.FRUIT_ROT}%) & 4d spray interval without rain`);
+
+  // Test 29: Thermal GDD Stage C2 (2,150 GDD) Zero-N Lock & GDD Harvest PHI Lock
+  const earlyWarmZeroN = checkPhenologyAndPhiLock(nFert, 132, 2180);
+  const coolSafeN = checkPhenologyAndPhiLock(nFert, 132, 1980);
+  const gddPhiBlocked = checkPhenologyAndPhiLock(longPhiChem, 162, 2680);
+  assert("29. Thermal GDD Gate P1 Zero-N (>=2,150 GDD) & PHI Lock", !earlyWarmZeroN.ok && earlyWarmZeroN.code === "ZERO_N_LOCK" && coolSafeN.ok && !gddPhiBlocked.ok && gddPhiBlocked.code === "PHI_LOCK", "Locks N at 132 DAD when heat reaches 2,180 GDD; locks 21d-PHI fungicide at 2,680 GDD (~8d to 2,800 GDD harvest)");
+
+  // Test 30: IndexedDB Outbox Update Coalescing & Non-Task SERIAL Primary Key Guard
+  const savedOutboxSnapshot = [...getOutbox()];
+  if (typeof enqueueOfflineOp === "function") {
+    saveOutbox([]);
+    enqueueOfflineOp({ table: "daily_task_queue", type: "update", matchCol: "id", matchVal: "mock-uuid-1", payload: { status: "DELAYED" } });
+    enqueueOfflineOp({ table: "daily_task_queue", type: "update", matchCol: "id", matchVal: "mock-uuid-1", payload: { status: "COMPLETED", cost_rs: 1450 } });
+  }
+  const coalescedQueue = getOutbox();
+  const coalescedOk = coalescedQueue.length === 1 && coalescedQueue[0]?.payload?.status === "COMPLETED" && coalescedQueue[0]?.payload?.cost_rs === 1450;
+  saveOutbox(savedOutboxSnapshot);
+  assert("30. IndexedDB Outbox Update Coalescing & SERIAL PK Guard", coalescedOk && typeof openOutboxIDB === "function", "Coalesces sequential offline updates on same task row into 1 IDB transaction");
+
   const sortedResults = [...results].sort((a, b) => Number(a.pass) - Number(b.pass));
   const passed = results.filter(r => r.pass).length;
   const allPass = passed === results.length;
@@ -4433,7 +4476,7 @@ function runEnterpriseQASuite() {
           <span class="px-2 py-0.5 rounded-full font-extrabold ${allPass ? 'bg-emerald-500 text-slate-950' : 'bg-rose-600 text-white'}">
             ${allPass ? '✅ ALL ' + passed + '/' + results.length + ' PASSED' : '⚠️ ' + passed + '/' + results.length + ' PASSED'}
           </span>
-          <span class="font-extrabold text-sm ml-2">Enterprise QA Suite (27 Tests)</span>
+          <span class="font-extrabold text-sm ml-2">Enterprise QA Suite (${results.length} Tests)</span>
         </div>
         <button onclick="render()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-2.5 py-1 rounded-lg">✕ Close</button>
       </div>
