@@ -752,26 +752,112 @@ function populateKnownSaltsDatalist() {
   }).join("");
 }
 
-function getOutbox() { try { return JSON.parse(localStorage.getItem("h_outbox_queue") || "[]"); } catch { return []; } }
-function saveOutbox(q) { localStorage.setItem("h_outbox_queue", JSON.stringify(q)); updateSyncBadge(); }
+// ============================================================================
+// OFFLINE MUTATION OUTBOX (INDEXEDDB SYNC QUEUE + SYNCHRONOUS MEMORY MIRROR)
+// ============================================================================
+const IDB_NAME = "HosahalliOfflineDB";
+const IDB_STORE = "mutation_outbox";
+let _outboxMemCache = (() => {
+  try { return JSON.parse(localStorage.getItem("h_outbox_queue") || "[]"); } catch { return []; }
+})();
+let _isFlushingOutbox = false;
+
+function openOutboxIDB() {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") return reject(new Error("IndexedDB unavailable"));
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE, { keyPath: "qid" });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function syncOutboxToIDB(queueArr) {
+  try {
+    const db = await openOutboxIDB();
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    const store = tx.objectStore(IDB_STORE);
+    store.clear();
+    queueArr.forEach((op, idx) => {
+      store.put({ ...op, qid: op.qid || `${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 7)}` });
+    });
+  } catch (e) {}
+}
+
+async function hydrateOutboxFromIDB() {
+  try {
+    const db = await openOutboxIDB();
+    const tx = db.transaction(IDB_STORE, "readonly");
+    const store = tx.objectStore(IDB_STORE);
+    const items = await new Promise((res, rej) => {
+      const r = store.getAll();
+      r.onsuccess = () => res(r.result || []);
+      r.onerror = () => rej(r.error);
+    });
+    if (items.length > 0 || _outboxMemCache.length === 0) {
+      _outboxMemCache = items;
+      try { localStorage.setItem("h_outbox_queue", JSON.stringify(_outboxMemCache)); } catch {}
+      updateSyncBadge();
+    } else if (_outboxMemCache.length > 0) {
+      await syncOutboxToIDB(_outboxMemCache);
+    }
+  } catch (e) {}
+}
+hydrateOutboxFromIDB();
+
+function getOutbox() { return Array.isArray(_outboxMemCache) ? _outboxMemCache : []; }
+function saveOutbox(q) {
+  _outboxMemCache = Array.isArray(q) ? q : [];
+  try { localStorage.setItem("h_outbox_queue", JSON.stringify(_outboxMemCache)); } catch {}
+  syncOutboxToIDB(_outboxMemCache);
+  updateSyncBadge();
+}
+
 function updateSyncBadge() {
   const b = document.getElementById("syncBadge"); if (!b) return;
   const q = getOutbox();
+  const isKn = (typeof LANG !== "undefined" && LANG === "KN");
   if (q.length > 0) {
-    b.textContent = `🟠 Queued (${q.length})`;
+    b.textContent = isKn ? `🟠 ಬಾಕಿ ಸಿಂಕ್ (${q.length})` : `🟠 IDB Queued (${q.length})`;
     b.className = "text-[10px] px-2 py-1 rounded-full bg-amber-500 text-slate-950 font-extrabold";
   } else {
-    b.textContent = navigator.onLine ? `🟢 ${APP_ENV}` : `🟠 Offline`;
+    b.textContent = navigator.onLine ? `🟢 ${APP_ENV}` : (isKn ? `🟠 ಆಫ್‌ಲೈನ್` : `🟠 Offline`);
     b.className = navigator.onLine ? "text-[10px] px-2 py-1 rounded-full bg-emerald-700 text-white font-bold" : "text-[10px] px-2 py-1 rounded-full bg-amber-600 text-white font-bold";
   }
 }
 
+function enqueueOfflineOp(op) {
+  const q = [...getOutbox()];
+  const stamped = { ...op, qid: op.qid || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, queuedAt: new Date().toISOString() };
+  // Coalesce consecutive updates to the exact same row & table while offline
+  if (stamped.type === "update" && stamped.matchCol && stamped.matchVal) {
+    const existingIdx = q.findIndex(x => x.table === stamped.table && x.type === "update" && x.matchCol === stamped.matchCol && x.matchVal === stamped.matchVal);
+    if (existingIdx !== -1) {
+      q[existingIdx] = { ...q[existingIdx], payload: { ...q[existingIdx].payload, ...stamped.payload }, queuedAt: stamped.queuedAt };
+      saveOutbox(q);
+      return;
+    }
+  }
+  q.push(stamped);
+  saveOutbox(q);
+}
+
 async function dbMutate(op) {
-  // ONLY daily_task_queue uses a UUID primary key; activity_audit_log & other tables use SERIAL integers!
+  // CRITICAL: ONLY daily_task_queue uses a UUID primary key; activity_audit_log & commercial_brands_directory use SERIAL integers!
   if (op.type === "insert" && Array.isArray(op.payload) && op.table === "daily_task_queue") {
     op.payload = op.payload.map(row => ({ id: row.id && /^[0-9a-f-]{36}$/i.test(row.id) ? row.id : genUUID(), ...row }));
+  } else if (op.type === "insert" && Array.isArray(op.payload) && op.table !== "daily_task_queue") {
+    op.payload = op.payload.map(row => { const copy = { ...row }; if (typeof copy.id === "string") delete copy.id; return copy; });
   }
-  if (!navigator.onLine) { const q = getOutbox(); q.push(op); saveOutbox(q); return { queued: true, data: op.payload }; }
+  if (!navigator.onLine) {
+    enqueueOfflineOp(op);
+    return { queued: true, data: op.payload };
+  }
   try {
     let query = sb.from(op.table);
     if (op.type === "update") query = query.update(op.payload).eq(op.matchCol, op.matchVal);
@@ -780,37 +866,46 @@ async function dbMutate(op) {
     else if (op.type === "delete") query = query.delete().eq(op.matchCol, op.matchVal);
     const { data, error } = await query;
     if (error) throw error;
-    updateSyncBadge(); return { data };
+    updateSyncBadge();
+    return { data };
   } catch (err) {
-    const q = getOutbox(); q.push(op); saveOutbox(q); return { queued: true, data: op.payload };
+    enqueueOfflineOp(op);
+    return { queued: true, data: op.payload };
   }
 }
 
 async function flushOutbox() {
-  if (!navigator.onLine) return;
-  const q = getOutbox(); if (!q.length) { updateSyncBadge(); return; }
+  if (!navigator.onLine || _isFlushingOutbox) return;
+  await hydrateOutboxFromIDB();
+  const q = getOutbox();
+  if (!q.length) { updateSyncBadge(); return; }
+  _isFlushingOutbox = true;
   const remaining = [];
-  for (const op of q) {
-    try {
-      // Self-heal any stuck activity_audit_log / commercial_brands_directory rows that had a UUID attached
-      if (op.type === "insert" && Array.isArray(op.payload) && op.table !== "daily_task_queue") {
-        op.payload = op.payload.map(r => { const copy = { ...r }; if (typeof copy.id === "string") delete copy.id; return copy; });
+  try {
+    for (const op of q) {
+      try {
+        // Self-heal any non-task insert rows that accidentally had a string UUID attached
+        if (op.type === "insert" && Array.isArray(op.payload) && op.table !== "daily_task_queue") {
+          op.payload = op.payload.map(r => { const copy = { ...r }; if (typeof copy.id === "string") delete copy.id; return copy; });
+        }
+        let query = sb.from(op.table);
+        if (op.type === "update") await query.update(op.payload).eq(op.matchCol, op.matchVal);
+        else if (op.type === "insert") await query.insert(op.payload);
+        else if (op.type === "upsert") await query.upsert(op.payload);
+        else if (op.type === "delete") await query.delete().eq(op.matchCol, op.matchVal);
+      } catch (e) {
+        if (op.table === "daily_task_queue") remaining.push(op);
       }
-      let query = sb.from(op.table);
-      if (op.type === "update") await query.update(op.payload).eq(op.matchCol, op.matchVal);
-      else if (op.type === "insert") await query.insert(op.payload);
-      else if (op.type === "upsert") await query.upsert(op.payload);
-      else if (op.type === "delete") await query.delete().eq(op.matchCol, op.matchVal);
-    } catch (e) {
-      // Drop permanently malformed non-task operations so they never block the sync badge
-      if (op.table === "daily_task_queue") remaining.push(op);
     }
+    saveOutbox(remaining);
+    if (remaining.length === 0) await loadDB();
+  } finally {
+    _isFlushingOutbox = false;
   }
-  saveOutbox(remaining);
-  if (remaining.length === 0) await loadDB();
 }
 window.addEventListener("online", () => { flushOutbox().then(render); });
 window.addEventListener("offline", updateSyncBadge);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && navigator.onLine) flushOutbox(); });
 
 function parseYMD(s) { const [y, m, d] = (s || "2026-10-18").split("-").map(Number); return Date.UTC(y, m - 1, d); }
 function addDaysYMD(s, days) { return new Date(parseYMD(s) + Math.round(days) * 86400000).toISOString().split("T")[0]; }
@@ -1056,18 +1151,42 @@ function formatShieldTag(daysSinceSpray, isKn) {
     : `• 🛡️ Spray shield (${daysSinceSpray}d ago: ${pct} knockdown)`;
 }
 
+// Evaluates the 72-Hour Microclimate Epidemiological Window (RH > 80% & Temp 25°C–32°C for 3 consecutive days, even without rain)
+function evaluate72hEpidemiologicalWindow(daySnap) {
+  const rh72 = Number(daySnap.rh72Avg || 0);
+  const tMax = Number(daySnap.tMax || 30);
+  const tMin = Number(daySnap.tMin || 18);
+  const rain72 = Number(daySnap.rain72Sum || 0);
+  const consecHumidDays = Number(daySnap.humidTempConsecDays ?? ((rh72 >= 80 && tMax >= 25 && tMax <= 32.5) ? 3 : 0));
+  const isOptimalTempBand = tMax >= 25.0 && tMax <= 32.5;
+  const isMicroclimateActive = (rh72 >= 80 && isOptimalTempBand && consecHumidDays >= 3);
+  // Pre-lesion incubation bonus when 72h RH > 80% and Temp is 25–32°C even with 0mm rain
+  const dryHumidBonus = (isMicroclimateActive && rain72 < 3) ? 18 : (isMicroclimateActive ? 10 : 0);
+  return {
+    active: isMicroclimateActive,
+    consecHumidDays,
+    dryHumidBonus,
+    recommendedIntervalDays: isMicroclimateActive ? 4 : 7,
+    tagEn: isMicroclimateActive ? `• 🦠 72h Microclimate Alert (RH ${rh72}% & ${tMax}°C for 3d: 4d spray interval)` : "",
+    tagKn: isMicroclimateActive ? `• 🦠 72ಗಂ ಸೂಕ್ಷ್ಮ-ಹವಾಮಾನ ಎಚ್ಚರಿಕೆ (ತೇವಾಂಶ ${rh72}% & ${tMax}°C: 4 ದಿನಗಳ ಸಿಂಪಡಣೆ ಅಂತರ)` : ""
+  };
+}
+
 function computeInstantRisksForDay(daySnap, dayDad, caDeficit, shieldsOnDay) {
   const { rh72Avg, tMax, tMin, rain24, rain72Sum, prob4 } = daySnap;
   const tempSwing = Number((tMax - tMin).toFixed(1));
+  const epi72 = evaluate72hEpidemiologicalWindow(daySnap);
 
   let blight = rh72Avg >= 80 ? 45 : rh72Avg >= 70 ? 30 : rh72Avg >= 60 ? 18 : 8;
-  blight += (tMax >= 25 && tMax <= 33 && tMin >= 18) ? 25 : 12;
+  blight += (tMax >= 25 && tMax <= 33 && tMin >= 18) ? 25 : (tMax >= 25 && tMax <= 32.5 ? 20 : 12);
   blight += rain72Sum >= 15 ? 30 : rain72Sum >= 3 ? 18 : prob4 >= 60 ? 12 : 0;
+  blight += epi72.dryHumidBonus;
   blight = applyTimeDecayingShield(blight, shieldsOnDay.copDays);
 
-  let rot = rh72Avg >= 82 ? 45 : rh72Avg >= 72 ? 30 : rh72Avg >= 62 ? 16 : 6;
-  rot += (tMax >= 22 && tMax <= 30) ? 20 : 10;
+  let rot = rh72Avg >= 80 ? 45 : rh72Avg >= 72 ? 30 : rh72Avg >= 62 ? 16 : 6;
+  rot += (tMax >= 22 && tMax <= 32.5) ? 20 : 10;
   rot += rain72Sum >= 10 ? 25 : rain72Sum >= 2 ? 14 : prob4 >= 60 ? 10 : 0;
+  rot += epi72.dryHumidBonus;
   if (dayDad >= 90) rot += 10;
   rot = applyTimeDecayingShield(rot, shieldsOnDay.funDays);
 
@@ -1180,9 +1299,10 @@ function computeAllSixRisks() {
     };
   };
 
+  const epiToday = evaluate72hEpidemiologicalWindow(wState);
   return {
-    BLIGHT_SPOT: withCarryWhy("BLIGHT_SPOT", `72h RH: ${rh72Avg}% • Rain: ${rain72Sum}mm ${formatShieldTag(shieldsToday.copDays, false)}`, `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಮಳೆ: ${rain72Sum}mm ${formatShieldTag(shieldsToday.copDays, true)}`),
-    FRUIT_ROT:   withCarryWhy("FRUIT_ROT",   `72h RH: ${rh72Avg}% • Temp: ${tMax}°C ${formatShieldTag(shieldsToday.funDays, false)}`, `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಉಷ್ಣಾಂಶ: ${tMax}°C ${formatShieldTag(shieldsToday.funDays, true)}`),
+    BLIGHT_SPOT: withCarryWhy("BLIGHT_SPOT", `72h RH: ${rh72Avg}% • Rain: ${rain72Sum}mm ${epiToday.tagEn} ${formatShieldTag(shieldsToday.copDays, false)}`.trim(), `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಮಳೆ: ${rain72Sum}mm ${epiToday.tagKn} ${formatShieldTag(shieldsToday.copDays, true)}`.trim()),
+    FRUIT_ROT:   withCarryWhy("FRUIT_ROT",   `72h RH: ${rh72Avg}% • Temp: ${tMax}°C ${epiToday.tagEn} ${formatShieldTag(shieldsToday.funDays, false)}`.trim(), `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಉಷ್ಣಾಂಶ: ${tMax}°C ${epiToday.tagKn} ${formatShieldTag(shieldsToday.funDays, true)}`.trim()),
     THRIPS_SCAR: withCarryWhy("THRIPS_SCAR", `${rh72Avg <= 60 ? "Dry air" : "Mod RH"} (${rh72Avg}%) ${formatShieldTag(shieldsToday.insDays, false)}`, `ತೇವಾಂಶ: ${rh72Avg}% ${formatShieldTag(shieldsToday.insDays, true)}`),
     FRUIT_BORER: withCarryWhy("FRUIT_ROT" === "X" ? "" : "FRUIT_BORER", `Sizing (${todayDad} DAD) ${shieldsToday.insecticide ? formatShieldTag(shieldsToday.insDays, false) : "• >9d since last insecticide (+18%)"}`, `ಕಾಯಿ ಬೆಳವಣಿಗೆ (${todayDad} DAD) ${shieldsToday.insecticide ? formatShieldTag(shieldsToday.insDays, true) : "• >9 ದಿನದಿಂದ ಕೀಟನಾಶಕ ಸಿಂಪಡಿಸಿಲ್ಲ (+18%)"}`),
     MEALYBUG:    withCarryWhy("MEALYBUG",    `Max ${tMax}°C / Night ${tMin}°C ${shieldsToday.mealy ? formatShieldTag(shieldsToday.mealyDays, false) : (shieldsToday.pyrethroid25d ? "• ⚠️ +25% Reeva-5/Asataf resurgence watch" : "")}`, `ಗರಿಷ್ಠ ${tMax}°C ${shieldsToday.mealy ? formatShieldTag(shieldsToday.mealyDays, true) : (shieldsToday.pyrethroid25d ? "• ⚠️ ರೀವಾ-5/ಅಸಟಾಫ್ ನಂತರ ತಿಗಣೆ ಎಚ್ಚರಿಕೆ (+25%)" : "")}`),
@@ -1927,6 +2047,7 @@ async function loadWeather() {
     let runningCumGdd = 0, realCumGdd = 0, observedDays = 0, forecast15dGddSum = 0, forecastDaysCount = 0;
     const telemetryUpserts = [], gddSeries = [];
 
+    let humidTempStreak = 0;
     for (let i = 0; i < datesArr.length; i++) {
       const dMax = d.daily.temperature_2m_max[i] ?? 30.0;
       const dMin = d.daily.temperature_2m_min[i] ?? 18.5;
@@ -1934,16 +2055,27 @@ async function loadWeather() {
       const dGdd = computeDailyGdd(dMax, dMin);
       runningCumGdd += dGdd;
 
+      const dayRhSlice = rhAll.slice(Math.max(0, (i - 2) * 24), (i + 1) * 24);
+      const dayRh72 = dayRhSlice.length ? Math.round(dayRhSlice.reduce((a, b) => a + b, 0) / dayRhSlice.length) : (i === todayIdx ? rh72Avg : 64);
+      const dayRain72 = Number(((d.daily.precipitation_sum[Math.max(0, i - 2)] || 0) + (d.daily.precipitation_sum[Math.max(0, i - 1)] || 0) + dRain).toFixed(1));
+
+      if (dayRh72 >= 80 && dMax >= 25.0 && dMax <= 32.5) humidTempStreak++;
+      else humidTempStreak = 0;
+
       const isFutureForecast = i > todayIdx;
       gddSeries.push({ dateStr: datesArr[i], dad: i, dailyGdd: dGdd, cumGdd: Number(runningCumGdd.toFixed(1)), isForecast: isFutureForecast });
 
       if (!isFutureForecast) {
         realCumGdd = runningCumGdd;
         observedDays++;
+        const dayInstRisks = computeInstantRisksForDay(
+          { rh72Avg: dayRh72, tMax: dMax, tMin: dMin, rain24: dRain, rain72Sum: dayRain72, prob4: 0, humidTempConsecDays: humidTempStreak },
+          i, false, { copDays: null, funDays: null, insDays: null, mealyDays: null, caDays: null }
+        );
         telemetryUpserts.push({
           log_date: datesArr[i], temp_max_c: dMax, temp_min_c: dMin,
-          humidity_mean_pct: i === todayIdx ? rh72Avg : 64, rain_mm: dRain,
-          daily_gdd: dGdd, disease_risk_score: 25
+          humidity_mean_pct: dayRh72, rain_mm: dRain,
+          daily_gdd: dGdd, disease_risk_score: Math.max(dayInstRisks.BLIGHT_SPOT, dayInstRisks.FRUIT_ROT)
         });
       } else {
         forecast15dGddSum += dGdd;
@@ -3792,24 +3924,36 @@ async function removeItemFromTaskCard(taskId, idx) {
   render();
 }
 
-function checkPhenologyAndPhiLock(cat, effectiveDad) {
+function checkPhenologyAndPhiLock(cat, effectiveDad, explicitGdd) {
   if (!cat) return { ok: true };
   const dad = Number(effectiveDad);
   if (Number.isNaN(dad)) return { ok: true };
+
+  // Compute thermal GDD for this task (uses explicitGdd if provided, else calibrates to Stage C2 = 2150 GDD at 140 DAD)
+  const gddModel = (typeof getGddStageModel === "function") ? getGddStageModel() : null;
+  const estGdd = (explicitGdd !== undefined && explicitGdd !== null)
+    ? Number(explicitGdd)
+    : (dad === gddModel?.todayDad ? Number(gddModel.actualGdd) : Math.round(dad * 15.36));
+
   const hasN = Boolean(cat.contains_nitrogen) || (Number(cat.n_pct) || 0) > 0;
-  if (dad >= 140 && dad <= 195 && hasN) {
+  const isZeroNStage = (dad >= 140 && dad <= 195) || (estGdd >= 2150 && estGdd <= 3050);
+  if (isZeroNStage && hasN) {
     return {
       ok: false, code: "ZERO_N_LOCK",
-      reasonEn: `🔴 GATE P1 ZERO-NITROGEN LOCK (${dad} DAD): ${getSaltOnlyTitle(cat)} contains Nitrogen (${cat.n_pct || ""}%). Locked after 140 DAD to prevent green skin reversion!`,
-      reasonKn: `🔴 140 ದಿನಗಳ ಸಾರಜನಕ ನಿರ್ಬಂಧ (${dad} DAD): ${getSaltOnlyTitle(cat)} ನಲ್ಲಿ ಸಾರಜನಕವಿದೆ. 140 ದಿನಗಳ ನಂತರ ಬಳಸಬೇಡಿ!`
+      reasonEn: `🔴 GATE P1 ZERO-NITROGEN LOCK (${dad} DAD • ~${estGdd} GDD ≥ 2,150 GDD Stage C2): ${getSaltOnlyTitle(cat)} contains Nitrogen (${cat.n_pct || ""}%). Locked during Color Initiation to prevent green skin reversion!`,
+      reasonKn: `🔴 ಸಾರಜನಕ ನಿರ್ಬಂಧ (${dad} DAD • ~${estGdd} GDD ≥ 2,150 GDD): ${getSaltOnlyTitle(cat)} ನಲ್ಲಿ ಸಾರಜನಕವಿದೆ. ಬಣ್ಣ ಬರುವ ಹಂತದಲ್ಲಿ ಬಳಸಬೇಡಿ!`
     };
   }
-  const phi = Number(cat.phi_days) || 0, daysToFirstHarvest = 190 - dad;
-  if (dad >= 165 && dad < 190 && phi > 0 && daysToFirstHarvest < phi) {
+
+  const phi = Number(cat.phi_days) || 0;
+  const gddDaysToHarvest = Math.max(0, Math.round((2800 - estGdd) / (gddModel?.futureDailyGddRate || 15.0)));
+  const daysToFirstHarvest = (explicitGdd !== undefined && explicitGdd !== null) ? gddDaysToHarvest : (190 - dad);
+  const isHarvestWindow = (dad >= 165 && dad < 190) || (estGdd >= 2540 && estGdd < 2800);
+  if (isHarvestWindow && phi > 0 && daysToFirstHarvest < phi) {
     return {
       ok: false, code: "PHI_LOCK",
-      reasonEn: `🔴 GATE P1 PRE-HARVEST RESIDUE LOCK (${dad} DAD): ${getSaltOnlyTitle(cat)} has a ${phi}-day PHI, but harvest is ${daysToFirstHarvest} days away!`,
-      reasonKn: `🔴 ಕಟಾವಿಗೆ ಮುನ್ನ ಅವಶೇಷ ನಿರ್ಬಂಧ (${dad} DAD): ${getSaltOnlyTitle(cat)} ಗೆ ${phi} ದಿನಗಳ PHI ಅಂತರ ಬೇಕು!`
+      reasonEn: `🔴 GATE P1 PRE-HARVEST RESIDUE LOCK (${dad} DAD • ~${estGdd} GDD): ${getSaltOnlyTitle(cat)} has a ${phi}-day PHI, but 2,800 GDD harvest is ${daysToFirstHarvest} days away!`,
+      reasonKn: `🔴 ಕಟಾವಿಗೆ ಮುನ್ನ ಅವಶೇಷ ನಿರ್ಬಂಧ (${dad} DAD • ~${estGdd} GDD): ${getSaltOnlyTitle(cat)} ಗೆ ${phi} ದಿನಗಳ PHI ಅಂತರ ಬೇಕು!`
     };
   }
   return { ok: true };
