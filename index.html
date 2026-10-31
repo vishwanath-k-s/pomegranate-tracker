@@ -956,17 +956,15 @@ function todayYMD() { const n = new Date(); return `${n.getFullYear()}-${String(
 function computeDynamicDadAndWeek(dateStr) {
   const dad = diffDaysYMD("2026-08-15", dateStr);
   if (dad < 0) return { dad, week: 0 };
-  if (dad === 0) return { dad: 0, week: 1 }; // Sat 15 Aug (Ethrel Day 0) is part of Week 1
-  // Every week runs Sunday to Saturday:
-  // Wk 1: Sun 16 Aug – Sat 22 Aug (1–7 DAD) | Wk 11: Sun 25 Oct – Sat 31 Oct (71–77 DAD) | Wk 12: Sun 01 Nov – Sat 07 Nov (78–84 DAD)
+  if (dad === 0) return { dad: 0, week: 1 };
   return { dad, week: Math.floor((dad - 1) / 7) + 1 };
 }
 
 function getWeekStartAndEndDates(w) {
-  const dadStart = (w - 1) * 7 + 1; // Sunday start
-  const dadEnd = w * 7;             // Saturday end
-  const [y, m, d] = CFG.ethrel.split("-").map(Number);
-  const start = new Date(y, m - 1, d + dadStart), end = new Date(y, m - 1, d + dadEnd);
+  const dadStart = (w - 1) * 7 + 1;
+  const dadEnd = w * 7;
+  const start = new Date(2026, 7, 15 + dadStart); // Month 7 = August (0-indexed)
+  const end = new Date(2026, 7, 15 + dadEnd);
   return { start, end, dadStart: w === 1 ? 0 : dadStart, dadEnd };
 }
 function formatDateWithWeekday(s) {
@@ -3248,6 +3246,7 @@ function render() {
       : ((isPastWeek || allTasksDone) ? "✅ " : "");
     sel.innerHTML += `<option value="${w}" ${w === curWk ? "selected" : ""}>${tag}${L.weekWord} ${w}: ${dt} (${dadStart}–${dadEnd}d)</option>`;
   }
+
   const wkTasks = tasks.filter(t => Number(t.week_number) === curWk);
   if (curWk === 0) {
     document.getElementById("wkTitle").textContent = L.preEthrelLabel;
@@ -3315,7 +3314,7 @@ function render() {
 
   const sopMult = (dad1 >= 140 && wState.tMin > 18) ? 1.15 : 1.0, pTasks = document.getElementById("panel_TASKS");
   if (!wkTasks.length) {
-    pTasks.innerHTML = `<div class="bg-white p-5 rounded-xl text-center text-xs text-slate-500">${LANG === "KN" ? "ಈ ವಾರದಲ್ಲಿ ಯಾವುದೇ ಕೆಲಸಗಳು ಇಲ್ಲ." : "No tasks scheduled in this week window."}</div>`;
+    pTasks.innerHTML = `<div class="bg-white p-5 rounded-xl text-center text-xs text-slate-500 col-span-full">${LANG === "KN" ? "ಈ ವಾರದಲ್ಲಿ ಯಾವುದೇ ಕೆಲಸಗಳು ಇಲ್ಲ." : "No tasks scheduled in this week window."}</div>`;
   } else {
     pTasks.innerHTML = wkTasks.map(tk => {
       const isScout = tk.trigger_source === "SCOUTING_CURATIVE", isManual = tk.trigger_source === "MANUAL_ENTRY" || tk.trigger_source === "SPLIT_REMAINDER", isKeep = tk.trigger_source === "KEEP_NOTE_HISTORY";
@@ -3346,7 +3345,6 @@ function render() {
       const wasShifted = tk.originally_scheduled_date && tk.originally_scheduled_date !== tk.current_scheduled_date;
       const walesGuide = getWalesMixingGuide(recipeArr, drumLiters);
 
-      // Editable Drum Volume (L) x Drums on BOTH Foliar and Drip Fertigation cards!
       const inlineDrumSpecHtml = !isKeep ? `
         <div class="inline-flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-lg px-2 py-0.5 text-[11px] font-bold text-slate-700" title="Edit Drum Size (L) or Drum Count">
           <span>🪣</span>
@@ -3394,6 +3392,11 @@ function render() {
           ? (LANG === "KN" ? "ಬಳಸಿದ್ದು:" : "Used:")
           : (LANG === "KN" ? "ಒಟ್ಟು:" : "Total:");
 
+        const cardResWarn = itemSt !== "SKIPPED" ? checkRecentSprayResistance(cat.id, tk.current_scheduled_date, tk.id) : null;
+        const repeatWarnHtml = cardResWarn
+          ? `<div class="mt-1.5 px-2.5 py-1 rounded-lg bg-amber-100/90 border border-amber-300 text-[11px] font-bold text-amber-950">${LANG === "KN" ? cardResWarn.msgKn : cardResWarn.msgEn}</div>`
+          : "";
+
         return `<div class="p-2.5 rounded-xl border ${rowBg} space-y-1.5">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
             <div>
@@ -3404,10 +3407,7 @@ function render() {
               </div>
               ${dosePillsHtml}
               <div class="text-[11px] text-slate-500 mt-1">🏷️ <b>${LANG === "KN" ? "ಮಾರುಕಟ್ಟೆ ಹೆಸರು (Brands):" : "Store Brands:"}</b> ${brandsSubtitle}</div>
-              ${(() => {
-                const cardResWarn = itemSt !== "SKIPPED" ? checkRecentSprayResistance(cat.id, tk.current_scheduled_date, tk.id) : null;
-                return cardResWarn ? `<div class="mt-1.5 px-2.5 py-1 rounded-lg bg-amber-100/90 border border-amber-300 text-[11px] font-bold text-amber-950">${LANG === "KN" ? cardResWarn.msgKn : cardResWarn.msgEn}</div>` : "";
-              })()}
+              ${repeatWarnHtml}
             </div>
             <div class="flex flex-wrap items-center gap-1.5 pt-1 sm:pt-0">
               <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
@@ -3431,7 +3431,7 @@ function render() {
             <span>➕ ${LANG === "KN" ? "ಈ ಕಾರ್ಡ್‌ಗೆ ಇನ್ನೊಂದು ಔಷಧಿ / ಪೋಷಕಾಂಶ ಸೇರಿಸಿ" : "Add Another Line Item (Chemical / Brand) to This Card"}</span>
           </button>
           <div id="addBox_${tk.id}" class="hidden mt-1.5 p-2.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1.5 text-xs">
-            <input type="text" id="addSearch_${tk.id}" oninput="filterCardAddDropdown('${tk.id}', this.value, ${isFoliarCard})" placeholder="🔎 ${LANG === 'KN' ? 'ಕಂಪನಿ ಅಥವಾ ಲವಣಾಂಶ ಹುಡುಕಿ (ಉದಾ: Custodia, TAG Ride, Karate)...' : 'Type brand or salt to filter dropdown below (e.g. Custodia, TAG Ride, Karate)...'}" class="w-full border border-indigo-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-slate-900" />
+            <input type="text" id="addSearch_${tk.id}" oninput="filterCardAddDropdown('${tk.id}', this.value, ${isFoliarCard})" placeholder="🔎 ${LANG === 'KN' ? 'ಕಂಪನಿ ಅಥವಾ ಲವಣಾಂಶ ಹುಡುಕಿ (ಉದಾ: Agadi, Custodia, TAG Ride)...' : 'Type brand or salt to filter dropdown below (e.g. Agadi, Custodia, TAG Ride)...'}" class="w-full border border-indigo-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-slate-900" />
             <div class="flex flex-wrap items-center gap-1.5">
               <select id="addSel_${tk.id}" class="flex-1 min-w-[180px] border border-indigo-300 rounded-lg px-2 py-1.5 font-bold bg-white text-slate-900">
                 <option value="">-- ${LANG === "KN" ? `ಪಟ್ಟಿಯಿಂದ ಆರಿಸಿ (${addableChems.length})` : `Select Input (${addableChems.length} matches)`} --</option>
@@ -3513,33 +3513,6 @@ function render() {
       <div class="flex items-center gap-1.5"><span>${LANG === "KN" ? "ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದದ್ದು:" : "Shed Leftover:"}</span><input type="number" value="${left}" onchange="saveLeftover('${id}',this.value)" class="w-16 border rounded px-2 py-1 font-bold"/></div>
     </div>`;
   }).join("") || `<div class="py-3 text-xs text-slate-500">${LANG === "KN" ? "ಈ ವಾರ ಯಾವುದೇ ಖರೀದಿ ಅಗತ್ಯವಿಲ್ಲ." : "No pending inputs needed for this week."}</div>`;
-
-  document.getElementById("scoutGrid").innerHTML = SCOUT_ISSUES.map(iss => {
-    const rObj = risks[iss.code] || { score: 20, whyEn: "", whyKn: "" };
-    const sc = rObj.score, queuedTask = getQueuedTaskCoveringIssue(iss.code);
-    const isChecked = selectedRiskCodes.has(iss.code);
-    const badgeCls = sc >= 65 ? "bg-red-600 text-white" : sc >= 40 ? "bg-amber-400 text-slate-950" : "bg-emerald-600 text-white";
-    const borderCls = queuedTask ? "border-emerald-400 bg-emerald-50/60" : isChecked ? "border-2 border-indigo-600 bg-indigo-50/70" : "border-rose-200 bg-rose-50/70 hover:bg-rose-100";
-
-    const btnHtml = queuedTask
-      ? `<button onclick="event.stopPropagation();goWeek(${queuedTask.week_number});showTab('TASKS');" class="bg-emerald-700 text-white font-extrabold px-2 py-0.5 rounded text-[10px] shrink-0">✅ ${LANG === "KN" ? `ಸೇರಿಸಲಾಗಿದೆ (${queuedTask.current_scheduled_date})` : `Queued (${queuedTask.current_scheduled_date})`}</button>`
-      : `<button onclick="event.stopPropagation();addScoutingTask('${iss.code}')" class="bg-white border border-rose-300 text-rose-900 font-bold px-2 py-0.5 rounded text-[10px] shrink-0">➕ ${LANG === "KN" ? "ಸೇರಿಸಿ" : "Queue"}</button>`;
-
-    return `<div onclick="toggleRiskSelection('${iss.code}')" class="cursor-pointer p-3 rounded-xl border ${borderCls} text-rose-950 text-left shadow-sm flex flex-col justify-between gap-1.5">
-      <div class="w-full flex items-center justify-between gap-1">
-        <label class="flex items-center gap-1.5 font-extrabold cursor-pointer">
-          ${queuedTask ? `<span class="text-emerald-700">☑️</span>` : `<input type="checkbox" ${isChecked ? "checked" : ""} onclick="event.stopPropagation();toggleRiskSelection('${iss.code}')" class="w-4 h-4 accent-indigo-600" />`}
-          <span>${LANG === "KN" ? iss.knTitle : iss.enTitle}</span>
-        </label>
-        <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${badgeCls}">${LANG === "KN" ? "ಅಪಾಯ" : "Risk"}: ${sc}%</span>
-      </div>
-      <div class="font-normal text-[11px] text-rose-800">${LANG === "KN" ? iss.knDesc : iss.enDesc}</div>
-      <div class="font-normal text-[10px] text-slate-600 border-t border-rose-200/60 pt-1.5 w-full flex items-center justify-between gap-1">
-        <span class="truncate">${LANG === "KN" ? rObj.whyKn : rObj.whyEn}</span>
-        ${btnHtml}
-      </div>
-    </div>`;
-  }).join("");
 
   document.getElementById("auditLogBox").innerHTML = auditLogs.map(a => {
     const dt = new Date(a.created_at).toLocaleString(loc, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
