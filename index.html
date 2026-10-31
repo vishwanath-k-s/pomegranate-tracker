@@ -548,7 +548,31 @@ const KN_SALT_ONLY_MAP = {
   MIC_ZN_EDTA:          "ಚಿಲೇಟೆಡ್ ಸತು (Zn-EDTA 12%)",
   BIO_HUMIC_FULVIC:     "ಹ್ಯೂಮಿಕ್ + ಫಲ್ವಿಕ್ ಆಸಿಡ್ 98%",
   BIO_ORTHOSILICIC:     "ಆರ್ಥೋಸಿಲಿಸಿಕ್ ಆಸಿಡ್ 2% SL (ಸಿಲಿಕಾನ್)",
-  BIO_KAOLIN:           "ಕಾವೊಲಿನ್ ಕ್ಲೇ 95% WP (ಬಿಸಿಲು ರಕ್ಷಕ)"
+  BIO_KAOLIN:           "ಕಾವೊಲಿನ್ ಕ್ಲೇ 95% WP (ಬಿಸಿಲು ರಕ್ಷಕ)",
+  INS_FIPRONIL:         "ಫಿಪ್ರೊನಿಲ್ 5% SC (Fipronil 5% SC)",
+  INS_FIPRONIL_80WG:    "ಫಿಪ್ರೊನಿಲ್ 80% WG (Fipronil 80% WG)",
+  INS_EMAMECTIN:        "ಎಮಾಮೆಕ್ಟಿನ್ ಬೆಂಜೊಯೇಟ್ 5% SG (Emamectin Benzoate)",
+  INS_FLONICAMID:       "ಫ್ಲೋನಿಕಾಮಿಡ್ 50% WG (Flonicamid 50% WG)",
+  INS_DINOTEFURAN:      "ಡೈನೋಟೆಫುರಾನ್ 20% SG (Dinotefuran 20% SG)",
+  INS_PYRIPROXYFEN:     "ಪೈರಿಪ್ರಾಕ್ಸಿಫೆನ್ 10% EC (Pyriproxyfen 10% EC)",
+  INS_PROFENOFOS:       "ಪ್ರೊಫೆನೊಫಾಸ್ 50% EC (Profenofos 50% EC)",
+  INS_HEXYTHIAZOX:      "ಹೆಕ್ಸಿಥಿಯಾಜಾಕ್ಸ್ 5.45% EC (Hexythiazox 5.45% EC)",
+  INS_ETOXAZOLE:        "ಎಟಾಕ್ಸಾಜೋಲ್ 10% SC (Etoxazole 10% SC)",
+  NEM_FLUOPYRAM:        "ಫ್ಲುಓಪೈರಾಮ್ 34.48% SC (Fluopyram Nematicide)",
+  FUN_METIRAM:          "ಮೆಟಿರಾಮ್ 70% WG (Metiram 70% WG)",
+  FUN_CHLOROTHALONIL:   "ಕ್ಲೋರೋಥಲೋನಿಲ್ 75% WP (Chlorothalonil 75% WP)",
+  FUN_MYCLOBUTANIL:     "ಮೈಕ್ಲೋಬ್ಯುಟಾನಿಲ್ 10% WP (Myclobutanil 10% WP)",
+  FUN_FOSETYL_AL:       "ಫೊಸೆಟಿಲ್-AL 80% WP (Fosetyl-Al 80% WP)",
+  FUN_METALAXYL_MANCO:  "ಮೆಟಾಲಾಕ್ಸಿಲ್ 8% + ಮ್ಯಾಂಕೋಜೆಬ್ 64% WP",
+  FUN_CYMOXANIL_MANCO:  "ಸೈಮೊಕ್ಸಾನಿಲ್ 8% + ಮ್ಯಾಂಕೋಜೆಬ್ 64% WP",
+  FUN_KRESOXIM:         "ಕ್ರೆಸಾಕ್ಸಿಮ್-ಮೀಥೈಲ್ 44.3% SC (Kresoxim-methyl)",
+  FUN_MANDIPROPAMID:    "ಮ್ಯಾಂಡಿಪ್ರೊಪಾಮಿಡ್ 23.4% SC (Mandipropamid)",
+  BAC_STREPTOMYCIN:     "ಸ್ಟ್ರೆಪ್ಟೋಮೈಸಿನ್ 90% + ಟೆಟ್ರಾಸೈಕ್ಲಿನ್ 10% SP",
+  BIO_TRICHODERMA:      "ಟ್ರೈಕೋಡರ್ಮಾ ಹಾರ್ಜಿಯಾನಮ್ 1.5% WP (Trichoderma)",
+  BIO_PSEUDOMONAS:      "ಸ್ಯೂಡೋಮೊನಾಸ್ ಫ್ಲೂರೊಸೆನ್ಸ್ 1.0% WP (Pseudomonas)",
+  PGR_GA3:              "ಜಿಬ್ಬರೆಲ್ಲಿಕ್ ಆಮ್ಲ 0.001% L (Gibberellic Acid GA3)",
+  MIC_ZINC_EDTA:        "ಚೆಲೇಟೆಡ್ ಸತು 12% (Chelated Zinc Zn-EDTA)",
+  MIC_FE_EDTA:          "ಚೆಲೇಟೆಡ್ ಕಬ್ಬಿಣ 12% (Chelated Iron Fe-EDTA)"
 };
 
 function getSaltOnlyTitle(cat, langOverride) {
@@ -620,17 +644,34 @@ const CURATED_APPROVED_SUBS = {
     { id: "BAC_KASUGAMYCIN", noteEn: "Kasugamycin 3% SL (use 300 ml/drum).", noteKn: "ಕಸುಗಾಮೈಸಿನ್ 3% SL (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 300 ಮಿ.ಲೀ)." }
   ],
   INS_SPINETORAM: [
-    { id: "INS_CYANTRANILIPROLE", noteEn: "Cyantraniliprole 10.26% OD (controls both Thrips & Borer — 140 ml/drum).", noteKn: "ಸಯಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ 10.26% OD (ಥ್ರಿಪ್ಸ್ ಮತ್ತು ಹುಳು ನಿಯಂತ್ರಣ — 140 ಮಿ.ಲೀ/ಡ್ರಮ್)." },
-    { id: "INS_SPINOSAD", noteEn: "Spinosad 45% SC (use 70 ml/drum).", noteKn: "ಸ್ಪೈನೋಸಾಡ್ 45% SC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 70 ಮಿ.ಲೀ)." },
-    { id: "INS_EXPONUS", noteEn: "Broflanilide 300g/L SC (different IRAC-30 group — 28 ml/drum).", noteKn: "ಬ್ರೋಫ್ಲಾನಿಲೈಡ್ (IRAC-30 ಗುಂಪು — ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 28 ಮಿ.ಲೀ)." }
+    { id: "INS_FIPRONIL",        en: "IRAC-2B phenylpyrazole rotation (Agadi SC / Regent SC — 300ml/drum)", kn: "IRAC-2B ಗುಂಪಿನ ಪರ್ಯಾಯ (Agadi SC / Regent SC — 300 ಮಿ.ಲಿ/ಡ್ರಮ್)" },
+    { id: "INS_FLONICAMID",      en: "IRAC-29 selective thrips & sucking blocker (Ulala — 60g/drum)", kn: "IRAC-29 ಗುಂಪಿನ ಥ್ರಿಪ್ಸ್ ನಿಯಂತ್ರಕ (Ulala — 60 ಗ್ರಾಂ/ಡ್ರಮ್)" },
+    { id: "INS_CYANTRANILIPROLE",en: "Broad-spectrum IRAC-28 rotation (Benevia)", kn: "IRAC-28 ಗುಂಪಿನ ಪರ್ಯಾಯ (Benevia)" },
+    { id: "INS_EXPONUS",         en: "Novel IRAC-30 mode of action (Exponus)", kn: "IRAC-30 ಹೊಸ ಗುಂಪಿನ ಪರ್ಯಾಯ (Exponus)" },
+    { id: "INS_SPINOSAD",        en: "Same IRAC-5 spinosyn class (Tracer)", kn: "ಅದೇ IRAC-5 ಗುಂಪಿನ ಪರ್ಯಾಯ (Tracer)" }
   ],
   INS_SPINOSAD: [
-    { id: "INS_SPINETORAM", noteEn: "Spinetoram 11.7% SC (use 160 ml/drum).", noteKn: "ಸ್ಪೈನೆಟೊರಾಮ್ 11.7% SC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 160 ಮಿ.ಲೀ)." },
-    { id: "INS_CYANTRANILIPROLE", noteEn: "Cyantraniliprole 10.26% OD (use 140 ml/drum).", noteKn: "ಸಯಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ 10.26% OD (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 140 ಮಿ.ಲೀ)." }
+    { id: "INS_FIPRONIL",        en: "IRAC-2B thrips rotation (Agadi SC / Regent SC — 300ml/drum)", kn: "IRAC-2B ಗುಂಪಿನ ಪರ್ಯಾಯ (Agadi SC / Regent SC — 300 ಮಿ.ಲಿ/ಡ್ರಮ್)" },
+    { id: "INS_SPINETORAM",      en: "Upgraded IRAC-5 spinosyn (Delegate / Largo)", kn: "IRAC-5 ಗುಂಪಿನ ಪ್ರಬಲ ಪರ್ಯಾಯ (Delegate)" },
+    { id: "INS_FLONICAMID",      en: "IRAC-29 selective thrips rotation (Ulala)", kn: "IRAC-29 ಗುಂಪಿನ ಪರ್ಯಾಯ (Ulala)" },
+    { id: "INS_ACETAMIPRID",     en: "Systemic IRAC-4A neonicotinoid (TAG Ride / Manik)", kn: "IRAC-4A ಸಿಸ್ಟೆಮಿಕ್ ಪರ್ಯಾಯ (TAG Ride / Manik)" }
+  ],
+  INS_FIPRONIL: [
+    { id: "INS_SPINETORAM",      en: "IRAC-5 spinosyn thrips & borer specialist (Delegate / Largo)", kn: "IRAC-5 ಗುಂಪಿನ ಪರ್ಯಾಯ (Delegate / Largo)" },
+    { id: "INS_FLONICAMID",      en: "IRAC-29 selective thrips blocker (Ulala)", kn: "IRAC-29 ಗುಂಪಿನ ಪರ್ಯಾಯ (Ulala)" },
+    { id: "INS_CYANTRANILIPROLE",en: "IRAC-28 cross-spectrum rotation (Benevia)", kn: "IRAC-28 ಗುಂಪಿನ ಪರ್ಯಾಯ (Benevia)" },
+    { id: "INS_ACETAMIPRID",     en: "IRAC-4A systemic rotation (TAG Ride / Pride)", kn: "IRAC-4A ಗುಂಪಿನ ಪರ್ಯಾಯ (TAG Ride / Pride)" }
   ],
   INS_CHLORANTRANILIPROLE: [
-    { id: "INS_CYANTRANILIPROLE", noteEn: "Cyantraniliprole 10.26% OD (use 140 ml/drum).", noteKn: "ಸಯಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ 10.26% OD (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 140 ಮಿ.ಲೀ)." },
-    { id: "INS_SPINETORAM", noteEn: "Spinetoram 11.7% SC (covers Borer + Thrips — 160 ml/drum).", noteKn: "ಸ್ಪೈನೆಟೊರಾಮ್ 11.7% SC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 160 ಮಿ.ಲೀ)." }
+    { id: "INS_EMAMECTIN",       en: "IRAC-6 avermectin borer rotation (Proclaim / EM-1 — 80g/drum)", kn: "IRAC-6 ಗುಂಪಿನ ಕಾಯಿ ಕೊರಕ ಪರ್ಯಾಯ (Proclaim / EM-1 — 80 ಗ್ರಾಂ/ಡ್ರಮ್)" },
+    { id: "INS_SPINETORAM",      en: "IRAC-5 spinosyn rotation (controls both Borer & Thrips)", kn: "IRAC-5 ಗುಂಪಿನ ಪರ್ಯಾಯ (ಕೊರಕ ಮತ್ತು ಥ್ರಿಪ್ಸ್ ಎರಡಕ್ಕೂ)" },
+    { id: "INS_FIPRONIL",        en: "IRAC-2B rotation (Agadi SC / Regent SC)", kn: "IRAC-2B ಗುಂಪಿನ ಪರ್ಯಾಯ (Agadi SC / Regent SC)" },
+    { id: "INS_CYANTRANILIPROLE",en: "Same IRAC-28 diamide class (Benevia)", kn: "ಅದೇ IRAC-28 ಗುಂಪಿನ ಪರ್ಯಾಯ (Benevia)" }
+  ],
+  BAC_BRONOPOL: [
+    { id: "BAC_KASUGAMYCIN",     en: "Systemic antibiotic bactericide (Kasu-B)", kn: "ಸಿಸ್ಟೆಮಿಕ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ನಾಶಕ (Kasu-B)" },
+    { id: "BAC_STREPTOMYCIN",    en: "FRAC-25 bactericide partner (Streptocycline / Plantomycin — 100g/drum)", kn: "FRAC-25 ಬ್ಯಾಕ್ಟೀರಿಯಾ ನಾಶಕ (Streptocycline — 100 ಗ್ರಾಂ/ಡ್ರಮ್)" },
+    { id: "BAC_VALIDAMYCIN",     en: "Antibiotic sheath/blight partner (Validacin / Sheathmar)", kn: "ಬ್ಯಾಕ್ಟೀರಿಯಾ/ಶಿಲೀಂಧ್ರ ಪಾಲುದಾರ (Validacin)" }
   ],
   INS_CYANTRANILIPROLE: [
     { id: "INS_SPINETORAM", noteEn: "Spinetoram 11.7% SC (use 160 ml/drum).", noteKn: "ಸ್ಪೈನೆಟೊರಾಮ್ 11.7% SC (ಪ್ರತಿ ಡ್ರಮ್‌ಗೆ 160 ಮಿ.ಲೀ)." },
@@ -1078,23 +1119,30 @@ function getQueuedTaskCoveringIssue(code) {
     diffDaysYMD(tStr, t.current_scheduled_date) <= 8
   );
 
-  const THRIPS_IDS = ["INS_SPINETORAM", "INS_SPINOSAD", "INS_CYANTRANILIPROLE", "INS_EXPONUS", "INS_ACETAMIPRID", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_REEVA5", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_TOLFENPYRAD", "INS_DIAFENTHIURON", "INS_AZADIRACHTIN"];
-  const BORER_IDS  = ["INS_CHLORANTRANILIPROLE", "INS_SPINETORAM", "INS_CYANTRANILIPROLE", "INS_SPINOSAD", "INS_EXPONUS", "INS_REEVA5", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_TOLFENPYRAD", "INS_ACETAMIPRID", "INS_AZADIRACHTIN"];
-  const MEALY_IDS  = ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_ACETAMIPRID", "INS_FENPYROXIMATE", "INS_ABAMECTIN", "INS_SPIROMESIFEN", "INS_PROPARGITE"];
-  const ROT_IDS    = ["FUN_FLUXA_PYRA", "FUN_AZOXY_TEBU", "FUN_DIFENOCONAZOLE", "FUN_CABRIO_TOP", "FUN_TEBU_TRIFLOXY", "FUN_FLUOPYRAM_TEBU", "FUN_AZOXYSTROBIN", "FUN_CAPTAF", "FUN_MANCOZEB", "FUN_PROPINEB", "FUN_CARBENDAZIM", "FUN_THIOPHANATE", "FUN_PROPICONAZOLE", "FUN_HEXACONAZOLE"];
+  const THRIPS_IDS = ["INS_SPINETORAM", "INS_SPINOSAD", "INS_FIPRONIL", "INS_FIPRONIL_80WG", "INS_FLONICAMID", "INS_DINOTEFURAN", "INS_CYANTRANILIPROLE", "INS_EXPONUS", "INS_ACETAMIPRID", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_REEVA5", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_TOLFENPYRAD", "INS_DIAFENTHIURON", "INS_PROFENOFOS", "INS_AZADIRACHTIN"];
+  const BORER_IDS  = ["INS_CHLORANTRANILIPROLE", "INS_EMAMECTIN", "INS_SPINETORAM", "INS_FIPRONIL", "INS_CYANTRANILIPROLE", "INS_SPINOSAD", "INS_EXPONUS", "INS_REEVA5", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_TOLFENPYRAD", "INS_PROFENOFOS", "INS_ACETAMIPRID", "INS_AZADIRACHTIN"];
+  const MEALY_IDS  = ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_PYRIPROXYFEN", "INS_DINOTEFURAN", "INS_FLONICAMID", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_ACETAMIPRID", "INS_PROFENOFOS", "INS_FENPYROXIMATE", "INS_ABAMECTIN", "INS_SPIROMESIFEN", "INS_PROPARGITE", "INS_HEXYTHIAZOX", "INS_ETOXAZOLE"];
+  const ROT_IDS    = ["FUN_FLUXA_PYRA", "FUN_AZOXY_TEBU", "FUN_DIFENOCONAZOLE", "FUN_CABRIO_TOP", "FUN_TEBU_TRIFLOXY", "FUN_FLUOPYRAM_TEBU", "FUN_AZOXYSTROBIN", "FUN_CAPTAF", "FUN_MANCOZEB", "FUN_PROPINEB", "FUN_CARBENDAZIM", "FUN_THIOPHANATE", "FUN_PROPICONAZOLE", "FUN_HEXACONAZOLE", "FUN_METIRAM", "FUN_CHLOROTHALONIL", "FUN_MYCLOBUTANIL", "FUN_FOSETYL_AL", "FUN_METALAXYL_MANCO", "FUN_CYMOXANIL_MANCO", "FUN_KRESOXIM", "FUN_MANDIPROPAMID"];
+
+  // IRAC / FRAC Group-level mapping so even custom-added chemicals automatically match their target pest guild!
+  const THRIPS_GROUPS = ["IRAC-2B", "IRAC-4A", "IRAC-5", "IRAC-6", "IRAC-12A", "IRAC-15", "IRAC-21A", "IRAC-28", "IRAC-29", "IRAC-30"];
+  const BORER_GROUPS  = ["IRAC-1B", "IRAC-2B", "IRAC-3A", "IRAC-5", "IRAC-6", "IRAC-15", "IRAC-28", "IRAC-30"];
+  const MEALY_GROUPS  = ["IRAC-4A", "IRAC-7C", "IRAC-10A", "IRAC-10B", "IRAC-16", "IRAC-21A", "IRAC-23", "IRAC-29"];
 
   for (const tk of upcomingSprays) {
     const ids = (tk.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").map(r => r.input_id);
-    const hasAnyInsecticide = ids.some(id => catalog[id]?.category === "INSECTICIDE");
-    const hasAnyFungicide   = ids.some(id => catalog[id]?.category === "FUNGICIDE");
+    const cats = ids.map(id => catalog[id]).filter(Boolean);
+    const groups = cats.map(c => c.irac_frac_group || "").filter(Boolean);
+    const hasAnyInsecticide = cats.some(c => c.category === "INSECTICIDE");
+    const hasAnyFungicide   = cats.some(c => c.category === "FUNGICIDE");
     const isNearWindow = (tk.trigger_source === "SCOUTING_CURATIVE" || diffDaysYMD(tStr, tk.current_scheduled_date) <= 5);
 
-    if (code === "BLIGHT_SPOT" && ids.some(id => catalog[id]?.is_copper_compound || id === "BAC_BRONOPOL" || id === "BAC_KASUGAMYCIN")) return tk;
-    if (code === "THRIPS_SCAR" && isNearWindow && (ids.some(id => THRIPS_IDS.includes(id)) || (tk.trigger_source === "SCOUTING_CURATIVE" && hasAnyInsecticide))) return tk;
-    if (code === "FRUIT_BORER" && isNearWindow && (ids.some(id => BORER_IDS.includes(id))  || (tk.trigger_source === "SCOUTING_CURATIVE" && hasAnyInsecticide))) return tk;
-    if (code === "MEALYBUG"    && (ids.some(id => MEALY_IDS.includes(id)) || (tk.trigger_source === "SCOUTING_CURATIVE" && hasAnyInsecticide && ids.length >= 2))) return tk;
+    if (code === "BLIGHT_SPOT" && (ids.some(id => catalog[id]?.is_copper_compound || ["BAC_BRONOPOL", "BAC_KASUGAMYCIN", "BAC_STREPTOMYCIN", "BIO_PSEUDOMONAS"].includes(id)) || cats.some(c => c.category === "BACTERICIDE"))) return tk;
+    if (code === "THRIPS_SCAR" && isNearWindow && (ids.some(id => THRIPS_IDS.includes(id)) || groups.some(g => THRIPS_GROUPS.some(tg => g.includes(tg))) || (tk.trigger_source === "SCOUTING_CURATIVE" && hasAnyInsecticide))) return tk;
+    if (code === "FRUIT_BORER" && isNearWindow && (ids.some(id => BORER_IDS.includes(id))  || groups.some(g => BORER_GROUPS.some(bg => g.includes(bg)))  || (tk.trigger_source === "SCOUTING_CURATIVE" && hasAnyInsecticide))) return tk;
+    if (code === "MEALYBUG"    && (ids.some(id => MEALY_IDS.includes(id)) || groups.some(g => MEALY_GROUPS.some(mg => g.includes(mg))) || (tk.trigger_source === "SCOUTING_CURATIVE" && hasAnyInsecticide && ids.length >= 2))) return tk;
     if (code === "FRUIT_ROT"   && (ids.some(id => ROT_IDS.includes(id)) || hasAnyFungicide)) return tk;
-    if (code === "CRACKING"    && isNearWindow && ids.some(id => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC", "MIC_BORON_20", "MIC_CHELATED_CA"].includes(id))) return tk;
+    if (code === "CRACKING"    && isNearWindow && ids.some(id => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC", "MIC_BORON_20", "MIC_CHELATED_CA", "PGR_GA3"].includes(id))) return tk;
   }
   return null;
 }
@@ -1122,7 +1170,7 @@ function getShieldsActiveOnDate(refDateStr) {
   const pyrethroidDays = minDaysSince(25, r => {
     const c = catalog[r.input_id]; if (!c) return false;
     const g = c.irac_frac_group || "";
-    return g.includes("3A") || g.includes("1B") || ["INS_REEVA5", "INS_ASATAF", "INS_THIA_LAMBDA", "INS_BETA_IMIDA"].includes(r.input_id);
+    return g.includes("3A") || g.includes("1B") || g.includes("2B") || ["INS_REEVA5", "INS_ASATAF", "INS_THIA_LAMBDA", "INS_BETA_IMIDA"].includes(r.input_id);
   });
 
   return {
@@ -3027,10 +3075,10 @@ function populateBrandCheckerDropdowns() {
   b2.innerHTML = `<option value="">-- ${LANG === "KN" ? "2ನೇ ಕಂಪನಿ ಹೆಸರು (ಬೆರೆಸಲು ಪರಿಶೀಲಿಸಿ)" : "Select 2nd Brand (Check Tank-Mix)"} --</option>` + opts;
 }
 
-function checkRecentSprayResistance(inputId, refDateStr) {
+function checkRecentSprayResistance(inputId, refDateStr, excludeTaskId = null) {
   const cat = catalog[inputId]; if (!cat) return null;
   const candNormSalt = normalizeSaltBase(cat.active_ingredient);
-  const recentCompleted = tasks.filter(t => t.status === "COMPLETED" && Math.abs(diffDaysYMD(t.current_scheduled_date, refDateStr)) <= 25);
+  const recentCompleted = tasks.filter(t => t.status === "COMPLETED" && t.id !== excludeTaskId && Math.abs(diffDaysYMD(t.current_scheduled_date, refDateStr)) <= 25);
 
   for (const t of recentCompleted) {
     for (const r of (t.resolved_recipe || [])) {
@@ -3319,6 +3367,10 @@ function render() {
               </div>
               ${dosePillsHtml}
               <div class="text-[11px] text-slate-500 mt-1">🏷️ <b>${LANG === "KN" ? "ಮಾರುಕಟ್ಟೆ ಹೆಸರು (Brands):" : "Store Brands:"}</b> ${brandsSubtitle}</div>
+              ${(() => {
+                const cardResWarn = itemSt !== "SKIPPED" ? checkRecentSprayResistance(cat.id, tk.current_scheduled_date, tk.id) : null;
+                return cardResWarn ? `<div class="mt-1.5 px-2.5 py-1 rounded-lg bg-amber-100/90 border border-amber-300 text-[11px] font-bold text-amber-950">${LANG === "KN" ? cardResWarn.msgKn : cardResWarn.msgEn}</div>` : "";
+              })()}
             </div>
             <div class="flex flex-wrap items-center gap-1.5 pt-1 sm:pt-0">
               <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
@@ -3808,24 +3860,64 @@ function renderSeasonSprayAndDripGuides() {
   applyHubAndSubPillRouting();
 }
 
-function setCardTankSpec(taskId, newDrumLiters, newDrumsCount) {
+// Load saved default Drum Volume (L) and Drum Count on startup if previously customized
+CFG.drumL = Number(localStorage.getItem("h_default_drum_liters")) || CFG.drumL;
+CFG.drums = Number(localStorage.getItem("h_default_drums_count")) || CFG.drums;
+
+// Updates Drum Size (L) and Drum Count on the selected card, remembers the choice, and cascades to all future pending foliar cards!
+async function setCardTankSpec(taskId, newDrumLiters, newDrumsCount) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
-  tk.drum_liters = sanitizeNonNegativeNumber(newDrumLiters, CFG.drumL, 5000) || CFG.drumL;
-  tk.drums_count = sanitizeNonNegativeNumber(newDrumsCount, CFG.drums, 100) || CFG.drums;
-  CFG.drumL = tk.drum_liters;
+  const cleanDrumL = sanitizeNonNegativeNumber(newDrumLiters, CFG.drumL, 5000) || CFG.drumL;
+  const cleanDrums = sanitizeNonNegativeNumber(newDrumsCount, CFG.drums, 100) || CFG.drums;
 
-  const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
-  const sopMult = (taskDad >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
+  // 1. Remember as the new default for the orchard
+  CFG.drumL = cleanDrumL;
+  CFG.drums = cleanDrums;
+  localStorage.setItem("h_default_drum_liters", String(cleanDrumL));
+  localStorage.setItem("h_default_drums_count", String(cleanDrums));
 
-  tk.resolved_recipe = (tk.resolved_recipe || []).map(it => {
-    const c = catalog[it.input_id];
-    const m = c?.id === "WSF_00_00_50" ? sopMult : 1.0;
-    const copy = { ...it };
-    delete copy.actual_total_3ac;
-    const metrics = getItemDoseMetrics(c, copy, m, tk.drums_count, tk.drum_liters);
-    return { ...copy, actual_total_3ac: metrics.suggestedTotal3Ac };
+  // 2. Update this card AND all future uncompleted foliar cards (>= this card's date)
+  const affectedCards = tasks.filter(t =>
+    t.id === tk.id ||
+    (t.status !== "COMPLETED" && t.status !== "SKIPPED" &&
+     (t.task_type === "FOLIAR_SPRAY" || t.task_type === "STANDALONE_COPPER") &&
+     t.current_scheduled_date >= tk.current_scheduled_date)
+  );
+
+  affectedCards.forEach(card => {
+    card.drum_liters = cleanDrumL;
+    card.drums_count = cleanDrums;
+    const cardDad = computeDynamicDadAndWeek(card.current_scheduled_date).dad;
+    const sopMult = (cardDad >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
+
+    card.resolved_recipe = (card.resolved_recipe || []).map(it => {
+      const c = catalog[it.input_id];
+      const m = c?.id === "WSF_00_00_50" ? sopMult : 1.0;
+      const copy = { ...it };
+      delete copy.actual_total_3ac;
+      const metrics = getItemDoseMetrics(c, copy, m, cleanDrums, cleanDrumL);
+      return { ...copy, actual_total_3ac: metrics.suggestedTotal3Ac };
+    });
   });
+
   render();
+
+  // 3. Persist updated tank specs and recalculated totals to Supabase
+  await Promise.all(affectedCards.map(card =>
+    dbMutate({
+      table: "daily_task_queue",
+      type: "update",
+      payload: {
+        drum_liters: cleanDrumL,
+        drums_count: cleanDrums,
+        resolved_recipe: card.resolved_recipe,
+        updated_by: activeUser,
+        updated_at: new Date().toISOString()
+      },
+      matchCol: "id",
+      matchVal: card.id
+    })
+  ));
 }
 
 // Inline Dosage Rate Editor: Updates dose_per_liter (g/L or ml/L) or dose_per_acre (kg/Ac) directly on the card & recalculates Total Qty!
