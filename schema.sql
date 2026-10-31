@@ -184,3 +184,147 @@ CREATE TABLE IF NOT EXISTS farm_rain_logs (
     logged_by TEXT DEFAULT 'Vishwanath',
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ============================================================================
+-- V8: SERVER-SIDE 6-GATE RULE ENGINE RPC & 05:30 AM IST DAILY CRON (pg_cron)
+-- ============================================================================
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
+CREATE OR REPLACE FUNCTION public.run_daily_orchard_engine(target_date DATE DEFAULT CURRENT_DATE)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_ethrel_date DATE := '2026-08-15';
+    v_dad INT := (target_date - v_ethrel_date);
+    v_rain_today NUMERIC(5,1) := 0;
+    v_rain_72h NUMERIC(5,1) := 0;
+    v_rh_72h NUMERIC(5,1) := 60;
+    v_tmax_72h NUMERIC(4,1) := 30.0;
+    v_tmin_today NUMERIC(4,1) := 18.5;
+    v_cum_gdd NUMERIC(8,2) := 0;
+    v_epi_high_days INT := 0;
+    v_recent_copper INT := 0;
+    v_existing_curative INT := 0;
+    v_shifted_drips INT := 0;
+    v_injected_sprays INT := 0;
+    v_env TEXT;
+BEGIN
+    -- 1. Merge Automated Telemetry with Priority Manual Farm Rain Override (Gate P0)
+    SELECT COALESCE(
+        (SELECT rain_mm FROM farm_rain_logs WHERE log_date = target_date),
+        (SELECT rain_mm FROM weather_telemetry_history WHERE log_date = target_date),
+        0
+    ) INTO v_rain_today;
+
+    SELECT
+        COALESCE(SUM(rain_mm), 0),
+        COALESCE(AVG(humidity_mean_pct), 60),
+        COALESCE(AVG(temp_max_c), 30.0)
+    INTO v_rain_72h, v_rh_72h, v_tmax_72h
+    FROM weather_telemetry_history
+    WHERE log_date BETWEEN (target_date - INTERVAL '2 days')::DATE AND target_date;
+
+    SELECT COALESCE(temp_min_c, 18.5)
+    INTO v_tmin_today
+    FROM weather_telemetry_history
+    WHERE log_date = target_date;
+
+    -- 2. Compute Cumulative Thermal GDD Since Ethrel Defoliation (2026-08-15)
+    SELECT COALESCE(SUM(daily_gdd), v_dad * 15.8)
+    INTO v_cum_gdd
+    FROM weather_telemetry_history
+    WHERE log_date BETWEEN v_ethrel_date AND target_date;
+
+    -- 3. Evaluate 72-Hour Epidemiological Microclimate Window (RH > 80% & Temp 25°C–32°C for 3 days)
+    SELECT COUNT(*)
+    INTO v_epi_high_days
+    FROM weather_telemetry_history
+    WHERE log_date BETWEEN (target_date - INTERVAL '2 days')::DATE AND target_date
+      AND humidity_mean_pct >= 80
+      AND temp_max_c BETWEEN 25.0 AND 32.5;
+
+    -- Run across both PROD and DEV environments
+    FOREACH v_env IN ARRAY ARRAY['PROD', 'DEV'] LOOP
+
+        -- 4. Gate P0 + P4: Heavy Rain (>= 15 mm) -> Pause & Shift Pending Drip Tasks Forward by +2 Days
+        IF v_rain_today >= 15.0 THEN
+            UPDATE daily_task_queue
+            SET current_scheduled_date = current_scheduled_date + INTERVAL '2 days',
+                effective_dad = (current_scheduled_date + INTERVAL '2 days' - v_ethrel_date),
+                status = 'DELAYED',
+                delay_reason = 'RAIN',
+                updated_by = 'AUTO_CRON_0530',
+                updated_at = NOW()
+            WHERE env = v_env
+              AND status IN ('PENDING', 'DELAYED')
+              AND task_type LIKE 'DRIP%'
+              AND current_scheduled_date BETWEEN target_date AND (target_date + INTERVAL '3 days')::DATE;
+
+            GET DIAGNOSTICS v_shifted_drips = ROW_COUNT;
+        END IF;
+
+        -- 5. Gate P0 + P2 + P3: Proactive Bactericide Injection on Heavy Rain (>=15mm) OR 72h Epidemiological Trigger
+        IF (v_rain_today >= 15.0 OR v_epi_high_days >= 3) THEN
+            -- Respect Gate P2 5-day Copper Cooldown
+            SELECT COUNT(*) INTO v_recent_copper
+            FROM daily_task_queue
+            WHERE env = v_env
+              AND status = 'COMPLETED'
+              AND current_scheduled_date BETWEEN (target_date - INTERVAL '5 days')::DATE AND target_date
+              AND (task_type = 'STANDALONE_COPPER' OR resolved_recipe::TEXT ILIKE '%COPPER%');
+
+            SELECT COUNT(*) INTO v_existing_curative
+            FROM daily_task_queue
+            WHERE env = v_env
+              AND status IN ('PENDING', 'DELAYED')
+              AND current_scheduled_date BETWEEN target_date AND (target_date + INTERVAL '4 days')::DATE
+              AND (task_type = 'STANDALONE_COPPER' OR trigger_source IN ('RAIN_EMERGENCY', 'SCOUTING_CURATIVE'));
+
+            IF v_recent_copper = 0 AND v_existing_curative = 0 THEN
+                INSERT INTO daily_task_queue (
+                    id, env, originally_scheduled_date, current_scheduled_date, effective_dad,
+                    task_type, trigger_source, status, resolved_recipe,
+                    custom_title_en, custom_title_kn, updated_by, updated_at
+                ) VALUES (
+                    gen_random_uuid(),
+                    v_env,
+                    (target_date + INTERVAL '1 day')::DATE,
+                    (target_date + INTERVAL '1 day')::DATE,
+                    v_dad + 1,
+                    'STANDALONE_COPPER',
+                    CASE WHEN v_rain_today >= 15.0 THEN 'RAIN_EMERGENCY' ELSE 'SCOUTING_CURATIVE' END,
+                    'PENDING',
+                    '[{"input_id":"BAC_COPPER_HYDROXIDE","dose_per_liter":1.5},{"input_id":"BAC_BRONOPOL","dose_per_liter":0.5}]'::JSONB,
+                    'Curative Copper Bactericide Spray',
+                    'ತುರ್ತು ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ',
+                    'AUTO_CRON_0530',
+                    NOW()
+                );
+                v_injected_sprays := v_injected_sprays + 1;
+            END IF;
+        END IF;
+
+    END LOOP;
+
+    RETURN jsonb_build_object(
+        'status', 'OK',
+        'evaluated_date', target_date,
+        'dad', v_dad,
+        'cumulative_gdd', v_cum_gdd,
+        'rain_today_mm', v_rain_today,
+        'epi_high_days_72h', v_epi_high_days,
+        'shifted_drips', v_shifted_drips,
+        'injected_sprays', v_injected_sprays
+    );
+END;
+$$;
+
+-- Schedule automatic execution every day at 05:30 AM IST (00:00 UTC)
+SELECT cron.schedule(
+    'hosahalli-daily-0530-ist-engine',
+    '0 0 * * *',
+    $$SELECT public.run_daily_orchard_engine(CURRENT_DATE);$$
+);
