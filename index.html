@@ -1119,6 +1119,30 @@ function getCumulativeNutrientsPerPlant() {
   return del;
 }
 
+// Guild-Specific Threat Matcher: Checks if a specific chemical ID (or its IRAC/FRAC group) actually controls the target threat
+function doesItemCoverThreat(inputId, code) {
+  const c = catalog[inputId];
+  if (!c) return false;
+  const grp = c.irac_frac_group || "";
+
+  const THRIPS_IDS = ["INS_SPINETORAM", "INS_SPINOSAD", "INS_FIPRONIL", "INS_FIPRONIL_80WG", "INS_FLONICAMID", "INS_DINOTEFURAN", "INS_CYANTRANILIPROLE", "INS_EXPONUS", "INS_ACETAMIPRID", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_REEVA5", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_TOLFENPYRAD", "INS_DIAFENTHIURON", "INS_PROFENOFOS", "INS_AZADIRACHTIN"];
+  const BORER_IDS  = ["INS_CHLORANTRANILIPROLE", "INS_EMAMECTIN", "INS_SPINETORAM", "INS_FIPRONIL", "INS_FIPRONIL_80WG", "INS_CYANTRANILIPROLE", "INS_SPINOSAD", "INS_EXPONUS", "INS_REEVA5", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_TOLFENPYRAD", "INS_PROFENOFOS", "INS_AZADIRACHTIN"];
+  const MEALY_IDS  = ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_PYRIPROXYFEN", "INS_DINOTEFURAN", "INS_FLONICAMID", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_ACETAMIPRID", "INS_PROFENOFOS", "INS_FENPYROXIMATE", "INS_ABAMECTIN", "INS_SPIROMESIFEN", "INS_PROPARGITE", "INS_FENAZAQUIN", "INS_HEXYTHIAZOX", "INS_ETOXAZOLE"];
+  const ROT_IDS    = ["FUN_FLUXA_PYRA", "FUN_AZOXY_TEBU", "FUN_DIFENOCONAZOLE", "FUN_CABRIO_TOP", "FUN_TEBU_TRIFLOXY", "FUN_FLUOPYRAM_TEBU", "FUN_AZOXYSTROBIN", "FUN_CAPTAF", "FUN_MANCOZEB", "FUN_PROPINEB", "FUN_CARBENDAZIM", "FUN_THIOPHANATE", "FUN_PROPICONAZOLE", "FUN_HEXACONAZOLE", "FUN_METIRAM", "FUN_CHLOROTHALONIL", "FUN_MYCLOBUTANIL", "FUN_FOSETYL_AL", "FUN_METALAXYL_MANCO", "FUN_CYMOXANIL_MANCO", "FUN_KRESOXIM", "FUN_MANDIPROPAMID"];
+
+  const THRIPS_GROUPS = ["IRAC-2B", "IRAC-4A", "IRAC-5", "IRAC-6", "IRAC-12A", "IRAC-15", "IRAC-21A", "IRAC-28", "IRAC-29", "IRAC-30"];
+  const BORER_GROUPS  = ["IRAC-1B", "IRAC-2B", "IRAC-3A", "IRAC-5", "IRAC-6", "IRAC-15", "IRAC-28", "IRAC-30"];
+  const MEALY_GROUPS  = ["IRAC-4A", "IRAC-7C", "IRAC-10A", "IRAC-10B", "IRAC-16", "IRAC-20B", "IRAC-21A", "IRAC-23", "IRAC-29"];
+
+  if (code === "BLIGHT_SPOT") return Boolean(c.is_copper_compound || c.category === "BACTERICIDE" || ["BAC_BRONOPOL", "BAC_KASUGAMYCIN", "BAC_STREPTOMYCIN", "BAC_H2O2", "BIO_PSEUDOMONAS"].includes(inputId));
+  if (code === "THRIPS_SCAR") return THRIPS_IDS.includes(inputId) || THRIPS_GROUPS.some(g => grp.includes(g)) || (inputId.startsWith("CUSTOM_") && c.category === "INSECTICIDE");
+  if (code === "FRUIT_BORER") return BORER_IDS.includes(inputId)  || BORER_GROUPS.some(g => grp.includes(g))  || (inputId.startsWith("CUSTOM_") && c.category === "INSECTICIDE");
+  if (code === "MEALYBUG")    return MEALY_IDS.includes(inputId)  || MEALY_GROUPS.some(g => grp.includes(g))  || (inputId.startsWith("CUSTOM_") && c.category === "INSECTICIDE");
+  if (code === "FRUIT_ROT")   return ROT_IDS.includes(inputId)    || c.category === "FUNGICIDE";
+  if (code === "CRACKING")    return ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC", "MIC_BORON_20", "MIC_CHELATED_CA", "WSF_CALCIUM_NITRATE", "PGR_GA3"].includes(inputId);
+  return false;
+}
+
 function getQueuedTaskCoveringIssue(code) {
   const tStr = todayYMD();
   const upcomingSprays = tasks.filter(t =>
@@ -1127,66 +1151,57 @@ function getQueuedTaskCoveringIssue(code) {
     diffDaysYMD(tStr, t.current_scheduled_date) <= 8
   );
 
-  const THRIPS_IDS = ["INS_SPINETORAM", "INS_SPINOSAD", "INS_FIPRONIL", "INS_FIPRONIL_80WG", "INS_FLONICAMID", "INS_DINOTEFURAN", "INS_CYANTRANILIPROLE", "INS_EXPONUS", "INS_ACETAMIPRID", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_REEVA5", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_TOLFENPYRAD", "INS_DIAFENTHIURON", "INS_PROFENOFOS", "INS_AZADIRACHTIN"];
-  const BORER_IDS  = ["INS_CHLORANTRANILIPROLE", "INS_EMAMECTIN", "INS_SPINETORAM", "INS_FIPRONIL", "INS_CYANTRANILIPROLE", "INS_SPINOSAD", "INS_EXPONUS", "INS_REEVA5", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_TOLFENPYRAD", "INS_PROFENOFOS", "INS_ACETAMIPRID", "INS_AZADIRACHTIN"];
-  const MEALY_IDS  = ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_PYRIPROXYFEN", "INS_DINOTEFURAN", "INS_FLONICAMID", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_ACETAMIPRID", "INS_PROFENOFOS", "INS_FENPYROXIMATE", "INS_ABAMECTIN", "INS_SPIROMESIFEN", "INS_PROPARGITE", "INS_HEXYTHIAZOX", "INS_ETOXAZOLE"];
-  const ROT_IDS    = ["FUN_FLUXA_PYRA", "FUN_AZOXY_TEBU", "FUN_DIFENOCONAZOLE", "FUN_CABRIO_TOP", "FUN_TEBU_TRIFLOXY", "FUN_FLUOPYRAM_TEBU", "FUN_AZOXYSTROBIN", "FUN_CAPTAF", "FUN_MANCOZEB", "FUN_PROPINEB", "FUN_CARBENDAZIM", "FUN_THIOPHANATE", "FUN_PROPICONAZOLE", "FUN_HEXACONAZOLE", "FUN_METIRAM", "FUN_CHLOROTHALONIL", "FUN_MYCLOBUTANIL", "FUN_FOSETYL_AL", "FUN_METALAXYL_MANCO", "FUN_CYMOXANIL_MANCO", "FUN_KRESOXIM", "FUN_MANDIPROPAMID"];
-
-  // IRAC / FRAC Group-level mapping so even custom-added chemicals automatically match their target pest guild!
-  const THRIPS_GROUPS = ["IRAC-2B", "IRAC-4A", "IRAC-5", "IRAC-6", "IRAC-12A", "IRAC-15", "IRAC-21A", "IRAC-28", "IRAC-29", "IRAC-30"];
-  const BORER_GROUPS  = ["IRAC-1B", "IRAC-2B", "IRAC-3A", "IRAC-5", "IRAC-6", "IRAC-15", "IRAC-28", "IRAC-30"];
-  const MEALY_GROUPS  = ["IRAC-4A", "IRAC-7C", "IRAC-10A", "IRAC-10B", "IRAC-16", "IRAC-21A", "IRAC-23", "IRAC-29"];
-
   for (const tk of upcomingSprays) {
-    const ids = (tk.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").map(r => r.input_id);
-    const cats = ids.map(id => catalog[id]).filter(Boolean);
-    const groups = cats.map(c => c.irac_frac_group || "").filter(Boolean);
-    const hasAnyInsecticide = cats.some(c => c.category === "INSECTICIDE");
-    const hasAnyFungicide   = cats.some(c => c.category === "FUNGICIDE");
+    const activeIds = (tk.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").map(r => r.input_id);
     const isNearWindow = (tk.trigger_source === "SCOUTING_CURATIVE" || diffDaysYMD(tStr, tk.current_scheduled_date) <= 5);
+    const needsNearWindow = ["THRIPS_SCAR", "FRUIT_BORER", "CRACKING"].includes(code);
 
-    if (code === "BLIGHT_SPOT" && (ids.some(id => catalog[id]?.is_copper_compound || ["BAC_BRONOPOL", "BAC_KASUGAMYCIN", "BAC_STREPTOMYCIN", "BIO_PSEUDOMONAS"].includes(id)) || cats.some(c => c.category === "BACTERICIDE"))) return tk;
-    if (code === "THRIPS_SCAR" && isNearWindow && (ids.some(id => THRIPS_IDS.includes(id)) || groups.some(g => THRIPS_GROUPS.some(tg => g.includes(tg))) || (tk.trigger_source === "SCOUTING_CURATIVE" && hasAnyInsecticide))) return tk;
-    if (code === "FRUIT_BORER" && isNearWindow && (ids.some(id => BORER_IDS.includes(id))  || groups.some(g => BORER_GROUPS.some(bg => g.includes(bg)))  || (tk.trigger_source === "SCOUTING_CURATIVE" && hasAnyInsecticide))) return tk;
-    if (code === "MEALYBUG"    && (ids.some(id => MEALY_IDS.includes(id)) || groups.some(g => MEALY_GROUPS.some(mg => g.includes(mg))) || (tk.trigger_source === "SCOUTING_CURATIVE" && hasAnyInsecticide && ids.length >= 2))) return tk;
-    if (code === "FRUIT_ROT"   && (ids.some(id => ROT_IDS.includes(id)) || hasAnyFungicide)) return tk;
-    if (code === "CRACKING"    && isNearWindow && ids.some(id => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC", "MIC_BORON_20", "MIC_CHELATED_CA", "PGR_GA3"].includes(id))) return tk;
+    if ((!needsNearWindow || isNearWindow) && activeIds.some(id => doesItemCoverThreat(id, code))) {
+      return tk;
+    }
   }
   return null;
 }
 
-// Evaluates active spray shields relative to ANY target date (fixes Bug #4!)
-// Returns exact days elapsed since the most recent completed spray for each category (null if none within window)
+// Returns exact days elapsed since the most recent completed spray for each specific pest/disease guild
 function getShieldsActiveOnDate(refDateStr) {
-  const doneTasks = tasks.filter(t => t.status === "COMPLETED");
+  const doneTasks = tasks.filter(t => t.status !== "SKIPPED");
   const minDaysSince = (maxDays, pred) => {
     let best = null;
     doneTasks.forEach(t => {
       const d = diffDaysYMD(t.current_scheduled_date, refDateStr);
-      if (d >= 0 && d <= maxDays && (t.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").some(pred)) {
+      if (d < 0 || d > maxDays) return;
+      const completedItems = (t.resolved_recipe || []).filter(r => r.item_status === "COMPLETED" || (!r.item_status && t.status === "COMPLETED"));
+      if (completedItems.some(pred)) {
         if (best === null || d < best) best = d;
       }
     });
     return best;
   };
 
-  const copDays   = minDaysSince(9,  r => catalog[r.input_id]?.is_copper_compound || r.input_id === "BAC_BRONOPOL");
-  const funDays   = minDaysSince(9,  r => catalog[r.input_id]?.category === "FUNGICIDE");
-  const insDays   = minDaysSince(9,  r => catalog[r.input_id]?.category === "INSECTICIDE");
-  const mealyDays = minDaysSince(12, r => ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_THIAMETHOXAM", "INS_ACETAMIPRID", "INS_IMIDACLOPRID"].includes(r.input_id));
-  const caDays    = minDaysSince(9,  r => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC", "MIC_CHELATED_CA"].includes(r.input_id));
+  const copDays    = minDaysSince(9,  r => doesItemCoverThreat(r.input_id, "BLIGHT_SPOT"));
+  const funDays    = minDaysSince(9,  r => doesItemCoverThreat(r.input_id, "FRUIT_ROT"));
+  const thripsDays = minDaysSince(9,  r => doesItemCoverThreat(r.input_id, "THRIPS_SCAR"));
+  const borerDays  = minDaysSince(9,  r => doesItemCoverThreat(r.input_id, "FRUIT_BORER"));
+  const mealyDays  = minDaysSince(12, r => doesItemCoverThreat(r.input_id, "MEALYBUG"));
+  const caDays     = minDaysSince(9,  r => doesItemCoverThreat(r.input_id, "CRACKING") && r.input_id !== "WSF_CALCIUM_NITRATE");
   const pyrethroidDays = minDaysSince(25, r => {
     const c = catalog[r.input_id]; if (!c) return false;
     const g = c.irac_frac_group || "";
     return g.includes("3A") || g.includes("1B") || g.includes("2B") || ["INS_REEVA5", "INS_ASATAF", "INS_THIA_LAMBDA", "INS_BETA_IMIDA"].includes(r.input_id);
   });
 
+  // Keep `insDays` / `insecticide` mapped to `borerDays` (or `thripsDays`) for full compatibility
+  const insDays = borerDays !== null ? borerDays : thripsDays;
+
   return {
-    copper:        copDays !== null,   copDays,
-    fungicide:     funDays !== null,   funDays,
-    insecticide:   insDays !== null,   insDays,
-    mealy:         mealyDays !== null, mealyDays,
-    calciumFoliar: caDays !== null,    caDays,
+    copper:        copDays !== null,    copDays,
+    fungicide:     funDays !== null,    funDays,
+    insecticide:   borerDays !== null,  insDays,
+    thripsShield:  thripsDays !== null, thripsDays,
+    borerShield:   borerDays !== null,  borerDays,
+    mealy:         mealyDays !== null,  mealyDays,
+    calciumFoliar: caDays !== null,     caDays,
     pyrethroid25d: pyrethroidDays !== null
   };
 }
@@ -1217,7 +1232,6 @@ function evaluate72hEpidemiologicalWindow(daySnap) {
   const consecHumidDays = Number(daySnap.humidTempConsecDays ?? ((rh72 >= 80 && tMax >= 25 && tMax <= 32.5) ? 3 : 0));
   const isOptimalTempBand = tMax >= 25.0 && tMax <= 32.5;
   const isMicroclimateActive = (rh72 >= 80 && isOptimalTempBand && consecHumidDays >= 3);
-  // Pre-lesion incubation bonus when 72h RH > 80% and Temp is 25–32°C even with 0mm rain
   const dryHumidBonus = (isMicroclimateActive && rain72 < 3) ? 18 : (isMicroclimateActive ? 10 : 0);
   return {
     active: isMicroclimateActive,
@@ -1233,6 +1247,10 @@ function computeInstantRisksForDay(daySnap, dayDad, caDeficit, shieldsOnDay) {
   const { rh72Avg, tMax, tMin, rain24, rain72Sum, prob4 } = daySnap;
   const tempSwing = Number((tMax - tMin).toFixed(1));
   const epi72 = evaluate72hEpidemiologicalWindow(daySnap);
+
+  const effThripsDays = shieldsOnDay.thripsDays !== undefined ? shieldsOnDay.thripsDays : shieldsOnDay.insDays;
+  const effBorerDays  = shieldsOnDay.borerDays  !== undefined ? shieldsOnDay.borerDays  : shieldsOnDay.insDays;
+  const hasBorerShield = shieldsOnDay.borerShield !== undefined ? shieldsOnDay.borerShield : Boolean(shieldsOnDay.insecticide);
 
   let blight = rh72Avg >= 80 ? 45 : rh72Avg >= 70 ? 30 : rh72Avg >= 60 ? 18 : 8;
   blight += (tMax >= 25 && tMax <= 33 && tMin >= 18) ? 25 : (tMax >= 25 && tMax <= 32.5 ? 20 : 12);
@@ -1251,13 +1269,13 @@ function computeInstantRisksForDay(daySnap, dayDad, caDeficit, shieldsOnDay) {
   thrips += tMax >= 31 ? 25 : tMax >= 28 ? 16 : 8;
   thrips += rain72Sum === 0 ? 15 : rain72Sum >= 10 ? -15 : 0;
   thrips += dayDad <= 115 ? 15 : 5;
-  thrips = applyTimeDecayingShield(thrips, shieldsOnDay.insDays);
+  thrips = applyTimeDecayingShield(thrips, effThripsDays);
 
   let borer = (dayDad >= 30 && dayDad <= 125) ? 35 : 12;
   borer += (tMax >= 27 && tMax <= 33) ? 22 : 10;
   borer += (rh72Avg >= 55 && rh72Avg <= 78) ? 15 : 8;
-  if (!shieldsOnDay.insecticide) borer += 18;
-  borer = applyTimeDecayingShield(borer, shieldsOnDay.insDays);
+  if (!hasBorerShield) borer += 18;
+  borer = applyTimeDecayingShield(borer, effBorerDays);
 
   let mealy = tMax >= 31 ? 25 : tMax >= 28 ? 16 : 8;
   mealy += tMin >= 18.5 ? 15 : 6;
@@ -1284,15 +1302,11 @@ function computeInstantRisksForDay(daySnap, dayDad, caDeficit, shieldsOnDay) {
 
 function wasThreatTreatedSince(code, spikeDateStr) {
   return tasks.some(t => {
-    if (t.status !== "COMPLETED" || t.current_scheduled_date < spikeDateStr) return false;
-    const ids = (t.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").map(r => r.input_id);
-    if (code === "BLIGHT_SPOT") return ids.some(id => catalog[id]?.is_copper_compound || id === "BAC_H2O2" || id === "BAC_BRONOPOL");
-    if (code === "FRUIT_ROT")   return ids.some(id => catalog[id]?.category === "FUNGICIDE");
-    if (code === "THRIPS_SCAR") return ids.some(id => catalog[id]?.category === "INSECTICIDE");
-    if (code === "FRUIT_BORER") return ids.some(id => catalog[id]?.category === "INSECTICIDE");
-    if (code === "MEALYBUG")    return ids.some(id => ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_THIAMETHOXAM", "INS_ACETAMIPRID", "INS_IMIDACLOPRID", "INS_FENPYROXIMATE", "INS_ABAMECTIN", "INS_SPIROMESIFEN"].includes(id));
-    if (code === "CRACKING")    return ids.some(id => ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC", "WSF_CALCIUM_NITRATE", "MIC_CHELATED_CA", "MIC_BORON_20"].includes(id));
-    return false;
+    if (t.status === "SKIPPED" || t.current_scheduled_date < spikeDateStr) return false;
+    const completedIds = (t.resolved_recipe || [])
+      .filter(r => r.item_status === "COMPLETED" || (!r.item_status && t.status === "COMPLETED"))
+      .map(r => r.input_id);
+    return completedIds.some(id => doesItemCoverThreat(id, code));
   });
 }
 
@@ -4022,8 +4036,27 @@ async function removeItemFromTaskCard(taskId, idx) {
   if (!confirm(LANG === "KN" ? `'${removedName}' ಅನ್ನು ಈ ಕಾರ್ಡ್‌ನಿಂದ ತೆಗೆದುಹಾಕಲೇ?` : `Remove '${removedName}' from this card?`)) return;
 
   tk.resolved_recipe = tk.resolved_recipe.filter((_, i) => i !== idx);
+
+  // Recalculate overall card status in case all remaining items were already marked COMPLETED or SKIPPED
+  const all = tk.resolved_recipe;
+  if (all.some(r => r.item_status)) {
+    tk.status = all.every(r => r.item_status === "COMPLETED")
+      ? "COMPLETED"
+      : all.every(r => r.item_status === "SKIPPED")
+        ? "SKIPPED"
+        : all.every(r => r.item_status === "COMPLETED" || r.item_status === "SKIPPED")
+          ? "COMPLETED"
+          : "PENDING";
+  }
+
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
-  await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: tk.id });
+  await dbMutate({
+    table: "daily_task_queue",
+    type: "update",
+    payload: { status: tk.status, resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at },
+    matchCol: "id",
+    matchVal: tk.id
+  });
 
   if (tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER") {
     await reconcileUpcomingBaselineFoliarAfterCurative(tk.current_scheduled_date, tk.resolved_recipe, tk.id);
