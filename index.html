@@ -2109,19 +2109,26 @@ async function loadWeather() {
   try {
     const tStr = todayYMD();
     const forecastEndStr = addDaysYMD(tStr, 15);
+    const twoDaysAgoStr = addDaysYMD(tStr, -2);
     const [r, rainRes] = await Promise.all([
       fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&current=temperature_2m,relative_humidity_2m,precipitation&hourly=precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&start_date=2026-08-15&end_date=${forecastEndStr}`),
-      sb.from("farm_rain_logs").select("*").eq("log_date", tStr).maybeSingle()
+      sb.from("farm_rain_logs").select("*").gte("log_date", twoDaysAgoStr).lte("log_date", tStr)
     ]);
     const d = await r.json(), hr = new Date().getHours();
-    farmRainToday = rainRes?.data || null;
+    const recentFarmRains = {};
+    (rainRes?.data || []).forEach(row => { recentFarmRains[row.log_date] = Number(row.rain_mm) || 0; });
+    farmRainToday = (rainRes?.data || []).find(row => row.log_date === tStr) || null;
 
     const datesArr = d.daily?.time || [];
     const todayIdx = Math.max(0, datesArr.indexOf(tStr));
+    const getDayRain = (idx) => {
+      const dt = datesArr[idx];
+      if (dt && recentFarmRains[dt] !== undefined) return recentFarmRains[dt];
+      return Number((d.daily.precipitation_sum[idx] || 0).toFixed(1));
+    };
 
-    const satRain24 = Number((d.daily.precipitation_sum[todayIdx] || 0).toFixed(1));
-    const rain24 = farmRainToday ? Number(farmRainToday.rain_mm) : satRain24;
-    const rain72Sum = Number(((d.daily.precipitation_sum[Math.max(0, todayIdx - 2)] || 0) + (d.daily.precipitation_sum[Math.max(0, todayIdx - 1)] || 0) + rain24).toFixed(1));
+    const rain24 = getDayRain(todayIdx);
+    const rain72Sum = Number((getDayRain(Math.max(0, todayIdx - 2)) + getDayRain(Math.max(0, todayIdx - 1)) + rain24).toFixed(1));
 
     const rhAll = d.hourly?.relative_humidity_2m || [];
     const rhSliceToday = rhAll.slice(Math.max(0, (todayIdx - 2) * 24), (todayIdx + 1) * 24);
@@ -2178,8 +2185,8 @@ async function loadWeather() {
       const dateStr = datesArr[idx];
       const slice = rhAll.slice((idx - 2) * 24, (idx + 1) * 24);
       const dayRh72 = slice.length ? Math.round(slice.reduce((a, b) => a + b, 0) / slice.length) : 65;
-      const dayRain24 = Number((d.daily.precipitation_sum[idx] || 0).toFixed(1));
-      const dayRain72 = Number(((d.daily.precipitation_sum[idx - 2] || 0) + (d.daily.precipitation_sum[idx - 1] || 0) + dayRain24).toFixed(1));
+      const dayRain24 = getDayRain(idx);
+      const dayRain72 = Number((getDayRain(idx - 2) + getDayRain(idx - 1) + dayRain24).toFixed(1));
       history6d.push({
         dateStr, rh72Avg: dayRh72,
         tMax: d.daily.temperature_2m_max[idx] || 30.0,
@@ -3771,66 +3778,89 @@ function renderSeasonSprayAndDripGuides() {
   // 2. FAO-56 + 72h SOIL MOISTURE MEMORY DRIP IRRIGATION ENGINE (ICAR-NRCP)
   // ==========================================================================
   const gModel = getGddStageModel();
-  const emitterLphPerPlant = Number(localStorage.getItem("h_drip_lph") || 8);
+  const emitterLphPerPlant = Number(localStorage.getItem("h_drip_lph") || 16);
 
   // Parameter 1: Hargreaves-Samani FAO-56 Daily Reference Evapotranspiration (ET0 in mm/day)
-  // For Hosahalli (14.66°N), Extraterrestrial Radiation Ra ~ 13.8 mm/day equiv in Oct–Jan
+  // Uses monthly Extraterrestrial Radiation (Ra) at 14.66°N (Hosahalli)
+  const MONTHLY_RA = { 1: 12.8, 2: 14.2, 3: 15.6, 4: 16.2, 5: 16.0, 6: 15.6, 7: 15.7, 8: 15.8, 9: 15.2, 10: 14.1, 11: 12.9, 12: 12.3 };
+  const curMonth = Number((todayYMD() || "2026-11-01").split("-")[1]) || 11;
+  const raToday = MONTHLY_RA[curMonth] || 13.8;
   const tMax = Number(wState.tMax) || 30.5;
   const tMin = Number(wState.tMin) || 18.5;
   const tMean = (tMax + tMin) / 2;
   const tempRange = Math.max(4, tMax - tMin);
-  const et0Today = Number((0.0023 * 13.8 * (tMean + 17.8) * Math.sqrt(tempRange)).toFixed(2)); // ~4.4 to 5.4 mm/day
+  const et0Today = Number((0.0023 * raToday * (tMean + 17.8) * Math.sqrt(tempRange)).toFixed(2));
 
-  // Parameter 2: 72-Hour Rolling Humidity / Vapor Pressure Deficit (VPD) Modifier
+  // Parameter 2: Smooth Graduated 72-Hour RH / VPD Modifier (Centered at 60% RH, clamped 0.88x to 1.12x)
   const rh72 = Number(wState.rh72Avg) || 60;
-  const vpdMult = rh72 <= 45 ? 1.10 : rh72 >= 75 ? 0.88 : 1.00;
+  const vpdMult = Number(Math.min(1.12, Math.max(0.88, 1.00 + (60 - rh72) * 0.004)).toFixed(2));
+  const vpdPct = Math.round((vpdMult - 1.00) * 100);
 
-  // Parameter 3: 72-Hour Soil Moisture Memory (Weighted Effective Rainfall from Today, Yesterday, 2d Ago)
+  // Parameter 3: 72-Hour Soil Moisture Memory with 2.5mm Surface-Evaporation Threshold & 2.0 m² Root-Bulb Capture
   const hist = Array.isArray(wState.history6d) ? wState.history6d : [];
   const rainToday = Number(wState.rain24) || 0;
-  const rainYest  = hist.length >= 1 ? (Number(hist[hist.length - 1]?.rain24) || 0) : 0;
-  const rain2dAgo = hist.length >= 2 ? (Number(hist[hist.length - 2]?.rain24) || 0) : 0;
-  const effectiveRainMm = Number(((rainToday * 0.80) + (rainYest * 0.50) + (rain2dAgo * 0.25)).toFixed(1));
-  // 1 mm effective rain over wetted root zone (~3.5 m2) = 3.5 Liters/plant credit
-  const rainCreditLitersPerPlant = Math.round(effectiveRainMm * 3.5);
+  let rainYest  = hist.length >= 1 ? (Number(hist[hist.length - 1]?.rain24) || 0) : 0;
+  let rain2dAgo = hist.length >= 2 ? (Number(hist[hist.length - 2]?.rain24) || 0) : 0;
+  // Fallback if in SIM mode where history6d is empty but rain72Sum > rainToday
+  if (hist.length === 0 && (Number(wState.rain72Sum) || 0) > rainToday) {
+    rainYest = Number((wState.rain72Sum - rainToday).toFixed(1));
+  }
 
-  // Parameter 4: Super Bhagwa GDD Stage Crop Coefficient (Kc) & Effective Canopy Factor (4.79 m2)
-  const EFFECTIVE_AREA_M2 = 4.79; // (7.43 m2 spacing x 0.58 canopy cover) / 0.90 drip efficiency
+  // First 2.5mm of any daily rain wets only the top 1cm surface dust and evaporates
+  const infToday = Math.max(0, rainToday - 2.5);
+  const infYest  = Math.max(0, rainYest  - 2.5);
+  const inf2dAgo = Math.max(0, rain2dAgo - 2.5);
+  const effectiveRainMm = Number(((infToday * 0.80) + (infYest * 0.50) + (inf2dAgo * 0.25)).toFixed(1));
+  // 1 mm of infiltrated rain over the 2.0 m² active emitter root bulb = 2.0 Liters/plant credit
+  const rainCreditLitersPerPlant = Math.round(effectiveRainMm * 2.0);
+
+  // Parameter 4: Super Bhagwa GDD Stage Crop Coefficient (Kc) & Constant Stage Baselines (ICAR-NRCP)
+  const EFFECTIVE_AREA_M2 = 4.79; // (7.43 m² spacing × 0.58 canopy cover) / 0.90 drip efficiency
   const DRIP_STAGES = [
-    { gddRange: "0–950 GDD",     dadRange: "0–58d",    kc: 0.60, baseLiters: 14, stageEn: "Stage A: Flowering & Early Sizing",     stageKn: "ಹಂತ A: ಹೂವು & ಆರಂಭಿಕ ಕಾಯಿ", freqEn: "Daily / Alternate Day",     freqKn: "ಪ್ರತಿದಿನ / ದಿನ ಬಿಟ್ಟು ದಿನ" },
-    { gddRange: "950–1450 GDD",  dadRange: "59–90d",   kc: 0.85, baseLiters: 20, stageEn: "Stage B: Guava-Size Expansion",         stageKn: "ಹಂತ B: ಪೇರಳೆ ಗಾತ್ರದ ಹಂತ",    freqEn: "Daily (Morning)",           freqKn: "ಪ್ರತಿದಿನ (ಬೆಳಿಗ್ಗೆ)" },
-    { gddRange: "1450–2150 GDD", dadRange: "91–135d",  kc: 1.10, baseLiters: 26, stageEn: "Stage C1: Aril Swelling & Weight Gain", stageKn: "ಹಂತ C1: ಕಾಳು ತುಂಬುವ ಹಂತ",     freqEn: "Split 2× (60% AM / 40% PM)", freqKn: "ದಿನಕ್ಕೆ 2 ಬಾರಿ (ಬೆಳಿಗ್ಗೆ 60% / ಸಂಜೆ 40%)" },
-    { gddRange: "2150–2500 GDD", dadRange: "136–158d", kc: 0.95, baseLiters: 22, stageEn: "Stage C2: Color Stage (Zero-N)",        stageKn: "ಹಂತ C2: ಕೆಂಪು ಬಣ್ಣದ ಹಂತ",    freqEn: "Split 2× (Steady Moisture)", freqKn: "ಸಮಾನ ತೇವಾಂಶ (ಏರುಪೇರು ಬೇಡ)" },
-    { gddRange: "2500–2800 GDD", dadRange: "159–178d", kc: 0.70, baseLiters: 16, stageEn: "Stage D1: Deep Ripening & Brix Surge",  stageKn: "ಹಂತ D1: ಮಾಗುವ ಹಂತ (-20% ನೀರು)", freqEn: "Controlled Deficit (-20%)",  freqKn: "ನಿಯಂತ್ರಿತ ನೀರು (-20%)" },
-    { gddRange: "2800+ GDD",     dadRange: "178–190d", kc: 0.52, baseLiters: 12, stageEn: "Stage D2: Pre-Harvest & Harvest",       stageKn: "ಹಂತ D2: ಕಟಾವು ಹಂತ",          freqEn: "Light Pulsed Water Only",   freqKn: "ಕಡಿಮೆ ಪ್ರಮಾಣದ ಶುದ್ಧ ನೀರು" }
+    { gddRange: "0–950 GDD",     dadRange: "0–58d",    kc: 0.60, baseLiters: 14, stageEn: "Stage A: Flowering & Early Sizing",     stageKn: "ಹಂತ A: ಹೂವು & ಆರಂಭಿಕ ಕಾಯಿ", freqEn: "Daily / Alternate Day",      freqKn: "ಪ್ರತಿದಿನ / ದಿನ ಬಿಟ್ಟು ದಿನ" },
+    { gddRange: "950–1450 GDD",  dadRange: "59–90d",   kc: 0.85, baseLiters: 20, stageEn: "Stage B: Guava-Size Expansion",         stageKn: "ಹಂತ B: ಪೇರಳೆ ಗಾತ್ರದ ಹಂತ",    freqEn: "Daily (Morning)",            freqKn: "ಪ್ರತಿದಿನ (ಬೆಳಿಗ್ಗೆ)" },
+    { gddRange: "1450–2150 GDD", dadRange: "91–135d",  kc: 1.10, baseLiters: 26, stageEn: "Stage C1: Aril Swelling & Weight Gain", stageKn: "ಹಂತ C1: ಕಾಳು ತುಂಬುವ ಹಂತ",     freqEn: "Split 2× (60% AM / 40% PM)",  freqKn: "ದಿನಕ್ಕೆ 2 ಬಾರಿ (ಬೆಳಿಗ್ಗೆ 60% / ಸಂಜೆ 40%)" },
+    { gddRange: "2150–2500 GDD", dadRange: "136–158d", kc: 0.95, baseLiters: 22, stageEn: "Stage C2: Color Stage (Zero-N)",        stageKn: "ಹಂತ C2: ಕೆಂಪು ಬಣ್ಣದ ಹಂತ",    freqEn: "Split 2× (Steady Moisture)",  freqKn: "ಸಮಾನ ತೇವಾಂಶ (ಏರುಪೇರು ಬೇಡ)" },
+    { gddRange: "2500–2800 GDD", dadRange: "159–178d", kc: 0.70, baseLiters: 16, stageEn: "Stage D1: Deep Ripening & Brix Surge",  stageKn: "ಹಂತ D1: ಮಾಗುವ ಹಂತ (-20% ನೀರು)", freqEn: "Controlled Deficit (-20%)",   freqKn: "ನಿಯಂತ್ರಿತ ನೀರು (-20%)" },
+    { gddRange: "2800+ GDD",     dadRange: "178–190d", kc: 0.52, baseLiters: 12, stageEn: "Stage D2: Pre-Harvest & Harvest",       stageKn: "ಹಂತ D2: ಕಟಾವು ಹಂತ",          freqEn: "Light Pulsed Water Only",    freqKn: "ಕಡಿಮೆ ಪ್ರಮಾಣದ ಶುದ್ಧ ನೀರು" }
   ];
 
   const curStageIdx = Math.max(0, SUPER_BHAGWA_STAGES.findIndex(s => s.en === gModel.currentStage.en));
   const activeDripStage = DRIP_STAGES[curStageIdx] || DRIP_STAGES[1];
 
-  // Calculate Today's Exact Weather-Driven Gross Demand & Net Requirement after 72h Rain Credit
+  // Calculate Today's Gross Weather Demand & Net Requirement after 72h Rain Credit
   const grossTodayLiters = Math.round(et0Today * activeDripStage.kc * EFFECTIVE_AREA_M2 * vpdMult);
-  const netTodayLiters = (rainToday >= 15 || effectiveRainMm >= 8)
+  const rawNetLiters = (rainToday >= 15 || rainYest >= 20 || effectiveRainMm >= 12)
     ? 0
     : Math.max(0, grossTodayLiters - rainCreditLitersPerPlant);
+  // Parameter 5: Hydraulic Lateral Pressurization Floor (<4 L/plant is <15 mins, too brief to pressurize 3 acres)
+  const netTodayLiters = rawNetLiters < 4 ? 0 : rawNetLiters;
   const todayRunMins = Math.round((netTodayLiters / emitterLphPerPlant) * 60);
   const todayOrchardKL = ((netTodayLiters * CFG.plants) / 1000).toFixed(1);
+
   const splitPulseAdvice = netTodayLiters >= 20
     ? (LANG === "KN" ? `⚡ ಕೆಂಪು ಮಣ್ಣಿನಲ್ಲಿ ಸೋರಿಕೆ ತಡೆಯಲು 2 ಬಾರಿ ನೀರು ಕೊಡಿ: ಬೆಳಿಗ್ಗೆ ${Math.round(todayRunMins * 0.6)} ನಿಮಿಷ + ಸಂಜೆ ${Math.round(todayRunMins * 0.4)} ನಿಮಿಷ` : `⚡ Red-Soil Split Pulse: Run ${Math.round(todayRunMins * 0.6)} mins in Morning + ${Math.round(todayRunMins * 0.4)} mins in Evening`)
     : (netTodayLiters === 0
-        ? (LANG === "KN" ? "🌧️ ಕಳೆದ 72 ಗಂಟೆಗಳ ಮಳೆಯ ತೇವಾಂಶ ಮಣ್ಣಿನಲ್ಲಿದೆ — ಇಂದು ಡ್ರಿಪ್ ನೀರು ಬೇಡ" : "🌧️ 72h Root-Zone Moisture Sufficient — Pause Drip Irrigation Today")
+        ? (LANG === "KN" ? "🌧️ ಕಳೆದ 72 ಗಂಟೆಗಳ ಮಳೆಯ ತೇವಾಂಶ ಮಣ್ಣಿನಲ್ಲಿದೆ — ಇಂದು ಡ್ರಿಪ್ ನೀರು ಬೇಡ (48h Rain Pause)" : "🌧️ 72h Root-Zone Moisture Sufficient — Pause Drip Irrigation Today")
         : (LANG === "KN" ? `✅ ಬೆಳಿಗ್ಗೆ ಒಂದೇ ಬಾರಿ ${todayRunMins} ನಿಮಿಷ ಡ್ರಿಪ್ ಚಾಲನೆ ಮಾಡಿ` : `✅ Single Morning Run: ${todayRunMins} mins`));
 
+  // Stage Table ALWAYS shows the constant stage baseline (ds.baseLiters), never overwritten by today's weather!
   const dripRowsHtml = DRIP_STAGES.map((ds, i) => {
     const isCurrent = i === curStageIdx;
-    const stageLiters = isCurrent ? netTodayLiters : ds.baseLiters;
+    const stageLiters = ds.baseLiters; // Constant Stage Baseline!
     const totalOrchardKL = ((stageLiters * CFG.plants) / 1000).toFixed(1);
     const runMins = Math.round((stageLiters / emitterLphPerPlant) * 60);
     const rowCls = isCurrent ? "bg-sky-50 border-2 border-sky-500 font-bold" : "bg-white border border-slate-200";
+    const activeBadge = isCurrent
+      ? `<div class="mt-1 inline-block px-2 py-0.5 rounded bg-sky-800 text-white text-[10px] font-extrabold">
+           📍 ${LANG === "KN" ? `ಸಕ್ರಿಯ ಹಂತ • ಇಂದಿನ ಹವಾಮಾನ ಗುರಿ: ${netTodayLiters} L (${todayRunMins} ನಿಮಿಷ)` : `Active Stage • Today's Weather Target: ${netTodayLiters} L (${todayRunMins} mins)`}
+         </div>`
+      : "";
     return `<div class="p-2.5 rounded-xl ${rowCls} text-xs flex flex-wrap items-center justify-between gap-2">
       <div>
         <div class="font-extrabold text-slate-900">${isCurrent ? "📍 " : ""}${LANG === "KN" ? ds.stageKn : ds.stageEn} <span class="text-[10px] font-mono text-slate-500">(${ds.gddRange} • Kc=${ds.kc})</span></div>
-        <div class="text-[11px] text-slate-600">${LANG === "KN" ? ds.freqKn : ds.freqEn} • 🚜 3 Acres: <b>${totalOrchardKL} kL/day</b> (${(stageLiters * CFG.plants).toLocaleString()} L)</div>
+        <div class="text-[11px] text-slate-600">${LANG === "KN" ? ds.freqKn : ds.freqEn} • 🚜 ${LANG === "KN" ? "ಹಂತದ ಸರಾಸರಿ (3 ಎಕರೆ):" : "Stage Baseline (3 Ac):"} <b>${totalOrchardKL} kL/day</b> (${(stageLiters * CFG.plants).toLocaleString()} L)</div>
+        ${activeBadge}
       </div>
       <div class="text-right">
         <div class="text-sm font-extrabold text-sky-900">💧 ${stageLiters} L / ${LANG === "KN" ? "ಗಿಡ/ದಿನ" : "plant/day"}</div>
@@ -3854,11 +3884,11 @@ function renderSeasonSprayAndDripGuides() {
       <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-2.5">
         <div>
           <div class="font-extrabold text-sm text-sky-950">💧 ${LANG === "KN" ? "ಹಂತವಾರು ಮತ್ತು ಇಂದಿನ ಡ್ರಿಪ್ ನೀರಿನ ವೇಳಾಪಟ್ಟಿ (1,500 ಗಿಡಗಳು • 10×8 ಅಡಿ)" : "FAO-56 & ICAR-NRCP Drip Irrigation Schedule (1,500 Super Bhagwa Plants)"}</div>
-          <div class="text-[11px] text-slate-500">📚 <b>${LANG === "KN" ? "ಮೂಲ:" : "Source:"}</b> ICAR-NRCP Solapur Micro-Irrigation Bulletin &amp; FAO-56 Penman/Hargreaves (ET₀ × Kc × 4.79m² eff. canopy)</div>
+          <div class="text-[11px] text-slate-500">📚 <b>${LANG === "KN" ? "ಮೂಲ:" : "Source:"}</b> ICAR-NRCP Solapur Micro-Irrigation Bulletin &amp; FAO-56 Hargreaves (ET₀ × Kc × 4.79m² eff. canopy)</div>
         </div>
         <div class="flex items-center gap-1 text-xs bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1">
           <span>💧 ${LANG === "KN" ? "ಡ್ರಿಪರ್ ವೇಗ (LPH/ಗಿಡ):" : "Dripper Flow (LPH/plant):"}</span>
-          <input type="number" step="1" min="2" max="32" value="${emitterLphPerPlant}" onchange="localStorage.setItem('h_drip_lph',this.value);renderSeasonSprayAndDripGuides();" class="w-12 bg-white border rounded px-1 text-center font-extrabold" />
+          <input type="number" step="1" min="2" max="64" value="${emitterLphPerPlant}" onchange="localStorage.setItem('h_drip_lph',this.value);renderSeasonSprayAndDripGuides();" class="w-12 bg-white border rounded px-1 text-center font-extrabold" />
         </div>
       </div>
 
@@ -3870,9 +3900,9 @@ function renderSeasonSprayAndDripGuides() {
         </div>
         <div class="text-[11px] text-sky-100 flex flex-wrap gap-x-3 gap-y-1">
           <span>☀️ <b>ET₀ (Today):</b> ${et0Today} mm/d (${tMax}°/${tMin}°C)</span>
-          <span>🌱 <b>Stage Kc:</b> ${activeDripStage.kc} (${grossTodayLiters} L gross)</span>
-          <span>💨 <b>72h RH (${rh72}%):</b> ${vpdMult === 1 ? "Normal" : (vpdMult > 1 ? "+10% Dry VPD" : "-12% Humid")}</span>
-          <span>🌧️ <b>72h Rain Credit:</b> -${rainCreditLitersPerPlant} L/plant (${effectiveRainMm}mm eff. rain)</span>
+          <span>🌱 <b>Stage Kc:</b> ${activeDripStage.kc} (Base: ${activeDripStage.baseLiters}L → Weather Gross: ${grossTodayLiters}L)</span>
+          <span>💨 <b>72h RH (${rh72}%):</b> ${vpdPct === 0 ? "Normal (0%)" : (vpdPct > 0 ? `+${vpdPct}% Dry VPD` : `${vpdPct}% Humid`)}</span>
+          <span>🌧️ <b>72h Rain Credit:</b> -${rainCreditLitersPerPlant} L/plant (${effectiveRainMm}mm root-zone eff. rain)</span>
         </div>
         <div class="text-[11px] font-bold text-amber-300 pt-0.5">${splitPulseAdvice}</div>
       </div>
