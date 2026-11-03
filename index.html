@@ -4095,25 +4095,37 @@ async function removeItemFromTaskCard(taskId, idx) {
   render();
 }
 
-function checkPhenologyAndPhiLock(cat, effectiveDad) {
+function checkPhenologyAndPhiLock(cat, effectiveDad, effectiveGdd) {
   if (!cat) return { ok: true };
   const dad = Number(effectiveDad);
-  if (Number.isNaN(dad)) return { ok: true };
+  const gdd = effectiveGdd !== undefined && effectiveGdd !== null ? Number(effectiveGdd) : null;
   const hasN = Boolean(cat.contains_nitrogen) || (Number(cat.n_pct) || 0) > 0;
-  if (dad >= 140 && dad <= 195 && hasN) {
+
+  // 1. Gate P1 Zero-Nitrogen Lock: Triggers at >= 2,150 GDD (Stage C2 Color Lock) or >= 140 DAD
+  const isZeroNStage = (gdd !== null && !Number.isNaN(gdd)) ? (gdd >= 2150) : (!Number.isNaN(dad) && dad >= 140 && dad <= 195);
+  if (isZeroNStage && hasN) {
     return {
       ok: false, code: "ZERO_N_LOCK",
-      reasonEn: `🔴 GATE P1 ZERO-NITROGEN LOCK (${dad} DAD): ${getSaltOnlyTitle(cat)} contains Nitrogen (${cat.n_pct || ""}%). Locked after 140 DAD to prevent green skin reversion!`,
-      reasonKn: `🔴 140 ದಿನಗಳ ಸಾರಜನಕ ನಿರ್ಬಂಧ (${dad} DAD): ${getSaltOnlyTitle(cat)} ನಲ್ಲಿ ಸಾರಜನಕವಿದೆ. 140 ದಿನಗಳ ನಂತರ ಬಳಸಬೇಡಿ!`
+      reasonEn: `🔴 GATE P1 ZERO-NITROGEN LOCK (${gdd ? gdd + ' GDD / ' : ''}${dad} DAD): ${getSaltOnlyTitle(cat)} contains Nitrogen (${cat.n_pct || ""}%). Locked during Color Stage (≥2,150 GDD / 140 DAD) to prevent green skin reversion!`,
+      reasonKn: `🔴 ಸಾರಜನಕ ನಿರ್ಬಂಧ (${gdd ? gdd + ' GDD / ' : ''}${dad} DAD): ${getSaltOnlyTitle(cat)} ನಲ್ಲಿ ಸಾರಜನಕವಿದೆ. ಕೆಂಪು ಬಣ್ಣದ ಹಂತದಲ್ಲಿ ಬಳಸಬೇಡಿ!`
     };
   }
-  const phi = Number(cat.phi_days) || 0, daysToFirstHarvest = 190 - dad;
-  if (dad >= 165 && dad < 190 && phi > 0 && daysToFirstHarvest < phi) {
-    return {
-      ok: false, code: "PHI_LOCK",
-      reasonEn: `🔴 GATE P1 PRE-HARVEST RESIDUE LOCK (${dad} DAD): ${getSaltOnlyTitle(cat)} has a ${phi}-day PHI, but harvest is ${daysToFirstHarvest} days away!`,
-      reasonKn: `🔴 ಕಟಾವಿಗೆ ಮುನ್ನ ಅವಶೇಷ ನಿರ್ಬಂಧ (${dad} DAD): ${getSaltOnlyTitle(cat)} ಗೆ ${phi} ದಿನಗಳ PHI ಅಂತರ ಬೇಕು!`
-    };
+
+  // 2. Gate P1 Pre-Harvest PHI Residue Lock: Checks days remaining to 190 DAD or 2,800 GDD harvest
+  const phi = Number(cat.phi_days) || 0;
+  if (phi > 0) {
+    const daysByDad = !Number.isNaN(dad) ? (190 - dad) : 999;
+    const daysByGdd = (gdd !== null && !Number.isNaN(gdd)) ? Math.round((SUPER_BHAGWA_GDD_TARGET - gdd) / 15.0) : 999;
+    const daysToFirstHarvest = Math.min(daysByDad, daysByGdd);
+    const inPreHarvestWindow = (!Number.isNaN(dad) && dad >= 165 && dad < 190) || (gdd !== null && gdd >= 2500 && gdd < SUPER_BHAGWA_GDD_TARGET);
+
+    if (inPreHarvestWindow && daysToFirstHarvest < phi) {
+      return {
+        ok: false, code: "PHI_LOCK",
+        reasonEn: `🔴 GATE P1 PRE-HARVEST RESIDUE LOCK (${dad} DAD): ${getSaltOnlyTitle(cat)} has a ${phi}-day PHI, but harvest is ~${daysToFirstHarvest} days away!`,
+        reasonKn: `🔴 ಕಟಾವಿಗೆ ಮುನ್ನ ಅವಶೇಷ ನಿರ್ಬಂಧ (${dad} DAD): ${getSaltOnlyTitle(cat)} ಗೆ ${phi} ದಿನಗಳ PHI ಅಂತರ ಬೇಕು!`
+      };
+    }
   }
   return { ok: true };
 }
@@ -4566,9 +4578,10 @@ function runEnterpriseQASuite() {
   assert("1. UTC Leap/Month Rollover Math", addDaysYMD("2026-10-30", 5) === "2026-11-04" && diffDaysYMD("2026-08-15", "2026-10-25") === 71, "Oct 30 + 5d = Nov 04; Aug 15 to Oct 25 = 71 DAD");
   assert("2. Dynamic Week Calculation", computeDynamicDadAndWeek("2026-08-15").week === 1 && computeDynamicDadAndWeek("2026-10-25").week === 11, "Day 0 = Wk 1; Day 71 = Wk 11");
 
-  const spinetoram3Ac = Math.round(0.8 * CFG.drumL * CFG.drums);
-  const cosuit3Ac = Math.round(1.25 * CFG.drumL * CFG.drums);
-  assert("3. Foliar Drum Math (Spinetoram 0.8 ml/L)", (0.8 * CFG.drumL) === 160 && spinetoram3Ac === 1120, `160 ml/drum × 7 drums = ${spinetoram3Ac} ml`);
+  const refDrumL = 200, refDrums = 7;
+  const spinetoram3Ac = Math.round(0.8 * refDrumL * refDrums);
+  const cosuit3Ac = Math.round(1.25 * refDrumL * refDrums);
+  assert("3. Foliar Drum Math (Spinetoram 0.8 ml/L)", (0.8 * refDrumL) === 160 && spinetoram3Ac === 1120, `160 ml/drum × 7 drums = ${spinetoram3Ac} ml (Current UI Tank: ${CFG.drumL}L × ${CFG.drums})`);
   assert("4. Strength-Scaled Copper Math (Cosuit 61.41% WG)", Math.round((1.5 * 53.8) / 61.41 * 100) / 100 === 1.31 && cosuit3Ac === 1750, "53.8% @ 1.5g/L scales to 1.31g/L at 61.41%");
   assert("5. Multi-Salt Co-Formulation Guard (+)", extractConcentrationPct("Azoxystrobin 11% + Tebuconazole 18.3% SC") === null && extractConcentrationPct("Copper Hydroxide 61.41% WG") === 61.41, "Skips '+' co-formulations; parses single-salt %");
   assert("6. GDD Normal Day (30.8°C / 19.4°C)", computeDailyGdd(30.8, 19.4) === 15.1, "((30.8 + 19.4)/2) - 10 = 15.10 GDD");
@@ -4646,7 +4659,7 @@ function runEnterpriseQASuite() {
   const pendingShopNeed = mockSplitCard.filter(i => i.item_status !== "COMPLETED" && i.item_status !== "SKIPPED").reduce((s, i) => s + i.actual_total_3ac, 0);
   assert("25. Partial Task Split & Shopping List Exclusion", pendingShopNeed === 7.5, "Excludes 6kg COMPLETED item; counts only 7.5kg PENDING item in Store List");
 
-  const mkpFoliarMetrics = getItemDoseMetrics(mkp || { unit: "kg" }, { input_id: "WSF_00_52_34", dose_per_liter: 3.0 }, 1.0, 7);
+  const mkpFoliarMetrics = getItemDoseMetrics(mkp || { unit: "kg" }, { input_id: "WSF_00_52_34", dose_per_liter: 3.0 }, 1.0, 7, 200);
   assert("26. Dual-Use Foliar Fertilizer Unit Conversion (Nov 12 MKP)", mkpFoliarMetrics.perDrumQty === 600 && mkpFoliarMetrics.rateUnit === "g" && mkpFoliarMetrics.suggestedTotal3Ac === 4.2 && mkpFoliarMetrics.totalGrams3Ac === 4200, `3 g/L MKP = ${mkpFoliarMetrics.perDrumQty} g/drum & ${mkpFoliarMetrics.suggestedTotal3Ac} kg total (fixes 4,200 kg bug)`);
 
   const skippedDripNextDose = computeSafeNextDripDose(2.0, "SKIPPED", 0, 6.0);
