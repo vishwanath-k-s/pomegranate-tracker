@@ -1022,6 +1022,7 @@ function getItemDoseMetrics(cat, it, mult = 1.0, drumsCount = CFG.drums, drumLit
     const totalGramsOrMl = isMacroUnit ? Math.round(actualInCatUnit * 1000) : actualInCatUnit;
     return {
       isFoliar: true,
+      displayUnit: c.unit || rateUnit,
       ratePerL,
       rateUnit,
       drumLiters: dL,
@@ -1032,17 +1033,27 @@ function getItemDoseMetrics(cat, it, mult = 1.0, drumsCount = CFG.drums, drumLit
       totalGrams3Ac: totalGramsOrMl
     };
   } else {
-    const baseAcreRate = it.dose_per_acre !== undefined
+    // On Drip cards, always express per-acre & 3-acre totals in macro units (kg or L) so dual-use items (like Boron 20% with unit 'g') never show "0.5 g/acre" or "0 g/plant"!
+    const dripUnit = (c.unit === "ml" || c.unit === "L") ? "L" : "kg";
+    let baseAcreRate = it.dose_per_acre !== undefined
       ? Number(it.dose_per_acre)
       : (Number(c.base_dose_per_acre) || Number(it.dose_per_liter) || 1.0);
+    // If someone entered grams/acre (e.g. 500 g/ac), convert to kg/ac (0.5 kg/ac)
+    if (baseAcreRate >= 50) baseAcreRate = Number((baseAcreRate / 1000).toFixed(2));
+
     const perAcreQty = Number((baseAcreRate * mult).toFixed(2));
     const suggestedInCatUnit = Number((perAcreQty * CFG.acres).toFixed(2));
-    const actualInCatUnit = it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : suggestedInCatUnit;
-    const totalGrams3Ac = (c.unit === "kg" || c.unit === "L") ? actualInCatUnit * 1000 : actualInCatUnit;
-    const perPlantGrams = Number(((suggestedInCatUnit * ((c.unit === "kg" || c.unit === "L") ? 1000 : 1)) / CFG.plants).toFixed(1));
+    let actualInCatUnit = it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : suggestedInCatUnit;
+    if (actualInCatUnit >= 150 && suggestedInCatUnit < 30) {
+      actualInCatUnit = Number((actualInCatUnit / 1000).toFixed(2));
+    }
+
+    const totalGrams3Ac = Math.round(actualInCatUnit * 1000);
+    const perPlantGrams = Number((totalGrams3Ac / CFG.plants).toFixed(1));
 
     return {
       isFoliar: false,
+      displayUnit: dripUnit,
       perAcreQty,
       perPlantGrams,
       suggestedTotal3Ac: suggestedInCatUnit,
@@ -1428,7 +1439,7 @@ function getFormulationCode(cat) {
   return cat.formulation_type || (cat.unit === "g" || cat.unit === "kg" ? "WP" : "SC");
 }
 
-function getWalesMixingGuide(recipeArr, drumLiters = CFG.drumL) {
+function getWalesMixingGuide(recipeArr, drumLiters = CFG.drumL, isFoliarCard = true) {
   if (!recipeArr || recipeArr.length <= 1) return "";
   const dL = Number(drumLiters) || CFG.drumL;
   const activeItems = recipeArr.filter(r => r.item_status !== "SKIPPED" && catalog[r.input_id]);
@@ -1445,6 +1456,12 @@ function getWalesMixingGuide(recipeArr, drumLiters = CFG.drumL) {
     const code = getFormulationCode(c);
     return `<b>${i + 1}.</b> ${getSaltOnlyTitle(c)} <span class="text-[10px] font-mono bg-white px-1 rounded border">[${code}]</span>`;
   });
+
+  if (!isFoliarCard) {
+    return LANG === "KN"
+      ? `💧 <b>ಡ್ರಿಪ್ ವೆಂಚುರಿ ಮಿಶ್ರಣ ಕ್ರಮ:</b> ${steps.join(" → ")}`
+      : `💧 <b>Drip Venturi Mixing Order:</b> ${steps.join(" → ")}`;
+  }
 
   return LANG === "KN"
     ? `🪣 <b>${dL}L ಡ್ರಮ್ ಮಿಶ್ರಣ ಕ್ರಮ (W-A-L-E-S):</b> ${steps.join(" → ")}`
@@ -1648,13 +1665,14 @@ function pickRotationSafeRecipe(rawRecipe, refDateStr, excludeTaskId = null) {
 async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, curativeRecipe, curativeTaskId) {
   const curativeInputIds = new Set((curativeRecipe || []).map(r => r.input_id));
   const curativeGroups = new Set((curativeRecipe || []).map(r => catalog[r.input_id]?.irac_frac_group).filter(Boolean));
+  const isCopperCurative = (curativeRecipe || []).some(r => catalog[r.input_id]?.is_copper_compound);
 
-  // Catch any uncompleted baseline foliar spray within -2 to +6 days of the curative spray (e.g. Nov 3 baseline when Curative is Nov 4)
+  // Find any uncompleted baseline Foliar or Copper spray within -2 to +6 days of the Curative Spray
   const nextBaselineSpray = tasks.find(t =>
     t.id !== curativeTaskId &&
     (t.status === "PENDING" || t.status === "DELAYED") &&
     t.trigger_source === "BASELINE" &&
-    t.task_type === "FOLIAR_SPRAY" &&
+    (t.task_type === "FOLIAR_SPRAY" || t.task_type === "STANDALONE_COPPER") &&
     t.current_scheduled_date >= todayYMD() &&
     diffDaysYMD(curativeDateStr, t.current_scheduled_date) >= -2 &&
     diffDaysYMD(curativeDateStr, t.current_scheduled_date) <= 6
@@ -1662,10 +1680,14 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
 
   if (!nextBaselineSpray) return;
 
+  // Enforce mandatory 5-day gap after the Curative Spray (and cascade along the Foliar track so downstream sprays stay spaced by 5d)
   const targetShiftDate = addDaysYMD(curativeDateStr, 5);
   if ((curativeRecipe || []).length > 0 && nextBaselineSpray.current_scheduled_date < targetShiftDate) {
-    await applyScheduleShift(nextBaselineSpray, targetShiftDate, "SINGLE", "CURATIVE_COOLDOWN");
+    await applyScheduleShift(nextBaselineSpray, targetShiftDate, "TRACK", "CURATIVE_COOLDOWN");
   }
+
+  // Only deduplicate overlapping insecticide/fungicide salts if the curative spray is a non-copper foliar spray
+  if (isCopperCurative || nextBaselineSpray.task_type === "STANDALONE_COPPER") return;
 
   const tmpl = templates.find(x => x.id === nextBaselineSpray.template_id);
   const baseSourceRecipe = (tmpl && Array.isArray(tmpl.recipe_items)) ? tmpl.recipe_items.map(r => ({ ...r })) : (nextBaselineSpray.resolved_recipe || []);
@@ -1926,6 +1948,7 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
     };
     const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
     tasks.push({ ...(res.data?.[0] || payload), week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn });
+    await reconcileUpcomingBaselineFoliarAfterCurative(baseDate, insertedCopper.resolved_recipe, insertedCopper.id);
   }
 
   if (allRotatedNotes.length > 0) {
@@ -2359,21 +2382,66 @@ function setWeather(m) {
 // ============================================================================
 let newChemModalMode = "EXISTING_SALT";
 // Keeps card titles clean & simple so swapping chemicals never leaves stale salt names in the header
+// Dynamically generates or updates card titles whenever recipes are modified (swapped, added, deleted, merged, or curative)
 function getSimpleTaskDescription(tk, isKn) {
   if (!tk) return "";
+  const activeRecipe = (tk.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED");
+  const activeIds = activeRecipe.map(r => r.input_id);
+  const saltNamesList = activeIds.map(id => getSaltOnlyTitle(catalog[id], isKn ? "KN" : "EN") || id).join(" + ");
+
+  // 1. Curative Scouting Sprays: Dynamically reflect the exact pests/diseases covered by the current items on the card
   if (tk.trigger_source === "SCOUTING_CURATIVE") {
-    if (tk.task_type === "STANDALONE_COPPER") {
-      return isKn ? "ತುರ್ತು ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ" : "Curative Copper Bactericide Spray";
+    if (tk.task_type === "STANDALONE_COPPER" || activeIds.some(id => catalog[id]?.is_copper_compound)) {
+      return isKn
+        ? `ತುರ್ತು ಬ್ಯಾಕ್ಟೀರಿಯಾ ಅಂಗಮಾರಿ ಸಿಂಪಡಣೆ: ${saltNamesList}`
+        : `Curative Blight Spray: ${saltNamesList}`;
     }
-    return isKn ? "ತುರ್ತು ಎಲೆ ಸಿಂಪಡಣೆ (ರೋಗ ಮತ್ತು ಕೀಟ ನಿಯಂತ್ರಣ)" : "Curative Foliar Spray (Pest & Disease Control)";
+    const coveredThreats = SCOUT_ISSUES
+      .filter(iss => iss.code !== "BLIGHT_SPOT" && activeIds.some(id => doesItemCoverThreat(id, iss.code)))
+      .map(iss => isKn ? iss.shortKn : iss.shortEn);
+    const threatTag = coveredThreats.length ? ` (${coveredThreats.join(" + ")})` : "";
+    return isKn
+      ? `ತುರ್ತು ಎಲೆ ಸಿಂಪಡಣೆ${threatTag}`
+      : `Curative Foliar Spray${threatTag}`;
   }
+
+  // 2. Split Remainder & Manual Entries: Always reflect current active chemicals on the card
+  if (tk.trigger_source === "SPLIT_REMAINDER") {
+    return isKn ? `ಬಾಕಿ ಉಳಿದ ಕೆಲಸ: ${saltNamesList}` : `Remaining Split Task: ${saltNamesList}`;
+  }
+  if (tk.trigger_source === "MANUAL_ENTRY") {
+    return isKn ? `ದಾಖಲಿಸಿದ ಕೆಲಸ: ${saltNamesList}` : `Manual Entry: ${saltNamesList}`;
+  }
+
+  // 3. Auto-Deduplicated Baseline Foliar Sprays
   const raw = isKn ? (tk.target_description_kn || tk.target_description || "") : (tk.target_description || "");
-  if (/^(Synergistic Curative Spray|Combined Curative Spray|Curative Spray|ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ|ತುರ್ತು ಸಿಂಪಡಣೆ)/i.test(raw)) {
-    return isKn ? "ತುರ್ತು ಎಲೆ ಸಿಂಪಡಣೆ (ರೋಗ ಮತ್ತು ಕೀಟ ನಿಯಂತ್ರಣ)" : "Curative Foliar Spray (Pest & Disease Control)";
-  }
   if (/^(Foliar \(Auto-Deduplicated|ಎಲೆ ಸಿಂಪಡಣೆ \(.*ಹೊಂದಾಣಿಕೆ)/i.test(raw)) {
-    return isKn ? "ನಿಗದಿತ ಎಲೆ ಸಿಂಪಡಣೆ (ಇತ್ತೀಚಿನ ಸಿಂಪಡಣೆಗೆ ಹೊಂದಿಸಲಾಗಿದೆ)" : "Scheduled Foliar Spray (Adjusted for Recent Spray)";
+    return isKn
+      ? `ನಿಗದಿತ ಎಲೆ ಸಿಂಪಡಣೆ (ಇತ್ತೀಚಿನ ಸಿಂಪಡಣೆಗೆ ಹೊಂದಿಸಲಾಗಿದೆ): ${saltNamesList}`
+      : `Scheduled Foliar Spray (Adjusted for Recent Spray): ${saltNamesList}`;
   }
+  if (/^(Merged Tank-Mix|ಒಟ್ಟುಗೂಡಿಸಿದ ಎಲೆ ಸಿಂಪಡಣೆ)/i.test(raw)) {
+    return isKn ? `ಒಟ್ಟುಗೂಡಿಸಿದ ಎಲೆ ಸಿಂಪಡಣೆ: ${saltNamesList}` : `Merged Tank-Mix Foliar Spray: ${saltNamesList}`;
+  }
+
+  // 4. Baseline Cards: Check if the user modified the recipe (swapped, added, or deleted an item compared to the template)
+  if (tk.trigger_source === "BASELINE" && tk.template_id) {
+    const tmpl = templates.find(x => x.id === tk.template_id);
+    const origIds = (tmpl && Array.isArray(tmpl.recipe_items)) ? tmpl.recipe_items.map(r => r.input_id) : [];
+    const isModified = origIds.length !== activeIds.length || origIds.some(id => !activeIds.includes(id));
+
+    if (isModified && activeIds.length > 0) {
+      const prefix = tk.task_type === "DRIP_SAT"
+        ? (isKn ? "ಕ್ಯಾಲ್ಸಿಯಂ / ಲಘು ಪೋಷಕಾಂಶ ಡ್ರಿಪ್" : "Calcium / Micro Drip")
+        : tk.task_type === "DRIP_MON_THU"
+          ? (isKn ? "ಮುಖ್ಯ P-K ಡ್ರಿಪ್" : "Main P-K Drip")
+          : tk.task_type === "STANDALONE_COPPER"
+            ? (isKn ? "ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಸಿಂಪಡಣೆ" : "Standalone Copper")
+            : (isKn ? "ಎಲೆ ಸಿಂಪಡಣೆ" : "Foliar");
+      return `${prefix}: ${saltNamesList}`;
+    }
+  }
+
   return cleanHardcodedDayPrefix(raw, isKn);
 }
 
@@ -3169,6 +3237,11 @@ async function loadDB() {
     ensureBuiltInStoreBrands();
   }
   updateSyncBadge(); renderUserDropdown(); populateManualSelects(); populateBrandCheckerDropdowns();
+  // Auto-reconcile any existing pending Curative Spray (including Standalone Copper) that is colliding with an upcoming Baseline Foliar spray
+  const activeCuratives = tasks.filter(t => t.status === "PENDING" && t.trigger_source === "SCOUTING_CURATIVE" && t.current_scheduled_date >= todayYMD());
+  for (const cur of activeCuratives) {
+    await reconcileUpcomingBaselineFoliarAfterCurative(cur.current_scheduled_date, cur.resolved_recipe || [], cur.id);
+  }
 }
 
 function populateManualSelects() {
@@ -3437,7 +3510,7 @@ function render() {
       const hasPartialDone = recipeArr.length > 1 && doneCount > 0 && pendingCount > 0;
       const statusText = hasPartialDone ? `${L.status_PARTIAL} (${doneCount}/${recipeArr.length})` : (L[`status_${tk.status}`] || tk.status);
       const wasShifted = tk.originally_scheduled_date && tk.originally_scheduled_date !== tk.current_scheduled_date;
-      const walesGuide = getWalesMixingGuide(recipeArr, drumLiters);
+      const walesGuide = getWalesMixingGuide(recipeArr, drumLiters, isFoliarCard);
 
       // Show Drum Volume (L) x Drums ONLY on Foliar Spray cards (hidden on Drip cards)
       const inlineDrumSpecHtml = (isFoliarCard && !isKeep) ? `
@@ -3476,7 +3549,7 @@ function render() {
                <span class="inline-flex items-center gap-1 bg-sky-100/80 border border-sky-300 rounded px-2 py-0.5 text-sky-950">
                  💧 <b>${LANG === "KN" ? "ಪ್ರತಿ ಎಕರೆಗೆ:" : "Per Acre:"}</b>
                  <input type="number" step="0.25" min="0.1" value="${metrics.perAcreQty}" onchange="updateItemRate('${tk.id}',${idx},this.value)" class="w-12 bg-white rounded px-1 font-extrabold text-sky-950 text-right border border-sky-300 focus:outline-none" />
-                 <b>${cat.unit}</b>
+                 <b>${metrics.displayUnit || cat.unit}</b>
                </span>
                <span class="bg-white border border-slate-200 rounded px-2 py-0.5 text-slate-700">🌱 <b>${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ:" : "Per Plant:"}</b> ${metrics.perPlantGrams} g</span>
              </div>`;
@@ -3506,7 +3579,7 @@ function render() {
               <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
                 <span class="text-slate-500 text-[11px] font-semibold">${qtyLabel}</span>
                 <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" class="w-14 font-extrabold text-slate-900 focus:outline-none text-right" />
-                <span class="font-bold text-slate-600">${cat.unit}</span>
+                <span class="font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
               </div>
               <button onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'COMPLETED' ? 'PENDING' : 'COMPLETED'}',${suggestedTotal3Ac})" class="${itemSt === 'COMPLETED' ? 'bg-emerald-800' : 'bg-emerald-600'} text-white text-xs font-bold px-2.5 py-1.5 rounded-lg">✅</button>
               <button onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'SKIPPED' ? 'PENDING' : 'SKIPPED'}',${suggestedTotal3Ac})" class="bg-slate-200 text-slate-800 text-xs font-bold px-2.5 py-1.5 rounded-lg">⏭️</button>
