@@ -3348,36 +3348,62 @@ function refreshDynamicTaskWeeks() {
 }
 
 async function resetEntireScheduleToBaseline() {
-  if (APP_ENV !== "DEV" || !confirm("Reset DEV pending schedule back to clean baseline (while keeping completed sprays like Oct 25 Cosuit matched with PROD)?")) return;
-  await sb.from("daily_task_queue").delete().eq("env", "DEV").in("trigger_source", ["SCOUTING_CURATIVE", "SPLIT_REMAINDER"]);
+  if (APP_ENV !== "DEV") return;
+  const confirmMsg = LANG === "KN"
+    ? "DEV ವೇಳಾಪಟ್ಟಿಯನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ಅಳಿಸಿ, ಪ್ರಸ್ತುತ PROD (Live) ನಲ್ಲಿರುವ ಎಲ್ಲಾ ಕೆಲಸಗಳನ್ನು ಯಥಾವತ್ತಾಗಿ DEV ಗೆ ಸಿಂಕ್ ಮಾಡಲೇ?"
+    : "Reset DEV and sync 100% of current PROD (Live) tasks, dates, curative sprays, and statuses into DEV?";
+  if (!confirm(confirmMsg)) return;
 
-  const { data: prodTasks } = await sb.from("daily_task_queue").select("*").eq("env", "PROD").eq("status", "COMPLETED");
-  const prodDoneByTemplate = {};
-  (prodTasks || []).forEach(pt => { if (pt.template_id) prodDoneByTemplate[pt.template_id] = pt; });
+  try {
+    // 1. Remove any queued DEV mutations from the offline outbox so they don't overwrite the fresh sync
+    const cleanOutbox = getOutbox().filter(op => !(op.table === "daily_task_queue" && op.payload?.env === "DEV"));
+    saveOutbox(cleanOutbox);
 
-  const tMap = {}; templates.forEach(t => tMap[t.id] = t);
-  const baselineTasks = tasks.filter(t => t.trigger_source === "BASELINE" && t.template_id);
-  await Promise.all(baselineTasks.map(bt => {
-    const prodDone = prodDoneByTemplate[bt.template_id];
-    if (prodDone || bt.status === "COMPLETED") {
-      const src = prodDone || bt;
-      return sb.from("daily_task_queue").update({
-        current_scheduled_date: src.current_scheduled_date, effective_dad: src.effective_dad,
-        status: "COMPLETED", resolved_recipe: src.resolved_recipe,
-        custom_title_en: src.custom_title_en, custom_title_kn: src.custom_title_kn,
-        cost_rs: src.cost_rs || 0, updated_by: activeUser
-      }).eq("id", bt.id);
+    // 2. Fetch ALL current tasks from PROD (Completed, Pending, Delayed, Skipped, Curative, Manual, Split)
+    const { data: prodTasks, error: fetchErr } = await sb
+      .from("daily_task_queue")
+      .select("*")
+      .eq("env", "PROD")
+      .order("current_scheduled_date", { ascending: true });
+    if (fetchErr) throw fetchErr;
+
+    if (!prodTasks || prodTasks.length === 0) {
+      alert(LANG === "KN" ? "PROD ನಲ್ಲಿ ಯಾವುದೇ ಕೆಲಸಗಳು ಕಂಡುಬಂದಿಲ್ಲ!" : "No tasks found in PROD to sync!");
+      return;
     }
-    const tmpl = tMap[bt.template_id], dyn = computeDynamicDadAndWeek(bt.originally_scheduled_date);
-    return sb.from("daily_task_queue").update({
-      current_scheduled_date: bt.originally_scheduled_date, effective_dad: dyn.dad,
-      status: "PENDING", delay_reason: null,
-      resolved_recipe: tmpl ? tmpl.recipe_items : bt.resolved_recipe,
-      custom_title_en: null, custom_title_kn: null,
-      updated_by: activeUser, updated_at: new Date().toISOString()
-    }).eq("id", bt.id);
-  }));
-  await loadDB(); curWk = 11; render();
+
+    // 3. Wipe existing DEV task queue in Supabase
+    const { error: delErr } = await sb
+      .from("daily_task_queue")
+      .delete()
+      .eq("env", "DEV");
+    if (delErr) throw delErr;
+
+    // 4. Clone every PROD task row into DEV with a fresh UUID
+    const devClones = prodTasks.map(pt => ({
+      ...pt,
+      id: genUUID(),
+      env: "DEV",
+      updated_at: new Date().toISOString()
+    }));
+
+    const { error: insErr } = await sb
+      .from("daily_task_queue")
+      .insert(devClones);
+    if (insErr) throw insErr;
+
+    // 5. Clear local DEV cache, reload DB, and render the current week
+    localStorage.removeItem("h_cache_v16_DEV");
+    await loadDB();
+    curWk = computeDynamicDadAndWeek(todayYMD()).week;
+    render();
+    await logAudit("DEV_SYNCED_FROM_PROD", `Cloned ${devClones.length} live tasks from PROD into DEV`, "");
+    alert(LANG === "KN"
+      ? `✅ ಯಶಸ್ವಿಯಾಗಿ ಸಿಂಕ್ ಆಗಿದೆ! PROD ನ ${devClones.length} ಕಾರ್ಡ್‌ಗಳನ್ನು DEV ಗೆ ನಕಲಿಸಲಾಗಿದೆ.`
+      : `✅ Synced! Cloned all ${devClones.length} live tasks from PROD into DEV.`);
+  } catch (err) {
+    alert((LANG === "KN" ? "DEV ಸಿಂಕ್ ದೋಷ: " : "DEV Sync Error: ") + (err?.message || err));
+  }
 }
 
 function render() {
