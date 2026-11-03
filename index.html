@@ -999,9 +999,9 @@ function computeDailyGdd(tMax, tMin) {
 }
 
 // Universal Dosage & Unit Converter (Fixes 4,200 kg MKP bug & supports dynamic drum counts!)
-function getItemDoseMetrics(cat, it, mult = 1.0, drumsCount = CFG.drums, drumLiters = CFG.drumL) {
-  const c = cat || { unit: it.dose_per_liter ? "ml" : "kg" };
-  const isFoliar = Boolean(it.dose_per_liter);
+function getItemDoseMetrics(cat, it, mult = 1.0, drumsCount = CFG.drums, drumLiters = CFG.drumL, forceDripMode = false) {
+  const c = cat || { unit: (it.dose_per_liter && !forceDripMode) ? "ml" : "kg" };
+  const isFoliar = forceDripMode ? false : Boolean(it.dose_per_liter);
   const dL = Number(drumLiters) > 0 ? Number(drumLiters) : CFG.drumL;
   const dCnt = Number(drumsCount) > 0 ? Number(drumsCount) : CFG.drums;
 
@@ -1032,7 +1032,10 @@ function getItemDoseMetrics(cat, it, mult = 1.0, drumsCount = CFG.drums, drumLit
       totalGrams3Ac: totalGramsOrMl
     };
   } else {
-    const perAcreQty = Number(((it.dose_per_acre || 0) * mult).toFixed(2));
+    const baseAcreRate = it.dose_per_acre !== undefined
+      ? Number(it.dose_per_acre)
+      : (Number(c.base_dose_per_acre) || Number(it.dose_per_liter) || 1.0);
+    const perAcreQty = Number((baseAcreRate * mult).toFixed(2));
     const suggestedInCatUnit = Number((perAcreQty * CFG.acres).toFixed(2));
     const actualInCatUnit = it.actual_total_3ac !== undefined ? Number(it.actual_total_3ac) : suggestedInCatUnit;
     const totalGrams3Ac = (c.unit === "kg" || c.unit === "L") ? actualInCatUnit * 1000 : actualInCatUnit;
@@ -1600,16 +1603,60 @@ function buildSynergisticFoliarRecipe(foliarIssues) {
   return outRecipe;
 }
 
+// Automatically substitutes any chemical that triggers a 21-day repeat-salt / repeat-group warning with its top safe approved alternative
+function pickRotationSafeRecipe(rawRecipe, refDateStr, excludeTaskId = null) {
+  const safeList = [];
+  const rotatedNotesEn = [], rotatedNotesKn = [];
+  const refDad = computeDynamicDadAndWeek(refDateStr).dad;
+
+  (rawRecipe || []).forEach(item => {
+    let chosenId = item.input_id;
+    let chosenCat = catalog[chosenId];
+    if (!chosenCat) return;
+
+    const warn = checkRecentSprayResistance(chosenId, refDateStr, excludeTaskId);
+    if (warn) {
+      const alts = getApprovedAlternativesForInput(chosenId);
+      const safeAlt = alts.find(a => {
+        const sc = a.cat;
+        if (!sc) return false;
+        if (checkRecentSprayResistance(sc.id, refDateStr, excludeTaskId)) return false;
+        if (!checkPhenologyAndPhiLock(sc, refDad).ok) return false;
+        return validateCardCombinationRules(safeList, sc).ok;
+      });
+
+      if (safeAlt) {
+        const oldTitleEn = getSaltOnlyTitle(chosenCat, "EN");
+        const oldTitleKn = getSaltOnlyTitle(chosenCat, "KN");
+        chosenId = safeAlt.cat.id;
+        chosenCat = safeAlt.cat;
+        rotatedNotesEn.push(`${oldTitleEn} → ${getSaltOnlyTitle(chosenCat, "EN")}`);
+        rotatedNotesKn.push(`${oldTitleKn} → ${getSaltOnlyTitle(chosenCat, "KN")}`);
+      }
+    }
+
+    // Prevent duplicate base salts or incompatible pairs on the same card
+    if (validateCardCombinationRules(safeList, chosenCat).ok) {
+      const doseL = chosenCat.base_dose_per_liter ? Number(chosenCat.base_dose_per_liter) : (item.dose_per_liter || 1.0);
+      safeList.push({ input_id: chosenId, dose_per_liter: doseL });
+    }
+  });
+
+  return { recipe: safeList, rotatedNotesEn, rotatedNotesKn };
+}
+
 async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, curativeRecipe, curativeTaskId) {
   const curativeInputIds = new Set((curativeRecipe || []).map(r => r.input_id));
   const curativeGroups = new Set((curativeRecipe || []).map(r => catalog[r.input_id]?.irac_frac_group).filter(Boolean));
 
+  // Catch any uncompleted baseline foliar spray within -2 to +6 days of the curative spray (e.g. Nov 3 baseline when Curative is Nov 4)
   const nextBaselineSpray = tasks.find(t =>
     t.id !== curativeTaskId &&
     (t.status === "PENDING" || t.status === "DELAYED") &&
     t.trigger_source === "BASELINE" &&
     t.task_type === "FOLIAR_SPRAY" &&
-    diffDaysYMD(curativeDateStr, t.current_scheduled_date) >= 0 &&
+    t.current_scheduled_date >= todayYMD() &&
+    diffDaysYMD(curativeDateStr, t.current_scheduled_date) >= -2 &&
     diffDaysYMD(curativeDateStr, t.current_scheduled_date) <= 6
   );
 
@@ -1663,7 +1710,6 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
   });
 }
 
-// Preserves any valid Fungicide or Nutrient on the card while trimming >2 redundant insecticides!
 async function optimizeExistingOverloadedCurativeAndNov3() {
   const overloaded = tasks.find(t =>
     t.status === "PENDING" &&
@@ -1680,12 +1726,6 @@ async function optimizeExistingOverloadedCurativeAndNov3() {
     ...keptNonInsecticides
   ];
 
-  const namesEn = overloaded.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "EN") || r.input_id).join(" + ");
-  const namesKn = overloaded.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "KN") || r.input_id).join(" + ");
-  overloaded.custom_title_en = `Synergistic Curative Spray: ${namesEn}`;
-  overloaded.custom_title_kn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ: ${namesKn}`;
-  overloaded.target_description = overloaded.custom_title_en;
-  overloaded.target_description_kn = overloaded.custom_title_kn;
   overloaded.updated_by = activeUser;
   overloaded.updated_at = new Date().toISOString();
 
@@ -1693,15 +1733,12 @@ async function optimizeExistingOverloadedCurativeAndNov3() {
     table: "daily_task_queue", type: "update",
     payload: {
       resolved_recipe: overloaded.resolved_recipe,
-      custom_title_en: overloaded.custom_title_en,
-      custom_title_kn: overloaded.custom_title_kn,
       updated_by: activeUser, updated_at: overloaded.updated_at
     },
     matchCol: "id", matchVal: overloaded.id
   });
 
   await reconcileUpcomingBaselineFoliarAfterCurative(overloaded.current_scheduled_date, overloaded.resolved_recipe, overloaded.id);
-  await logAudit("OPTIMIZED_TANK_MIX", "Trimmed redundant insecticides while keeping Fungicide & deduplicated Nov 3 spray", "");
   render();
 }
 
@@ -1731,30 +1768,40 @@ function updateCombineButtonsUI() {
 function getEarliestSafeFoliarDate(isCopperSpray) {
   let targetStr = todayYMD();
   const notesEn = [], notesKn = [];
+  const currentHour = new Date().getHours();
 
-  if (wState.prob4 > 60 || wState.rain24 > 15) {
-    targetStr = addDaysYMD(targetStr, 1);
-    notesEn.push("Shifted +1d for rain");
-    notesKn.push("ಮಳೆ ಕಾರಣ +1 ದಿನ");
+  // 1. If it is already 11:00 AM or later (afternoon/evening), default to tomorrow morning!
+  if (currentHour >= 11) {
+    targetStr = addDaysYMD(todayYMD(), 1);
+    notesEn.push("Past 11 AM → Defaulted to tomorrow morning");
+    notesKn.push("ಬೆಳಿಗ್ಗೆ 11 ಗಂಟೆ ದಾಟಿದೆ → ನಾಳೆ ಬೆಳಿಗ್ಗೆಗೆ ನಿಗದಿಪಡಿಸಲಾಗಿದೆ");
   }
 
-  if (!isCopperSpray) {
-    const recentCopper = tasks.filter(t =>
-      t.status === "COMPLETED" &&
-      (t.task_type === "STANDALONE_COPPER" || (t.resolved_recipe || []).some(r => catalog[r.input_id]?.is_copper_compound))
-    ).sort((a, b) => b.current_scheduled_date.localeCompare(a.current_scheduled_date))[0];
+  // 2. Check rain hold
+  if (wState.prob4 > 60 || wState.rain24 > 15) {
+    const rainNext = addDaysYMD(todayYMD(), 1);
+    if (targetStr < rainNext) targetStr = rainNext;
+    notesEn.push("Shifted for rain");
+    notesKn.push("ಮಳೆ ಕಾರಣ ಮುಂದೂಡಲಾಗಿದೆ");
+  }
 
-    if (recentCopper) {
-      const daysSinceCopper = diffDaysYMD(recentCopper.current_scheduled_date, targetStr);
-      if (daysSinceCopper >= 0 && daysSinceCopper < 5) {
-        const safeAfterCopper = addDaysYMD(recentCopper.current_scheduled_date, 5);
-        targetStr = safeAfterCopper;
-        notesEn.push(`Auto-scheduled on ${safeAfterCopper} for 5-day Copper cooldown after ${recentCopper.current_scheduled_date}`);
-        notesKn.push(`${recentCopper.current_scheduled_date} ರ ಕಾಪರ್ ನಂತರ 5 ದಿನಗಳ ಅಂತರಕ್ಕಾಗಿ ${safeAfterCopper} ಕ್ಕೆ ನಿಗದಿಪಡಿಸಲಾಗಿದೆ`);
-      }
+  // 3. Enforce 5-day cooldown after any recently COMPLETED Copper spray (or Foliar spray before Copper)
+  const recentCopper = tasks.filter(t =>
+    t.status === "COMPLETED" &&
+    (t.task_type === "STANDALONE_COPPER" || (t.resolved_recipe || []).some(r => catalog[r.input_id]?.is_copper_compound))
+  ).sort((a, b) => b.current_scheduled_date.localeCompare(a.current_scheduled_date))[0];
+
+  if (recentCopper) {
+    const daysSinceCopper = diffDaysYMD(recentCopper.current_scheduled_date, targetStr);
+    if (daysSinceCopper >= 0 && daysSinceCopper < 5) {
+      const safeAfterCopper = addDaysYMD(recentCopper.current_scheduled_date, 5);
+      if (targetStr < safeAfterCopper) targetStr = safeAfterCopper;
+      notesEn.push(`5-day Copper cooldown after ${recentCopper.current_scheduled_date}`);
+      notesKn.push(`${recentCopper.current_scheduled_date} ರ ಕಾಪರ್ ನಂತರ 5 ದಿನಗಳ ಅಂತರ`);
     }
   }
-  return { dateStr: targetStr, noteEn: notesEn.join(" • ") || "Immediate window", noteKn: notesKn.join(" • ") || "ತಕ್ಷಣದ ಸಿಂಪಡಣೆ" };
+
+  return { dateStr: targetStr, noteEn: notesEn.join(" • ") || "Morning spray window", noteKn: notesKn.join(" • ") || "ಬೆಳಗಿನ ಸಿಂಪಡಣೆ ಸಮಯ" };
 }
 
 async function queueCombinedSelectedRisks(codesArrayOverride) {
@@ -1768,21 +1815,23 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
   const copperIssues = selectedIssues.filter(x => x.taskType === "STANDALONE_COPPER");
   const foliarIssues = selectedIssues.filter(x => x.taskType !== "STANDALONE_COPPER");
 
+  const defaultSlot = foliarIssues.length > 0 ? getEarliestSafeFoliarDate(false) : getEarliestSafeFoliarDate(true);
   const namesList = selectedIssues.map(x => LANG === "KN" ? x.shortKn : x.shortEn).join(" + ");
-  const confirmMsg = LANG === "KN"
-    ? `'${namesList}' ಸಮಸ್ಯೆಗಳಿಗೆ ಸಂಯೋಜಿತ ಸಿಂಪಡಣೆಯನ್ನು ವೇಳಾಪಟ್ಟಿಗೆ ಸೇರಿಸಿ, ಮುಂದಿನ ಸಿಂಪಡಣೆಗಳನ್ನು ಹೊಂದಿಸಲೇ?`
-    : `Smart-combine and queue synergistic spray for '${namesList}' (and auto-deduplicate/shift upcoming baseline sprays)?`;
-  if (!confirm(confirmMsg)) return;
 
+  // Prompt user with the smart default date (auto-set to tomorrow if afternoon) so they can confirm or change the date!
+  const promptText = LANG === "KN"
+    ? `'${namesList}' ಸಿಂಪಡಣೆಗೆ ದಿನಾಂಕವನ್ನು ಖಚಿತಪಡಿಸಿ ಅಥವಾ ಬದಲಿಸಿ (YYYY-MM-DD):\n(${defaultSlot.noteKn})`
+    : `Confirm or change spray date for '${namesList}' (YYYY-MM-DD):\n(${defaultSlot.noteEn})`;
+  const chosenDateInput = prompt(promptText, defaultSlot.dateStr);
+  if (!chosenDateInput) return;
+
+  const chosenDateStr = /^\d{4}-\d{2}-\d{2}$/.test(chosenDateInput.trim()) ? chosenDateInput.trim() : defaultSlot.dateStr;
   let targetWeekToOpen = curWk;
+  const allRotatedNotes = [];
 
   if (foliarIssues.length > 0) {
-    const safeSlot = getEarliestSafeFoliarDate(false);
-    const foliarDateStr = safeSlot.dateStr;
-    const synergisticRecipe = buildSynergisticFoliarRecipe(foliarIssues);
-
-    const titleEn = `Synergistic Curative Spray [${foliarIssues.map(x => x.shortEn).join(" + ")}]: ${synergisticRecipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "EN") || r.input_id).join(" + ")}`;
-    const titleKn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ [${foliarIssues.map(x => x.shortKn).join(" + ")}]: ${synergisticRecipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "KN") || r.input_id).join(" + ")}`;
+    const foliarDateStr = chosenDateStr;
+    const rawSynergistic = buildSynergisticFoliarRecipe(foliarIssues);
 
     const existingCurative = tasks.find(t =>
       t.status === "PENDING" &&
@@ -1791,6 +1840,16 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
       diffDaysYMD(todayYMD(), t.current_scheduled_date) >= 0 &&
       diffDaysYMD(todayYMD(), t.current_scheduled_date) <= 7
     );
+
+    // Auto-rotate any salt that was already sprayed within the past 21-25 days!
+    const rotResult = pickRotationSafeRecipe(rawSynergistic, foliarDateStr, existingCurative?.id || null);
+    const synergisticRecipe = rotResult.recipe;
+    if (rotResult.rotatedNotesEn.length) {
+      allRotatedNotes.push(...(LANG === "KN" ? rotResult.rotatedNotesKn : rotResult.rotatedNotesEn));
+    }
+
+    const titleEn = "Curative Foliar Spray (Pest & Disease Control)";
+    const titleKn = "ತುರ್ತು ಎಲೆ ಸಿಂಪಡಣೆ (ರೋಗ ಮತ್ತು ಕೀಟ ನಿಯಂತ್ರಣ)";
 
     let activeCurativeTask = existingCurative;
     if (existingCurative) {
@@ -1801,16 +1860,16 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
         }
       });
       existingCurative.current_scheduled_date = foliarDateStr;
-      existingCurative.custom_title_en = `Synergistic Curative Spray: ${existingCurative.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "EN") || r.input_id).join(" + ")}`;
-      existingCurative.custom_title_kn = `ಸಂಯೋಜಿತ ತುರ್ತು ಸಿಂಪಡಣೆ: ${existingCurative.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "KN") || r.input_id).join(" + ")}`;
+      existingCurative.custom_title_en = titleEn;
+      existingCurative.custom_title_kn = titleKn;
       existingCurative.updated_by = activeUser;
       existingCurative.updated_at = new Date().toISOString();
 
       const dyn = computeDynamicDadAndWeek(foliarDateStr);
       existingCurative.effective_dad = dyn.dad;
       existingCurative.week_number = dyn.week;
-      existingCurative.target_description = existingCurative.custom_title_en;
-      existingCurative.target_description_kn = existingCurative.custom_title_kn;
+      existingCurative.target_description = titleEn;
+      existingCurative.target_description_kn = titleKn;
       targetWeekToOpen = dyn.week;
 
       await dbMutate({
@@ -1818,8 +1877,7 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
         payload: {
           current_scheduled_date: foliarDateStr, effective_dad: dyn.dad,
           resolved_recipe: existingCurative.resolved_recipe,
-          custom_title_en: existingCurative.custom_title_en,
-          custom_title_kn: existingCurative.custom_title_kn,
+          custom_title_en: titleEn, custom_title_kn: titleKn,
           updated_by: activeUser, updated_at: existingCurative.updated_at
         },
         matchCol: "id", matchVal: existingCurative.id
@@ -1831,6 +1889,7 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
       const payload = {
         id: newId, env: APP_ENV, originally_scheduled_date: foliarDateStr, current_scheduled_date: foliarDateStr,
         effective_dad: dyn.dad, task_type: "FOLIAR_SPRAY", trigger_source: "SCOUTING_CURATIVE", status: "PENDING",
+        drum_liters: CFG.drumL, drums_count: CFG.drums,
         resolved_recipe: synergisticRecipe, custom_title_en: titleEn, custom_title_kn: titleKn,
         updated_by: activeUser, updated_at: new Date().toISOString()
       };
@@ -1844,25 +1903,39 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
   }
 
   if (copperIssues.length > 0) {
-    const baseDate = foliarIssues.length > 0 ? addDaysYMD(getEarliestSafeFoliarDate(false).dateStr, 5) : getEarliestSafeFoliarDate(true).dateStr;
+    const baseDate = foliarIssues.length > 0 ? addDaysYMD(chosenDateStr, 5) : chosenDateStr;
     const dyn = computeDynamicDadAndWeek(baseDate);
     if (!foliarIssues.length) targetWeekToOpen = dyn.week;
     const iss = copperIssues[0];
+
+    // Auto-rotate Copper Hydroxide -> Copper Oxychloride (or Bronopol -> Kasugamycin/Streptocycline) if sprayed within 21 days!
+    const copRot = pickRotationSafeRecipe(iss.recipe, baseDate, null);
+    if (copRot.rotatedNotesEn.length) {
+      allRotatedNotes.push(...(LANG === "KN" ? copRot.rotatedNotesKn : copRot.rotatedNotesEn));
+    }
+
     const newId = genUUID();
     const payload = {
       id: newId, env: APP_ENV, originally_scheduled_date: baseDate, current_scheduled_date: baseDate,
       effective_dad: dyn.dad, task_type: "STANDALONE_COPPER", trigger_source: "SCOUTING_CURATIVE", status: "PENDING",
-      resolved_recipe: iss.recipe,
-      custom_title_en: `${iss.enDesc} (${foliarIssues.length ? "Spaced +5d after Foliar Spray" : "Immediate Standalone Copper"})`,
-      custom_title_kn: `${iss.knDesc} (${foliarIssues.length ? "ಎಲೆ ಸಿಂಪಡಣೆಯ 5 ದಿನಗಳ ನಂತರ" : "ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಸಿಂಪಡಣೆ"})`,
+      drum_liters: CFG.drumL, drums_count: CFG.drums,
+      resolved_recipe: copRot.recipe.length ? copRot.recipe : iss.recipe,
+      custom_title_en: "Curative Copper Bactericide Spray",
+      custom_title_kn: "ತುರ್ತು ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ",
       updated_by: activeUser, updated_at: new Date().toISOString()
     };
     const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
     tasks.push({ ...(res.data?.[0] || payload), week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn });
   }
 
+  if (allRotatedNotes.length > 0) {
+    alert(LANG === "KN"
+      ? `🔄 21 ದಿನಗಳ ಪುನರಾವರ್ತನೆ ತಡೆಯಲು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಪರ್ಯಾಯ ಔಷಧಿ ಬಳಸಲಾಗಿದೆ:\n• ${allRotatedNotes.join("\n• ")}`
+      : `🔄 Auto-rotated recently sprayed salt(s) to prevent 21-day resistance:\n• ${allRotatedNotes.join("\n• ")}`);
+  }
+
   selectedRiskCodes.clear();
-  await logAudit("SMART_COMBINED_SPRAY", `Queued synergistic spray for: ${namesList}`, "");
+  await logAudit("SMART_COMBINED_SPRAY", `Queued synergistic spray for: ${namesList}`, `Date: ${chosenDateStr}`);
   curWk = targetWeekToOpen;
   showTab("TASKS");
   render();
@@ -3366,7 +3439,8 @@ function render() {
       const wasShifted = tk.originally_scheduled_date && tk.originally_scheduled_date !== tk.current_scheduled_date;
       const walesGuide = getWalesMixingGuide(recipeArr, drumLiters);
 
-      const inlineDrumSpecHtml = !isKeep ? `
+      // Show Drum Volume (L) x Drums ONLY on Foliar Spray cards (hidden on Drip cards)
+      const inlineDrumSpecHtml = (isFoliarCard && !isKeep) ? `
         <div class="inline-flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-lg px-2 py-0.5 text-[11px] font-bold text-slate-700" title="Edit Drum Size (L) or Drum Count">
           <span>🪣</span>
           <input type="number" step="10" min="10" value="${drumLiters}" onchange="setCardTankSpec('${tk.id}', this.value, ${drumsCount})" class="w-12 bg-white border border-slate-300 rounded px-1 text-center font-extrabold text-slate-900" />
@@ -3376,20 +3450,19 @@ function render() {
         </div>` : "";
 
       const itemsHtml = recipeArr.map((it, idx) => {
-        const cat = catalog[it.input_id] || { id: it.input_id, name_en: it.input_id, active_ingredient: it.input_id, unit: it.dose_per_liter ? "ml" : "kg", procurement_criticality: "FLEXIBLE", category: "INPUT" };
+        const cat = catalog[it.input_id] || { id: it.input_id, name_en: it.input_id, active_ingredient: it.input_id, unit: isFoliarCard ? "ml" : "kg", procurement_criticality: "FLEXIBLE", category: "INPUT" };
         const saltTitle = getSaltOnlyTitle(cat);
         const brandsSubtitle = getBrandOnlySubtitle(cat);
         const groupBadge = getUniformGroupBadge(cat);
 
         const m = cat.id === "WSF_00_00_50" ? sopMult : 1.0;
-        const metrics = getItemDoseMetrics(cat, it, m, drumsCount, drumLiters);
+        const metrics = getItemDoseMetrics(cat, it, m, drumsCount, drumLiters, !isFoliarCard);
         const itemSt = it.item_status || (tk.status === "COMPLETED" ? "COMPLETED" : tk.status === "SKIPPED" ? "SKIPPED" : "PENDING");
         const suggestedTotal3Ac = metrics.suggestedTotal3Ac;
         const currentTotal3Ac = metrics.actualTotal3Ac;
         const isCrit = cat.procurement_criticality === "CRITICAL_MUST_SOURCE";
         const rowBg = itemSt === "COMPLETED" ? "bg-emerald-50/80 border-emerald-300" : itemSt === "SKIPPED" ? "bg-slate-100 border-slate-200 opacity-60 line-through" : "bg-slate-50 border-slate-200";
 
-        const perDripDrumQty = drumsCount > 0 ? Number((currentTotal3Ac / drumsCount).toFixed(2)) : currentTotal3Ac;
         const dosePillsHtml = metrics.isFoliar
           ? `<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
                <span class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded px-2 py-0.5 text-slate-700">
@@ -3406,7 +3479,6 @@ function render() {
                  <b>${cat.unit}</b>
                </span>
                <span class="bg-white border border-slate-200 rounded px-2 py-0.5 text-slate-700">🌱 <b>${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ:" : "Per Plant:"}</b> ${metrics.perPlantGrams} g</span>
-               <span class="bg-sky-50 border border-sky-200 rounded px-2 py-0.5 text-sky-900">🪣 <b>${LANG === "KN" ? `ಪ್ರತಿ ${drumLiters}L ಡ್ರಮ್‌ಗೆ:` : `Per ${drumLiters}L Drum:`}</b> ${perDripDrumQty} ${cat.unit}</span>
              </div>`;
 
         const qtyLabel = itemSt === "COMPLETED"
@@ -4009,15 +4081,18 @@ async function updateItemRate(taskId, idx, newRateVal) {
   const cleanRate = sanitizeNonNegativeNumber(newRateVal, 1.0, 500);
   if (cleanRate <= 0) return;
 
-  if (it.dose_per_liter !== undefined || (c && c.base_dose_per_liter)) {
+  const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER";
+  if (isFoliarCard) {
     it.dose_per_liter = cleanRate;
+    delete it.dose_per_acre;
   } else {
     it.dose_per_acre = cleanRate;
+    delete it.dose_per_liter;
   }
   delete it.actual_total_3ac;
   const drumsCount = Number(tk.drums_count) || CFG.drums;
   const drumLiters = Number(tk.drum_liters) || CFG.drumL;
-  const metrics = getItemDoseMetrics(c, it, 1.0, drumsCount, drumLiters);
+  const metrics = getItemDoseMetrics(c, it, 1.0, drumsCount, drumLiters, !isFoliarCard);
   it.actual_total_3ac = metrics.suggestedTotal3Ac;
 
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
@@ -4519,8 +4594,9 @@ async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
   // 2. Rolling Minimum Gap Guard on the Active Track (Applies to BOTH "SINGLE" and "TRACK"/"ALL"!)
   // Ensures two Foliar Sprays never crowd closer than 5 days, and two Drip cards never crowd closer than 2 days.
   const minGapDays = isDripTask ? 2 : 5;
+  const floorDateStr = newDateStr < todayYMD() ? newDateStr : todayYMD();
   const sameTrackPending = tasks
-    .filter(t => t.status !== "COMPLETED" && t.status !== "SKIPPED" && t.trigger_source !== "KEEP_NOTE_HISTORY" && t.task_type.startsWith("DRIP") === isDripTask && t.current_scheduled_date >= newDateStr)
+    .filter(t => t.status !== "COMPLETED" && t.status !== "SKIPPED" && t.trigger_source !== "KEEP_NOTE_HISTORY" && t.task_type.startsWith("DRIP") === isDripTask && t.current_scheduled_date >= floorDateStr)
     .sort((a, b) => {
       if (a.id === tk.id && b.current_scheduled_date === newDateStr) return -1;
       if (b.id === tk.id && a.current_scheduled_date === newDateStr) return 1;
@@ -4748,19 +4824,67 @@ async function doSwap(taskId, idx, newId) {
   const phenoCheck = checkPhenologyAndPhiLock(sc, tk.effective_dad);
   if (!phenoCheck.ok && !confirm((LANG === "KN" ? phenoCheck.reasonKn : phenoCheck.reasonEn) + "\n\nSwap anyway?")) return;
 
+  const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER";
   const oldId = tk.resolved_recipe[idx]?.input_id;
-  tk.resolved_recipe[idx] = sc.base_dose_per_liter ? { input_id: newId, dose_per_liter: Number(sc.base_dose_per_liter) } : { input_id: newId, dose_per_acre: Number(sc.base_dose_per_acre) };
+  tk.resolved_recipe[idx] = isFoliarCard
+    ? { input_id: newId, dose_per_liter: Number(sc.base_dose_per_liter || sc.base_dose_per_acre || 1.5) }
+    : { input_id: newId, dose_per_acre: Number(sc.base_dose_per_acre || sc.base_dose_per_liter || 1.0) };
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
   document.getElementById("swapModal").classList.add("hidden"); render();
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
+  if (isFoliarCard) await reconcileUpcomingBaselineFoliarAfterCurative(tk.current_scheduled_date, tk.resolved_recipe, tk.id);
   await logAudit("SWAPPED_CHEMICAL", cleanHardcodedDayPrefix(tk.target_description, false), `${oldId} → ${getSaltOnlyTitle(sc)}`);
 }
 
 async function deleteCustomTask(id) {
   if (!confirm(LANG === "KN" ? "ಈ ಕೆಲಸವನ್ನು ವೇಳಾಪಟ್ಟಿಯಿಂದ ಅಳಿಸಲು ಖಚಿತವೇ?" : "Delete this task card from the schedule?")) return;
   const tk = tasks.find(x => x.id === id);
-  tasks = tasks.filter(x => x.id !== id); render();
+  tasks = tasks.filter(x => x.id !== id);
   await dbMutate({ table: "daily_task_queue", type: "delete", matchCol: "id", matchVal: id });
+
+  // If a Curative Foliar Spray was deleted, automatically restore any baseline spray that was deduplicated/pushed by it!
+  if (tk && tk.trigger_source === "SCOUTING_CURATIVE" && tk.task_type === "FOLIAR_SPRAY") {
+    const affectedBaseline = tasks.find(b =>
+      b.trigger_source === "BASELINE" &&
+      b.task_type === "FOLIAR_SPRAY" &&
+      (b.status === "PENDING" || b.status === "DELAYED") &&
+      Math.abs(diffDaysYMD(tk.current_scheduled_date, b.current_scheduled_date)) <= 7
+    );
+    if (affectedBaseline) {
+      const tmpl = templates.find(x => x.id === affectedBaseline.template_id);
+      if (tmpl && Array.isArray(tmpl.recipe_items)) {
+        affectedBaseline.resolved_recipe = tmpl.recipe_items.map(r => ({ ...r }));
+        affectedBaseline.custom_title_en = null;
+        affectedBaseline.custom_title_kn = null;
+        affectedBaseline.target_description = tmpl.target_description;
+        affectedBaseline.target_description_kn = "";
+        if (affectedBaseline.originally_scheduled_date && affectedBaseline.originally_scheduled_date >= todayYMD()) {
+          affectedBaseline.current_scheduled_date = affectedBaseline.originally_scheduled_date;
+          affectedBaseline.status = "PENDING";
+          affectedBaseline.delay_reason = null;
+        }
+        const dyn = computeDynamicDadAndWeek(affectedBaseline.current_scheduled_date);
+        affectedBaseline.effective_dad = dyn.dad;
+        affectedBaseline.week_number = dyn.week;
+        await dbMutate({
+          table: "daily_task_queue", type: "update",
+          payload: {
+            current_scheduled_date: affectedBaseline.current_scheduled_date,
+            effective_dad: dyn.dad,
+            status: affectedBaseline.status,
+            delay_reason: affectedBaseline.delay_reason,
+            resolved_recipe: affectedBaseline.resolved_recipe,
+            custom_title_en: null, custom_title_kn: null,
+            updated_by: activeUser, updated_at: new Date().toISOString()
+          },
+          matchCol: "id", matchVal: affectedBaseline.id
+        });
+      }
+    }
+  }
+
+  refreshDynamicTaskWeeks();
+  render();
   if (tk) await logAudit("DELETED_TASK", tk.target_description, "");
 }
 
