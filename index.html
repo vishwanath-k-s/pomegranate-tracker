@@ -409,10 +409,6 @@
             <input type="radio" name="cascadeMode" value="TRACK" class="mt-0.5" />
             <div><div class="font-bold text-slate-800" id="ui_casTrackTitle">🛤️ Shift ONLY same-type tasks (Drip or Spray)</div></div>
           </label>
-          <label class="flex items-start gap-2 p-2 rounded-lg border bg-slate-50 cursor-pointer">
-            <input type="radio" name="cascadeMode" value="SINGLE" class="mt-0.5" />
-            <div><div class="font-bold text-slate-800" id="ui_casSingleTitle">📌 Move ONLY this single task</div></div>
-          </label>
         </div>
       </div>
       <div>
@@ -1690,62 +1686,80 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
   const curativeGroups = new Set((curativeRecipe || []).map(r => catalog[r.input_id]?.irac_frac_group).filter(Boolean));
   const isCopperCurative = (curativeRecipe || []).some(r => catalog[r.input_id]?.is_copper_compound);
 
-  // Find any uncompleted baseline Foliar or Copper spray within -2 to +6 days of the Curative Spray
+  // Find the nearest uncompleted baseline Foliar or Copper spray that was originally scheduled around this curative spray
   const nextBaselineSpray = tasks.find(t =>
     t.id !== curativeTaskId &&
     (t.status === "PENDING" || t.status === "DELAYED") &&
     t.trigger_source === "BASELINE" &&
     (t.task_type === "FOLIAR_SPRAY" || t.task_type === "STANDALONE_COPPER") &&
-    t.current_scheduled_date >= todayYMD() &&
     diffDaysYMD(curativeDateStr, t.current_scheduled_date) >= -2 &&
-    diffDaysYMD(curativeDateStr, t.current_scheduled_date) <= 6
+    diffDaysYMD(curativeDateStr, t.current_scheduled_date) <= 10
   );
 
   if (!nextBaselineSpray) return;
 
-  // Enforce mandatory 5-day gap after the Curative Spray (and cascade along the Foliar track so downstream sprays stay spaced by 5d)
-  const targetShiftDate = addDaysYMD(curativeDateStr, 5);
-  if ((curativeRecipe || []).length > 0 && nextBaselineSpray.current_scheduled_date < targetShiftDate) {
-    await applyScheduleShift(nextBaselineSpray, targetShiftDate, "TRACK", "CURATIVE_COOLDOWN");
-  }
+  // Target date is 5 days after the Curative Spray (or the baseline spray's original date, whichever is later)
+  const minCooldownDate = addDaysYMD(curativeDateStr, 5);
+  const origBaseDate = nextBaselineSpray.originally_scheduled_date || nextBaselineSpray.current_scheduled_date;
+  const desiredBaseDate = origBaseDate > minCooldownDate ? origBaseDate : minCooldownDate;
 
-  // Only deduplicate overlapping insecticide/fungicide salts if the curative spray is a non-copper foliar spray
-  if (isCopperCurative || nextBaselineSpray.task_type === "STANDALONE_COPPER") return;
-
-  const tmpl = templates.find(x => x.id === nextBaselineSpray.template_id);
-  const baseSourceRecipe = (tmpl && Array.isArray(tmpl.recipe_items)) ? tmpl.recipe_items.map(r => ({ ...r })) : (nextBaselineSpray.resolved_recipe || []);
-
-  let deduplicated = baseSourceRecipe.filter(r => {
-    const rCat = catalog[r.input_id];
-    if (!rCat) return true;
-    if (rCat.category === "BIOSTIMULANT" || rCat.category === "FERTIGATION") return true;
-    if (curativeInputIds.has(r.input_id)) return false;
-    if (rCat.irac_frac_group && curativeGroups.has(rCat.irac_frac_group)) return false;
-    return true;
-  });
-
-  if (deduplicated.length < baseSourceRecipe.length) {
-    if (!deduplicated.some(r => r.input_id === "BIO_ORTHOSILICIC") && catalog["BIO_ORTHOSILICIC"]) {
-      deduplicated.push({ input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 });
+  // If the baseline spray needs to move (either forward for 5d cooldown, or backward when Curative moved earlier):
+  if ((curativeRecipe || []).length > 0 && nextBaselineSpray.current_scheduled_date !== desiredBaseDate) {
+    // Only auto-pull backward if it was previously delayed by CURATIVE_COOLDOWN or MIN_GAP_GUARD
+    if (desiredBaseDate > nextBaselineSpray.current_scheduled_date || ["CURATIVE_COOLDOWN", "MIN_GAP_GUARD"].includes(nextBaselineSpray.delay_reason)) {
+      nextBaselineSpray.current_scheduled_date = desiredBaseDate;
+      nextBaselineSpray.status = (desiredBaseDate === origBaseDate) ? "PENDING" : "DELAYED";
+      nextBaselineSpray.delay_reason = (nextBaselineSpray.status === "PENDING") ? null : "CURATIVE_COOLDOWN";
+      nextBaselineSpray.updated_by = activeUser;
+      nextBaselineSpray.updated_at = new Date().toISOString();
+      const dyn = computeDynamicDadAndWeek(desiredBaseDate);
+      nextBaselineSpray.effective_dad = dyn.dad;
+      nextBaselineSpray.week_number = dyn.week;
     }
-    const newNamesEn = deduplicated.map(r => getSaltOnlyTitle(catalog[r.input_id], "EN") || r.input_id).join(" + ");
-    const newNamesKn = deduplicated.map(r => getSaltOnlyTitle(catalog[r.input_id], "KN") || r.input_id).join(" + ");
-    nextBaselineSpray.resolved_recipe = deduplicated;
-    nextBaselineSpray.custom_title_en = `Foliar (Auto-Deduplicated after ${curativeDateStr} Spray): ${newNamesEn}`;
-    nextBaselineSpray.custom_title_kn = `ಎಲೆ ಸಿಂಪಡಣೆ (${curativeDateStr} ಸಿಂಪಡಣೆ ನಂತರ ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ): ${newNamesKn}`;
-    nextBaselineSpray.target_description = nextBaselineSpray.custom_title_en;
-    nextBaselineSpray.target_description_kn = nextBaselineSpray.custom_title_kn;
-  } else if (tmpl) {
-    nextBaselineSpray.resolved_recipe = baseSourceRecipe;
-    nextBaselineSpray.custom_title_en = null;
-    nextBaselineSpray.custom_title_kn = null;
-    nextBaselineSpray.target_description = tmpl.target_description;
-    nextBaselineSpray.target_description_kn = "";
   }
 
+  // Deduplicate overlapping insecticide/fungicide salts if both are non-copper foliar sprays
+  if (!isCopperCurative && nextBaselineSpray.task_type === "FOLIAR_SPRAY") {
+    const tmpl = templates.find(x => x.id === nextBaselineSpray.template_id);
+    const baseSourceRecipe = (tmpl && Array.isArray(tmpl.recipe_items)) ? tmpl.recipe_items.map(r => ({ ...r })) : (nextBaselineSpray.resolved_recipe || []);
+
+    let deduplicated = baseSourceRecipe.filter(r => {
+      const rCat = catalog[r.input_id];
+      if (!rCat) return true;
+      if (rCat.category === "BIOSTIMULANT" || rCat.category === "FERTIGATION") return true;
+      if (curativeInputIds.has(r.input_id)) return false;
+      if (rCat.irac_frac_group && curativeGroups.has(rCat.irac_frac_group)) return false;
+      return true;
+    });
+
+    if (deduplicated.length < baseSourceRecipe.length) {
+      if (!deduplicated.some(r => r.input_id === "BIO_ORTHOSILICIC") && catalog["BIO_ORTHOSILICIC"]) {
+        deduplicated.push({ input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 });
+      }
+      const newNamesEn = deduplicated.map(r => getSaltOnlyTitle(catalog[r.input_id], "EN") || r.input_id).join(" + ");
+      const newNamesKn = deduplicated.map(r => getSaltOnlyTitle(catalog[r.input_id], "KN") || r.input_id).join(" + ");
+      nextBaselineSpray.resolved_recipe = deduplicated;
+      nextBaselineSpray.custom_title_en = `Foliar (Auto-Deduplicated after ${curativeDateStr} Spray): ${newNamesEn}`;
+      nextBaselineSpray.custom_title_kn = `ಎಲೆ ಸಿಂಪಡಣೆ (${curativeDateStr} ಸಿಂಪಡಣೆ ನಂತರ ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ): ${newNamesKn}`;
+      nextBaselineSpray.target_description = nextBaselineSpray.custom_title_en;
+      nextBaselineSpray.target_description_kn = nextBaselineSpray.custom_title_kn;
+    } else if (tmpl) {
+      nextBaselineSpray.resolved_recipe = baseSourceRecipe;
+      nextBaselineSpray.custom_title_en = null;
+      nextBaselineSpray.custom_title_kn = null;
+      nextBaselineSpray.target_description = tmpl.target_description;
+      nextBaselineSpray.target_description_kn = "";
+    }
+  }
+
+  const dyn = computeDynamicDadAndWeek(nextBaselineSpray.current_scheduled_date);
   await dbMutate({
     table: "daily_task_queue", type: "update",
     payload: {
+      current_scheduled_date: nextBaselineSpray.current_scheduled_date,
+      effective_dad: dyn.dad,
+      status: nextBaselineSpray.status,
+      delay_reason: nextBaselineSpray.delay_reason || null,
       resolved_recipe: nextBaselineSpray.resolved_recipe,
       custom_title_en: nextBaselineSpray.custom_title_en,
       custom_title_kn: nextBaselineSpray.custom_title_kn,
@@ -3301,11 +3315,6 @@ async function loadDB() {
     ensureBuiltInStoreBrands();
   }
   updateSyncBadge(); renderUserDropdown(); populateManualSelects(); populateBrandCheckerDropdowns();
-  // Auto-reconcile any existing pending Curative Spray (including Standalone Copper) that is colliding with an upcoming Baseline Foliar spray
-  const activeCuratives = tasks.filter(t => t.status === "PENDING" && t.trigger_source === "SCOUTING_CURATIVE" && t.current_scheduled_date >= todayYMD());
-  for (const cur of activeCuratives) {
-    await reconcileUpcomingBaselineFoliarAfterCurative(cur.current_scheduled_date, cur.resolved_recipe || [], cur.id);
-  }
 }
 
 function populateManualSelects() {
@@ -4683,22 +4692,23 @@ async function markWholeCard(taskId, st) {
   await logAudit(st, cleanHardcodedDayPrefix(tk.target_description, false), `Date: ${tk.current_scheduled_date}`);
 }
 
-function isTaskAfterInBaselineSequence(candidate, anchorTask) {
+function isTaskAfterInBaselineSequence(candidate, anchorTask, anchorOldDateStr) {
   if (candidate.id === anchorTask.id) return false;
-  // Compare current_scheduled_date first if either card is an ad-hoc Curative/Manual/Split task
-  const isAnchorAdHoc = !anchorTask.template_id;
-  const isCandAdHoc   = !candidate.trigger_source || candidate.trigger_source !== "BASELINE";
+  if (anchorTask.trigger_source === "BASELINE" && candidate.trigger_source !== "BASELINE") return false;
+
+  const refAnchorDate = anchorOldDateStr || anchorTask.current_scheduled_date;
+  const isAnchorAdHoc = !anchorTask.template_id || anchorTask.trigger_source !== "BASELINE";
+  const isCandAdHoc   = !candidate.template_id || candidate.trigger_source !== "BASELINE";
 
   if (isAnchorAdHoc || isCandAdHoc) {
-    if (candidate.current_scheduled_date > anchorTask.current_scheduled_date) return true;
-    if (candidate.current_scheduled_date === anchorTask.current_scheduled_date) {
-      // If both are on the same date, Curative anchor pushes Baseline candidate of the same track, not vice-versa
+    if (candidate.current_scheduled_date > refAnchorDate) return true;
+    if (candidate.current_scheduled_date === refAnchorDate) {
       return isAnchorAdHoc && !isCandAdHoc;
     }
     return false;
   }
 
-  const origA = anchorTask.originally_scheduled_date || anchorTask.current_scheduled_date;
+  const origA = anchorTask.originally_scheduled_date || refAnchorDate;
   const origB = candidate.originally_scheduled_date || candidate.current_scheduled_date;
   if (origB > origA) return true;
   if (origB === origA && candidate.template_id > anchorTask.template_id) return true;
@@ -4706,8 +4716,7 @@ function isTaskAfterInBaselineSequence(candidate, anchorTask) {
 }
 
 function getMinimumAllowedDateForTask(tk) {
-  const tStr = todayYMD(), origStr = tk.originally_scheduled_date || tStr;
-  return origStr < tStr ? origStr : tStr;
+  return "2026-08-15";
 }
 
 function openDelayModal(taskId) {
@@ -4716,9 +4725,8 @@ function openDelayModal(taskId) {
   document.getElementById("delayTaskName").textContent = `${formatDateWithWeekday(tk.current_scheduled_date)} — ${getSimpleTaskDescription(tk, LANG === "KN")}`;
   const dateInp = document.getElementById("delayCustomDate");
   dateInp.min = getMinimumAllowedDateForTask(tk);
-  dateInp.value = addDaysYMD(tk.current_scheduled_date, 2);
+  dateInp.value = addDaysYMD(tk.current_scheduled_date, 1);
 
-  // Always default to "TRACK" (Drip-only or Spray-only) so Drip & Foliar never pull each other, while keeping same-track spacing intact!
   const radioToSelect = document.querySelector('input[name="cascadeMode"][value="TRACK"]');
   if (radioToSelect) radioToSelect.checked = true;
 
@@ -4736,65 +4744,83 @@ function setDelayOffset(days) {
 function setDelayToOriginalDate() { const tk = tasks.find(x => x.id === activeDelayTaskId); if (tk) document.getElementById("delayCustomDate").value = tk.originally_scheduled_date || tk.current_scheduled_date; }
 
 async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
-  const minAllowed = getMinimumAllowedDateForTask(tk), newDateStr = requestedDateStr < minAllowed ? minAllowed : requestedDateStr;
-  const deltaDays = diffDaysYMD(tk.current_scheduled_date, newDateStr); if (deltaDays === 0) return;
+  const oldDateStr = tk.current_scheduled_date; // Snapshot old date BEFORE mutating tk
+  const minAllowed = getMinimumAllowedDateForTask(tk);
+  const newDateStr = requestedDateStr < minAllowed ? minAllowed : requestedDateStr;
+  const deltaDays = diffDaysYMD(oldDateStr, newDateStr);
+  if (deltaDays === 0) return;
+
+  const effMode = cascadeMode === "ALL" ? "ALL" : "TRACK"; // Never allow isolated single-card moves
   const isDripTask = tk.task_type.startsWith("DRIP");
 
+  // Lock tk onto the exact date requested by the user
   tk.current_scheduled_date = newDateStr;
   tk.status = (newDateStr === tk.originally_scheduled_date) ? "PENDING" : "DELAYED";
   tk.delay_reason = (tk.status === "PENDING") ? null : reason;
-  tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
+  tk.updated_by = activeUser;
+  tk.updated_at = new Date().toISOString();
 
   const touchedMap = new Map([[tk.id, tk]]);
 
-  // 1. Apply primary cascade for "ALL" or "TRACK"
-  if (cascadeMode === "ALL" || cascadeMode === "TRACK") {
-    tasks.forEach(other => {
-      if (other.id === tk.id || other.status === "COMPLETED" || other.status === "SKIPPED" || other.trigger_source === "KEEP_NOTE_HISTORY") return;
-      const otherIsDrip = other.task_type.startsWith("DRIP");
-      if (cascadeMode === "TRACK" && otherIsDrip !== isDripTask) return;
-      if (!isTaskAfterInBaselineSequence(other, tk)) return;
+  // 1. Shift subsequent tasks on the track (or all tracks if "ALL") using oldDateStr as reference
+  tasks.forEach(other => {
+    if (other.id === tk.id || other.status === "COMPLETED" || other.status === "SKIPPED" || other.trigger_source === "KEEP_NOTE_HISTORY") return;
+    const otherIsDrip = other.task_type.startsWith("DRIP");
+    if (effMode === "TRACK" && otherIsDrip !== isDripTask) return;
+    if (!isTaskAfterInBaselineSequence(other, tk, oldDateStr)) return;
 
-      let uStr = addDaysYMD(other.current_scheduled_date, deltaDays);
-      if (other.originally_scheduled_date && uStr < other.originally_scheduled_date) uStr = other.originally_scheduled_date;
-      if (uStr !== other.current_scheduled_date) {
-        other.current_scheduled_date = uStr;
-        other.status = (uStr === other.originally_scheduled_date) ? "PENDING" : "DELAYED";
-        if (other.status === "PENDING") other.delay_reason = null;
-        other.updated_by = activeUser; other.updated_at = new Date().toISOString();
-        touchedMap.set(other.id, other);
-      }
-    });
+    let uStr = addDaysYMD(other.current_scheduled_date, deltaDays);
+    if (other.originally_scheduled_date && uStr < other.originally_scheduled_date) uStr = other.originally_scheduled_date;
+    if (uStr !== other.current_scheduled_date) {
+      other.current_scheduled_date = uStr;
+      other.status = (uStr === other.originally_scheduled_date) ? "PENDING" : "DELAYED";
+      if (other.status === "PENDING") other.delay_reason = null;
+      other.updated_by = activeUser;
+      other.updated_at = new Date().toISOString();
+      touchedMap.set(other.id, other);
+    }
+  });
+
+  // 2. If tk is a Curative Spray, reconcile its nearest Baseline Foliar spray
+  if (!isDripTask && tk.trigger_source === "SCOUTING_CURATIVE" && reason !== "CURATIVE_COOLDOWN") {
+    await reconcileUpcomingBaselineFoliarAfterCurative(newDateStr, tk.resolved_recipe || [], tk.id);
   }
 
-  // 2. Rolling Minimum Gap Guard on the Active Track (Applies to BOTH "SINGLE" and "TRACK"/"ALL"!)
-  // Ensures two Foliar Sprays never crowd closer than 5 days, and two Drip cards never crowd closer than 2 days.
+  // 3. Always enforce Forward Minimum Gap Guard (5d Foliar / 2d Drip) anchored at tk (newDateStr)
   const minGapDays = isDripTask ? 2 : 5;
-  const floorDateStr = newDateStr < todayYMD() ? newDateStr : todayYMD();
-  const sameTrackPending = tasks
-    .filter(t => t.status !== "COMPLETED" && t.status !== "SKIPPED" && t.trigger_source !== "KEEP_NOTE_HISTORY" && t.task_type.startsWith("DRIP") === isDripTask && t.current_scheduled_date >= floorDateStr)
-    .sort((a, b) => {
-      if (a.id === tk.id && b.current_scheduled_date === newDateStr) return -1;
-      if (b.id === tk.id && a.current_scheduled_date === newDateStr) return 1;
-      return a.current_scheduled_date.localeCompare(b.current_scheduled_date) || (a.template_id || 0) - (b.template_id || 0);
-    });
+  const forwardChain = [
+    tk,
+    ...tasks
+      .filter(t =>
+        t.id !== tk.id &&
+        t.status !== "COMPLETED" &&
+        t.status !== "SKIPPED" &&
+        t.trigger_source !== "KEEP_NOTE_HISTORY" &&
+        t.task_type.startsWith("DRIP") === isDripTask &&
+        t.current_scheduled_date >= newDateStr
+      )
+      .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date) || (a.template_id || 0) - (b.template_id || 0))
+  ];
 
-  for (let i = 0; i < sameTrackPending.length - 1; i++) {
-    const curr = sameTrackPending[i];
-    const next = sameTrackPending[i + 1];
+  for (let i = 0; i < forwardChain.length - 1; i++) {
+    const curr = forwardChain[i];
+    const next = forwardChain[i + 1];
     const gap = diffDaysYMD(curr.current_scheduled_date, next.current_scheduled_date);
     if (gap < minGapDays) {
       const pushedDate = addDaysYMD(curr.current_scheduled_date, minGapDays);
       next.current_scheduled_date = pushedDate;
       next.status = (pushedDate === next.originally_scheduled_date) ? "PENDING" : "DELAYED";
       next.delay_reason = next.delay_reason || reason || "MIN_GAP_GUARD";
-      next.updated_by = activeUser; next.updated_at = new Date().toISOString();
+      next.updated_by = activeUser;
+      next.updated_at = new Date().toISOString();
       touchedMap.set(next.id, next);
     }
   }
 
   const tasksToUpdateInDB = Array.from(touchedMap.values());
-  refreshDynamicTaskWeeks(); curWk = tk.week_number; render();
+  refreshDynamicTaskWeeks();
+  curWk = tk.week_number;
+  render();
 
   await Promise.all(tasksToUpdateInDB.map(u => {
     const dyn = computeDynamicDadAndWeek(u.current_scheduled_date);
@@ -4814,13 +4840,7 @@ async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
     });
   }));
 
-  // 3. If a Curative Foliar Spray was shifted (and we aren't already inside a CURATIVE_COOLDOWN call), re-reconcile the next baseline spray!
-  if (!isDripTask && tk.trigger_source === "SCOUTING_CURATIVE" && reason !== "CURATIVE_COOLDOWN") {
-    await reconcileUpcomingBaselineFoliarAfterCurative(tk.current_scheduled_date, tk.resolved_recipe || [], tk.id);
-    render();
-  }
-
-  await logAudit(deltaDays > 0 ? "CASCADE_DELAY" : "CASCADE_SHIFT_BACK", cleanHardcodedDayPrefix(tk.target_description, false), `Shifted ${deltaDays > 0 ? '+' + deltaDays : deltaDays}d to ${newDateStr} (${cascadeMode}: ${tasksToUpdateInDB.length} tasks)`);
+  await logAudit(deltaDays > 0 ? "CASCADE_DELAY" : "CASCADE_SHIFT_BACK", cleanHardcodedDayPrefix(tk.target_description, false), `Shifted ${deltaDays > 0 ? '+' + deltaDays : deltaDays}d from ${oldDateStr} to ${newDateStr} (${effMode}: ${tasksToUpdateInDB.length} tasks)`);
 }
 
 function runEnterpriseQASuite() {
