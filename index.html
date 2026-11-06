@@ -1769,6 +1769,51 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
   });
 }
 
+// Enforces 5-day Foliar/Copper cooldown (and 2-day Drip gap) after any COMPLETED task or PENDING Curative Spray
+async function enforceCompletedAndCurativeCooldowns() {
+  // 1. Check all recently COMPLETED Foliar / Copper sprays (within the last 6 days)
+  const recentDoneSprays = tasks
+    .filter(t =>
+      t.status === "COMPLETED" &&
+      t.trigger_source !== "KEEP_NOTE_HISTORY" &&
+      (t.task_type === "FOLIAR_SPRAY" || t.task_type === "STANDALONE_COPPER") &&
+      diffDaysYMD(t.current_scheduled_date, todayYMD()) >= -1 &&
+      diffDaysYMD(t.current_scheduled_date, todayYMD()) <= 6
+    )
+    .sort((a, b) => b.current_scheduled_date.localeCompare(a.current_scheduled_date));
+
+  for (const doneSpray of recentDoneSprays) {
+    const minNextDate = addDaysYMD(doneSpray.current_scheduled_date, 5);
+    const collidingPending = tasks
+      .filter(t =>
+        t.id !== doneSpray.id &&
+        (t.status === "PENDING" || t.status === "DELAYED") &&
+        (t.task_type === "FOLIAR_SPRAY" || t.task_type === "STANDALONE_COPPER") &&
+        t.current_scheduled_date >= addDaysYMD(doneSpray.current_scheduled_date, -1) &&
+        t.current_scheduled_date < minNextDate
+      )
+      .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date))[0];
+
+    if (collidingPending) {
+      await applyScheduleShift(collidingPending, minNextDate, "TRACK", "COPPER_COOLDOWN_5D", true);
+    }
+    // Also deduplicate if the completed spray was a Curative Spray
+    if (doneSpray.trigger_source === "SCOUTING_CURATIVE") {
+      await reconcileUpcomingBaselineFoliarAfterCurative(doneSpray.current_scheduled_date, doneSpray.resolved_recipe || [], doneSpray.id);
+    }
+  }
+
+  // 2. Also check any still-PENDING Curative Sprays from today onward
+  const pendingCuratives = tasks.filter(t =>
+    (t.status === "PENDING" || t.status === "DELAYED") &&
+    t.trigger_source === "SCOUTING_CURATIVE" &&
+    t.current_scheduled_date >= todayYMD()
+  );
+  for (const cur of pendingCuratives) {
+    await reconcileUpcomingBaselineFoliarAfterCurative(cur.current_scheduled_date, cur.resolved_recipe || [], cur.id);
+  }
+}
+
 async function optimizeExistingOverloadedCurativeAndNov3() {
   const overloaded = tasks.find(t =>
     t.status === "PENDING" &&
@@ -3315,6 +3360,7 @@ async function loadDB() {
     ensureBuiltInStoreBrands();
   }
   updateSyncBadge(); renderUserDropdown(); populateManualSelects(); populateBrandCheckerDropdowns();
+  await enforceCompletedAndCurativeCooldowns();
 }
 
 function populateManualSelects() {
@@ -4640,6 +4686,7 @@ async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
 
   await syncNextDripDoseForItem(tk, item, newStatus, suggestedTotal3Ac);
+  if (tk.status === "COMPLETED") await enforceCompletedAndCurativeCooldowns();
   render();
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { status: tk.status, resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
   await logAudit(`ITEM_${newStatus}`, `${getSaltOnlyTitle(catalog[item.input_id]) || item.input_id} (${item.actual_total_3ac})`, `Date: ${tk.current_scheduled_date}`);
@@ -4689,6 +4736,7 @@ async function markWholeCard(taskId, st) {
 
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString(); render();
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { status: st, resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
+  if (st === "COMPLETED") await enforceCompletedAndCurativeCooldowns();
   await logAudit(st, cleanHardcodedDayPrefix(tk.target_description, false), `Date: ${tk.current_scheduled_date}`);
 }
 
@@ -4743,7 +4791,7 @@ function setDelayOffset(days) {
 }
 function setDelayToOriginalDate() { const tk = tasks.find(x => x.id === activeDelayTaskId); if (tk) document.getElementById("delayCustomDate").value = tk.originally_scheduled_date || tk.current_scheduled_date; }
 
-async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
+async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason, keepCurrentWeekView = false) {
   const oldDateStr = tk.current_scheduled_date; // Snapshot old date BEFORE mutating tk
   const minAllowed = getMinimumAllowedDateForTask(tk);
   const newDateStr = requestedDateStr < minAllowed ? minAllowed : requestedDateStr;
@@ -4819,7 +4867,7 @@ async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason) {
 
   const tasksToUpdateInDB = Array.from(touchedMap.values());
   refreshDynamicTaskWeeks();
-  curWk = tk.week_number;
+  if (!keepCurrentWeekView) curWk = tk.week_number;
   render();
 
   await Promise.all(tasksToUpdateInDB.map(u => {
