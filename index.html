@@ -88,10 +88,11 @@
       <div id="wkTitle" class="text-sm sm:text-base font-extrabold text-slate-900">Week 11</div>
       <div id="dadTitle" class="text-xs text-emerald-700 font-bold"></div>
     </div>
-    <div class="flex items-center gap-1.5 w-full sm:w-auto justify-center">
+    <div class="flex items-center gap-1.5 w-full sm:w-auto justify-center flex-wrap">
       <button onclick="stepWeek(-1)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-xs">◀</button>
       <select id="wkSelect" onchange="goWeek(this.value)" class="border rounded-xl px-2.5 py-1.5 text-xs font-bold bg-slate-50 flex-1 sm:flex-initial"></select>
       <button onclick="stepWeek(1)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-xs">▶</button>
+      <button onclick="showHub('TASKS_HUB','LOG_MANUAL')" class="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-sm">➕ Add Card</button>
     </div>
   </div>
 
@@ -129,57 +130,98 @@
     </section>
 
     <section id="panel_MANUAL" class="hidden bg-white rounded-xl p-4 shadow-sm border space-y-3">
-      <div class="flex items-center justify-between">
-        <h2 id="ui_manTitle" class="font-extrabold text-sm sm:text-base text-slate-900">➕ Record Manual or Past Spray / Drip</h2>
-        <button onclick="openNewChemModal()" class="bg-indigo-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg shadow">➕ New Chemical</button>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+      <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <label id="ui_lblManDate" class="font-bold block mb-1">Date Applied:</label>
-          <input type="date" id="manDate" class="w-full border rounded-lg px-3 py-2 font-semibold" />
+          <h2 id="ui_manTitle" class="font-extrabold text-sm sm:text-base text-slate-900">➕ Add New Task Card (Foliar Spray or Drip Fertigation)</h2>
+          <p class="text-[11px] text-slate-500" id="ui_manSub">Pick application mode, date, and up to 3 inputs. Card title is auto-generated and validated for 3-Gate safety &amp; safe date gaps.</p>
         </div>
+        <button onclick="openNewChemModal()" class="bg-indigo-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg shadow">➕ New Store Chemical</button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
         <div>
-          <label id="ui_lblManType" class="font-bold block mb-1">Activity Type:</label>
-          <select id="manType" class="w-full border rounded-lg px-3 py-2 font-semibold">
-            <option value="FOLIAR_SPRAY" id="ui_optFoliar">🌿 Foliar Spray (7 Drums)</option>
+          <label id="ui_lblManType" class="font-bold block mb-1">1. Application Mode:</label>
+          <select id="manType" onchange="onManualTypeChange()" class="w-full border rounded-lg px-2.5 py-2 font-bold bg-slate-50">
+            <option value="FOLIAR_SPRAY" id="ui_optFoliar">🌿 Foliar Spray</option>
             <option value="STANDALONE_COPPER" id="ui_optCopper">⚠️ Standalone Copper Spray</option>
             <option value="DRIP_MON_THU" id="ui_optDrip">💧 Drip Fertigation (3 Acres)</option>
           </select>
         </div>
         <div>
-          <label id="ui_lblManCost" class="font-bold block mb-1">Total Cost Paid (₹):</label>
-          <input type="number" id="manCost" placeholder="e.g., 1800" class="w-full border rounded-lg px-3 py-2 font-bold" />
-        </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-        <div>
-          <label id="ui_lblManChem1" class="font-bold block mb-1">Primary Input (Active Salt):</label>
-          <select id="manChem1" onchange="prefillManualQty(1)" class="w-full border rounded-lg px-3 py-2 font-semibold"></select>
-          <div class="mt-1 flex items-center gap-1.5">
-            <span class="text-slate-500">3-Acre Qty:</span>
-            <input type="number" step="0.1" id="manQty1" class="w-24 border rounded px-2 py-1 font-bold" />
-            <span id="manUnit1" class="font-bold text-slate-600"></span>
-          </div>
+          <label id="ui_lblManDate" class="font-bold block mb-1">2. Target Date:</label>
+          <input type="date" id="manDate" onchange="onManualDateOrInputChanged()" class="w-full border rounded-lg px-2.5 py-2 font-bold bg-slate-50" />
         </div>
         <div>
-          <label id="ui_lblManChem2" class="font-bold block mb-1">Second Input (Optional):</label>
-          <select id="manChem2" onchange="prefillManualQty(2)" class="w-full border rounded-lg px-3 py-2 font-semibold"></select>
-          <div class="mt-1 flex items-center gap-1.5">
-            <span class="text-slate-500">3-Acre Qty:</span>
-            <input type="number" step="0.1" id="manQty2" class="w-24 border rounded px-2 py-1 font-bold" />
-            <span id="manUnit2" class="font-bold text-slate-600"></span>
-          </div>
+          <label id="ui_lblManStatus" class="font-bold block mb-1">3. Card Status:</label>
+          <select id="manStatus" onchange="analyzeNewCardDraft()" class="w-full border rounded-lg px-2.5 py-2 font-bold bg-slate-50">
+            <option value="PENDING">🕒 Schedule as Pending Card</option>
+            <option value="COMPLETED">✅ Log as Completed Card</option>
+          </select>
+        </div>
+        <div>
+          <label id="ui_lblManCost" class="font-bold block mb-1">4. Cost (₹ Optional):</label>
+          <input type="number" id="manCost" placeholder="e.g., 1800" class="w-full border rounded-lg px-2.5 py-2 font-bold" />
         </div>
       </div>
+
+      <!-- Quick Search Filter for Dropdowns -->
       <div class="text-xs">
-        <label id="ui_lblManNotes" class="font-bold block mb-1">Notes / Brand Used:</label>
-        <input type="text" id="manNotes" class="w-full border rounded-lg px-3 py-2" />
+        <input type="text" id="manFilterSearch" oninput="populateManualSelects(this.value)" placeholder="🔎 Filter inputs by Brand Name or Active Salt (e.g. Agadi, Custodia, Delegate, MKP, SOP)..." class="w-full border border-indigo-200 rounded-lg px-3 py-1.5 bg-indigo-50/40 font-semibold text-slate-800" />
       </div>
+
+      <!-- 3 Input Combination Slots -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <div class="p-2.5 rounded-xl border bg-slate-50/70 space-y-1.5">
+          <label id="ui_lblManChem1" class="font-extrabold text-slate-800 block">1st Input (Required):</label>
+          <select id="manChem1" onchange="prefillManualQty(1)" class="w-full border rounded-lg px-2.5 py-1.5 font-semibold bg-white"></select>
+          <div class="flex items-center justify-between gap-1.5 pt-0.5">
+            <span id="manDoseHint1" class="text-[11px] font-bold text-emerald-800"></span>
+            <div class="flex items-center gap-1">
+              <span class="text-slate-500 text-[11px]">3-Ac:</span>
+              <input type="number" step="0.1" id="manQty1" onchange="onManualQtyEdit(1)" class="w-16 border rounded px-1.5 py-1 font-extrabold text-right bg-white" />
+              <span id="manUnit1" class="font-bold text-slate-600"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-2.5 rounded-xl border bg-slate-50/70 space-y-1.5">
+          <label id="ui_lblManChem2" class="font-extrabold text-slate-800 block">2nd Input (Optional):</label>
+          <select id="manChem2" onchange="prefillManualQty(2)" class="w-full border rounded-lg px-2.5 py-1.5 font-semibold bg-white"></select>
+          <div class="flex items-center justify-between gap-1.5 pt-0.5">
+            <span id="manDoseHint2" class="text-[11px] font-bold text-emerald-800"></span>
+            <div class="flex items-center gap-1">
+              <span class="text-slate-500 text-[11px]">3-Ac:</span>
+              <input type="number" step="0.1" id="manQty2" onchange="onManualQtyEdit(2)" class="w-16 border rounded px-1.5 py-1 font-extrabold text-right bg-white" />
+              <span id="manUnit2" class="font-bold text-slate-600"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-2.5 rounded-xl border bg-slate-50/70 space-y-1.5">
+          <label id="ui_lblManChem3" class="font-extrabold text-slate-800 block">3rd Input (Optional):</label>
+          <select id="manChem3" onchange="prefillManualQty(3)" class="w-full border rounded-lg px-2.5 py-1.5 font-semibold bg-white"></select>
+          <div class="flex items-center justify-between gap-1.5 pt-0.5">
+            <span id="manDoseHint3" class="text-[11px] font-bold text-emerald-800"></span>
+            <div class="flex items-center gap-1">
+              <span class="text-slate-500 text-[11px]">3-Ac:</span>
+              <input type="number" step="0.1" id="manQty3" onchange="onManualQtyEdit(3)" class="w-16 border rounded px-1.5 py-1 font-extrabold text-right bg-white" />
+              <span id="manUnit3" class="font-bold text-slate-600"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Locked Auto-Generated Card Title Preview (User cannot manually edit card name) -->
+      <div id="manAutoTitlePreview" class="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-xs space-y-0.5"></div>
+
+      <!-- Live 3-Gate Combination & Safe-Gap Date Analyzer Output -->
+      <div id="manLiveAnalysisBox" class="space-y-2 text-xs"></div>
+
       <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs flex items-center gap-2">
         <input type="checkbox" id="manShiftCheck" checked class="w-4 h-4" />
-        <label for="manShiftCheck" id="ui_lblManShift" class="font-semibold text-amber-900">Auto-adjust future schedule (+3d shift, 5d Copper cooldown, 10d Boron lock &amp; IRAC/FRAC rotation)</label>
+        <label for="manShiftCheck" id="ui_lblManShift" class="font-semibold text-amber-900">Auto-ripple conflicting future cards one-by-one using Safe-Gap rules (5d Foliar / 2d Drip)</label>
       </div>
-      <button onclick="saveManualActivity()" id="ui_btnSaveMan" class="w-full bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow text-xs sm:text-sm">💾 Save Activity &amp; Update Schedule</button>
+      <button onclick="saveManualActivity()" id="ui_btnSaveMan" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-2.5 rounded-xl shadow text-xs sm:text-sm">💾 Add Card &amp; Auto-Reconcile Schedule</button>
     </section>
 
     <section id="panel_SHOP" class="hidden space-y-3">
@@ -2492,6 +2534,43 @@ function setWeather(m) {
 // ============================================================================
 let newChemModalMode = "EXISTING_SALT";
 // Keeps card titles clean & simple so swapping chemicals never leaves stale salt names in the header
+// Deterministically builds the bilingual card title from the selected mode and active chemical/fertilizer combination (no user-typed titles)
+function generateAutoCardTitle(taskType, inputIds, isKn) {
+  const cleanIds = (inputIds || []).filter(Boolean);
+  if (!cleanIds.length) {
+    return isKn ? "ಹೊಸ ಕೆಲಸದ ಕಾರ್ಡ್ (ಔಷಧಿ/ಗೊಬ್ಬರ ಆರಿಸಿ)" : "New Task Card (Select Inputs)";
+  }
+  const saltNamesList = cleanIds.map(id => getSaltOnlyTitle(catalog[id], isKn ? "KN" : "EN") || id).join(" + ");
+  const cats = cleanIds.map(id => catalog[id]).filter(Boolean);
+  const isDrip = (taskType || "").startsWith("DRIP");
+
+  if (isDrip) {
+    const hasCaOrMicro = cats.some(c => c.id === "WSF_CALCIUM_NITRATE" || c.category === "BIOSTIMULANT" || /^MIC_|^BIO_/.test(c.id));
+    const isAllCaOrMicro = cats.length > 0 && cats.every(c => c.id === "WSF_CALCIUM_NITRATE" || c.category === "BIOSTIMULANT" || /^MIC_|^BIO_/.test(c.id));
+    const prefix = (taskType === "DRIP_SAT" || isAllCaOrMicro)
+      ? (isKn ? "ಕ್ಯಾಲ್ಸಿಯಂ / ಲಘು ಪೋಷಕಾಂಶ ಡ್ರಿಪ್" : "Calcium / Micro Drip")
+      : hasCaOrMicro
+        ? (isKn ? "ಡ್ರಿಪ್ ಗೊಬ್ಬರ ಮತ್ತು ಪೋಷಕಾಂಶ" : "Drip Fertigation & Micro")
+        : (isKn ? "ಮುಖ್ಯ P-K ಡ್ರಿಪ್" : "Main P-K Drip");
+    return `${prefix}: ${saltNamesList}`;
+  }
+
+  const hasCopper = taskType === "STANDALONE_COPPER" || cats.some(c => c.is_copper_compound);
+  if (hasCopper) {
+    return isKn
+      ? `ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ: ${saltNamesList}`
+      : `Standalone Copper Bactericide Spray: ${saltNamesList}`;
+  }
+
+  const coveredThreats = SCOUT_ISSUES
+    .filter(iss => iss.code !== "BLIGHT_SPOT" && cleanIds.some(id => doesItemCoverThreat(id, iss.code)))
+    .map(iss => isKn ? iss.shortKn : iss.shortEn);
+  const threatTag = coveredThreats.length ? ` (${coveredThreats.join(" + ")})` : "";
+  return isKn
+    ? `ಎಲೆ ಸಿಂಪಡಣೆ${threatTag}: ${saltNamesList}`
+    : `Foliar Spray${threatTag}: ${saltNamesList}`;
+}
+
 // Dynamically generates or updates card titles whenever recipes are modified (swapped, added, deleted, merged, or curative)
 function getSimpleTaskDescription(tk, isKn) {
   if (!tk) return "";
@@ -2515,9 +2594,12 @@ function getSimpleTaskDescription(tk, isKn) {
       : `Curative Foliar Spray${threatTag}`;
   }
 
-  // 2. Split Remainder & Manual Entries: Always reflect current active chemicals on the card
+  // 2. Split Remainder & Custom/Manual Added Cards: Always build deterministic title from active combination
   if (tk.trigger_source === "SPLIT_REMAINDER") {
     return isKn ? `ಬಾಕಿ ಉಳಿದ ಕೆಲಸ: ${saltNamesList}` : `Remaining Split Task: ${saltNamesList}`;
+  }
+  if (tk.trigger_source === "MANUAL_ENTRY") {
+    return generateAutoCardTitle(tk.task_type, activeIds, isKn);
   }
   if (tk.trigger_source === "MANUAL_ENTRY") {
     return isKn ? `ದಾಖಲಿಸಿದ ಕೆಲಸ: ${saltNamesList}` : `Manual Entry: ${saltNamesList}`;
@@ -3363,15 +3445,56 @@ async function loadDB() {
   await enforceCompletedAndCurativeCooldowns();
 }
 
-function populateManualSelects() {
-  const s1 = document.getElementById("manChem1"), s2 = document.getElementById("manChem2"); if (!s1 || !s2) return;
-  const c1 = s1.value, c2 = s2.value;
-  const opts = Object.values(catalog).map(c => `<option value="${c.id}">${getSaltOnlyTitle(c)} — [🏷️ ${getBrandOnlySubtitle(c)}]</option>`).join("");
-  s1.innerHTML = opts; s2.innerHTML = `<option value="">-- ${LANG === "KN" ? "ಯಾವುದೂ ಇಲ್ಲ" : "None"} --</option>` + opts;
-  if (c1) s1.value = c1; if (c2) s2.value = c2;
-  prefillManualQty(1); prefillManualQty(2);
+function onManualTypeChange() {
+  populateManualSelects(document.getElementById("manFilterSearch")?.value || "");
 }
 
+function onManualDateOrInputChanged() {
+  const dateStr = document.getElementById("manDate")?.value || todayYMD();
+  const stSel = document.getElementById("manStatus");
+  if (stSel && dateStr > todayYMD() && stSel.value === "COMPLETED") {
+    stSel.value = "PENDING";
+  }
+  prefillManualQty(1);
+  prefillManualQty(2);
+  prefillManualQty(3);
+  analyzeNewCardDraft();
+}
+
+function populateManualSelects(queryStr = "") {
+  const s1 = document.getElementById("manChem1"), s2 = document.getElementById("manChem2"), s3 = document.getElementById("manChem3");
+  if (!s1 || !s2) return;
+  const c1 = s1.value, c2 = s2.value, c3 = s3 ? s3.value : "";
+  const taskType = document.getElementById("manType")?.value || "FOLIAR_SPRAY";
+  const isFoliar = taskType === "FOLIAR_SPRAY" || taskType === "STANDALONE_COPPER";
+  const isCopperOnly = taskType === "STANDALONE_COPPER";
+  const q = (queryStr || "").toLowerCase().trim();
+
+  const pool = Object.values(catalog).filter(c => {
+    if (isCopperOnly) return Boolean(c.is_copper_compound || c.category === "BACTERICIDE" || ["BAC_BRONOPOL", "BAC_KASUGAMYCIN", "BAC_STREPTOMYCIN", "BAC_VALIDACIN"].includes(c.id));
+    if (isFoliar) return Boolean(c.application_method === "FOLIAR" || c.application_method === "BOTH" || c.base_dose_per_liter);
+    return Boolean(c.application_method === "DRIP" || c.application_method === "BOTH" || c.base_dose_per_acre);
+  }).filter(c => {
+    if (!q) return true;
+    const brandNames = brandsDir.filter(b => b.input_id === c.id).map(b => `${b.brand_name} ${b.company_name}`).join(" ");
+    const hay = `${getSaltOnlyTitle(c, "EN")} ${getSaltOnlyTitle(c, "KN")} ${c.popular_brands || ""} ${c.name_en || ""} ${brandNames}`.toLowerCase();
+    return hay.includes(q);
+  });
+
+  const noneOpt = `<option value="">-- ${LANG === "KN" ? "ಯಾವುದೂ ಇಲ್ಲ (ಐಚ್ಛಿಕ)" : "None (Optional)"} --</option>`;
+  const opts = pool.map(c => `<option value="${c.id}">🧪 ${getSaltOnlyTitle(c)} — [🏷️ ${getBrandOnlySubtitle(c)}]</option>`).join("");
+
+  s1.innerHTML = opts || noneOpt;
+  s2.innerHTML = noneOpt + opts;
+  if (s3) s3.innerHTML = noneOpt + opts;
+
+  if (c1 && pool.some(x => x.id === c1)) s1.value = c1;
+  if (c2 && pool.some(x => x.id === c2)) s2.value = c2; else s2.value = "";
+  if (s3) { if (c3 && pool.some(x => x.id === c3)) s3.value = c3; else s3.value = ""; }
+
+  prefillManualQty(1); prefillManualQty(2); prefillManualQty(3);
+  analyzeNewCardDraft();
+}
 function populateBrandCheckerDropdowns() {
   const b1 = document.getElementById("checkerBrand1"), b2 = document.getElementById("checkerBrand2");
   if (!b1 || !b2) return;
@@ -3444,11 +3567,291 @@ function runStandaloneBrandChecker() {
 }
 
 function prefillManualQty(slot) {
-  const sel = document.getElementById(`manChem${slot}`), qInp = document.getElementById(`manQty${slot}`), uSpan = document.getElementById(`manUnit${slot}`);
+  const sel = document.getElementById(`manChem${slot}`), qInp = document.getElementById(`manQty${slot}`), uSpan = document.getElementById(`manUnit${slot}`), hintSpan = document.getElementById(`manDoseHint${slot}`);
   const c = catalog[sel?.value];
-  if (!c) { if (qInp) qInp.value = ""; if (uSpan) uSpan.textContent = ""; return; }
-  qInp.value = c.base_dose_per_liter ? Math.round(c.base_dose_per_liter * CFG.drumL * CFG.drums) : Number(((c.base_dose_per_acre || 2) * CFG.acres).toFixed(2));
-  uSpan.textContent = c.unit;
+  if (!c) {
+    if (qInp) { qInp.value = ""; qInp.readOnly = false; }
+    if (uSpan) uSpan.textContent = "";
+    if (hintSpan) hintSpan.textContent = "";
+    analyzeNewCardDraft();
+    return;
+  }
+  const taskType = document.getElementById("manType")?.value || "FOLIAR_SPRAY";
+  const isFoliar = taskType === "FOLIAR_SPRAY" || taskType === "STANDALONE_COPPER";
+  const dateStr = document.getElementById("manDate")?.value || todayYMD();
+  const dad = computeDynamicDadAndWeek(dateStr).dad;
+  const sopMult = (!isFoliar && dad >= 140 && wState.tMin > 18 && c.id === "WSF_00_00_50") ? 1.15 : 1.0;
+
+  if (isFoliar) {
+    const rateL = Number(c.base_dose_per_liter || c.base_dose_per_acre || 1.0);
+    const metrics = getItemDoseMetrics(c, { input_id: c.id, dose_per_liter: rateL }, 1.0, CFG.drums, CFG.drumL, false);
+    if (qInp) {
+      qInp.value = metrics.suggestedTotal3Ac;
+      qInp.readOnly = true;
+      qInp.className = "w-16 border rounded px-1.5 py-1 font-extrabold text-right bg-slate-100 text-slate-700 cursor-not-allowed";
+    }
+    if (uSpan) uSpan.textContent = metrics.displayUnit || c.unit;
+    if (hintSpan) hintSpan.textContent = `🔒 ${metrics.ratePerL} ${metrics.rateUnit}/L (${metrics.perDrumQty} ${metrics.rateUnit}/drum)`;
+  } else {
+    const bounds = getDripStageDoseBounds(c, dad);
+    const metrics = getItemDoseMetrics(c, { input_id: c.id, dose_per_acre: bounds.recPerAcre }, sopMult, CFG.drums, CFG.drumL, true);
+    if (qInp) {
+      qInp.value = metrics.suggestedTotal3Ac;
+      qInp.readOnly = false;
+      qInp.className = "w-16 border rounded px-1.5 py-1 font-extrabold text-right bg-white text-slate-900";
+    }
+    if (uSpan) uSpan.textContent = metrics.displayUnit || c.unit;
+    if (hintSpan) hintSpan.textContent = `💧 Rec: ${bounds.recPerAcre}/ac (Max ${bounds.maxPerAcre}/ac)`;
+  }
+  analyzeNewCardDraft();
+}
+
+function onManualQtyEdit(slot) {
+  const sel = document.getElementById(`manChem${slot}`), qInp = document.getElementById(`manQty${slot}`);
+  const c = catalog[sel?.value];
+  if (!c || !qInp) return;
+  const taskType = document.getElementById("manType")?.value || "FOLIAR_SPRAY";
+  const isFoliar = taskType === "FOLIAR_SPRAY" || taskType === "STANDALONE_COPPER";
+  const dateStr = document.getElementById("manDate")?.value || todayYMD();
+  const dad = computeDynamicDadAndWeek(dateStr).dad;
+
+  if (isFoliar) {
+    prefillManualQty(slot);
+    alert(LANG === "KN"
+      ? `🔒 ಎಲೆ ಸಿಂಪಡಣೆ ಪ್ರಮಾಣ ಲಾಕ್ ಆಗಿದೆ: ${getSaltOnlyTitle(c)} ಶಿಫಾರಸು ಮಾಡಿದ ಪ್ರಮಾಣಕ್ಕಿಂತ ಹೆಚ್ಚು ಅಥವಾ ಕಡಿಮೆ ಮಾಡುವಂತಿಲ್ಲ.`
+      : `🔒 Foliar Spray Rate Locked: ${getSaltOnlyTitle(c)} cannot be set above or below the recommended concentration.`);
+    return;
+  }
+
+  const bounds = getDripStageDoseBounds(c, dad);
+  const sopMult = (dad >= 140 && wState.tMin > 18 && c.id === "WSF_00_00_50") ? 1.15 : 1.0;
+  const max3Ac = Number((bounds.maxPerAcre * sopMult * CFG.acres).toFixed(2));
+  const min3Ac = Number((bounds.minPerAcre * CFG.acres).toFixed(2));
+  let val = sanitizeNonNegativeNumber(qInp.value, Number((bounds.recPerAcre * sopMult * CFG.acres).toFixed(2)), 100000);
+
+  if (val > max3Ac) {
+    alert(LANG === "KN"
+      ? `⚠️ ಹಂತದ ಗರಿಷ್ಠ ಮಿತಿ (${bounds.stageLabelKn}): 3 ಎಕರೆಗೆ ಗರಿಷ್ಠ ${max3Ac} (${bounds.maxPerAcre}/ಎಕರೆ) ಮೀರುವಂತಿಲ್ಲ.`
+      : `⚠️ Stage Max Rate Cap (${bounds.stageLabelEn}): 3-acre total cannot exceed ${max3Ac} (${bounds.maxPerAcre}/acre). Clamped to ${max3Ac}.`);
+    val = max3Ac;
+  } else if (val < min3Ac) {
+    val = min3Ac;
+  }
+  qInp.value = val;
+  analyzeNewCardDraft();
+}
+
+function applySuggestedSafeDateToManual(safeDateStr) {
+  const dInp = document.getElementById("manDate");
+  if (dInp && safeDateStr) {
+    dInp.value = safeDateStr;
+    onManualDateOrInputChanged();
+  }
+}
+
+// Evaluates the user's selected combination & target date across all 3 Safety Gates + Safe-Gap Schedule Rules
+function analyzeNewCardDraft() {
+  const titleBox = document.getElementById("manAutoTitlePreview");
+  const analysisBox = document.getElementById("manLiveAnalysisBox");
+  if (!titleBox || !analysisBox) return;
+
+  const dateStr = document.getElementById("manDate")?.value || todayYMD();
+  const rawType = document.getElementById("manType")?.value || "FOLIAR_SPRAY";
+  const isFoliar = rawType === "FOLIAR_SPRAY" || rawType === "STANDALONE_COPPER";
+  const slots = [1, 2, 3].map(s => ({
+    id: document.getElementById(`manChem${s}`)?.value || "",
+    qty: Number(document.getElementById(`manQty${s}`)?.value || 0)
+  })).filter(x => x.id && catalog[x.id]);
+
+  const selectedIds = slots.map(x => x.id);
+  const cats = selectedIds.map(id => catalog[id]).filter(Boolean);
+
+  // Auto-resolve exact task_type (e.g. DRIP_SAT vs DRIP_MON_THU, or STANDALONE_COPPER if Copper chosen)
+  let resolvedTaskType = rawType;
+  if (!isFoliar) {
+    const isAllCaOrMicro = cats.length > 0 && cats.every(c => c.id === "WSF_CALCIUM_NITRATE" || c.category === "BIOSTIMULANT" || /^MIC_|^BIO_/.test(c.id));
+    resolvedTaskType = isAllCaOrMicro ? "DRIP_SAT" : "DRIP_MON_THU";
+  } else if (cats.some(c => c.is_copper_compound)) {
+    resolvedTaskType = "STANDALONE_COPPER";
+  }
+
+  const autoTitleEn = generateAutoCardTitle(resolvedTaskType, selectedIds, false);
+  const autoTitleKn = generateAutoCardTitle(resolvedTaskType, selectedIds, true);
+
+  titleBox.innerHTML = `
+    <div class="text-[10px] font-extrabold text-slate-500 uppercase">🔒 ${LANG === "KN" ? "ಸ್ವಯಂಚಾಲಿತವಾಗಿ ರಚಿಸಲಾದ ಕಾರ್ಡ್ ಹೆಸರು (ಬದಲಿಸುವಂತಿಲ್ಲ):" : "Auto-Generated Card Title (Locked to Combination):"}</div>
+    <div class="font-extrabold text-slate-900 text-xs sm:text-sm">${LANG === "KN" ? autoTitleKn : autoTitleEn}</div>
+    <div class="text-[11px] text-slate-500">${LANG === "KN" ? autoTitleEn : autoTitleKn}</div>
+  `;
+
+  if (!slots.length) {
+    analysisBox.innerHTML = "";
+    return { ok: false, hasHardCombinationBlock: true };
+  }
+
+  const dyn = computeDynamicDadAndWeek(dateStr);
+  const gModel = (typeof getGddStageModel === "function") ? getGddStageModel() : null;
+  const estGdd = gModel ? gModel.getStageForDad(dyn.dad).gdd : Math.round(dyn.dad * 15.5);
+
+  const errors = [];
+  const warnings = [];
+  const passes = [];
+
+  // 1. GATE P1: Phenology (Zero-N Lock >= 2,150 GDD / 140 DAD) & Pre-Harvest PHI Lock
+  cats.forEach(c => {
+    const p1 = checkPhenologyAndPhiLock(c, dyn.dad, estGdd);
+    if (!p1.ok) errors.push(LANG === "KN" ? p1.reasonKn : p1.reasonEn);
+  });
+
+  // 2. GATE P2: Sequential Tank-Mix Combination & Pairwise Precipitation Locks
+  const runningRecipe = [];
+  cats.forEach(c => {
+    const comb = validateCardCombinationRules(runningRecipe, c);
+    if (!comb.ok) errors.push(LANG === "KN" ? comb.msgKn : comb.msgEn);
+    runningRecipe.push(isFoliar
+      ? { input_id: c.id, dose_per_liter: Number(c.base_dose_per_liter || 1.0) }
+      : { input_id: c.id, dose_per_acre: Number(c.base_dose_per_acre || 2.0) });
+  });
+
+  // Check if Drip under-dose will boost next card
+  if (!isFoliar) {
+    slots.forEach(s => {
+      const c = catalog[s.id];
+      const b = getDripStageDoseBounds(c, dyn.dad);
+      const sopMult = (dyn.dad >= 140 && wState.tMin > 18 && c.id === "WSF_00_00_50") ? 1.15 : 1.0;
+      const rec3Ac = Number((b.recPerAcre * sopMult * CFG.acres).toFixed(2));
+      if (s.qty > 0 && s.qty < rec3Ac - 0.25) {
+        const deficitPerAc = Number(((rec3Ac - s.qty) / CFG.acres).toFixed(2));
+        warnings.push(LANG === "KN"
+          ? `⚖️ ಕಡಿಮೆ ಪ್ರಮಾಣದ ಹೊಂದಾಣಿಕೆ (${getSaltOnlyTitle(c)}): ಶಿಫಾರಸು (${rec3Ac} ${c.unit}) ಗಿಂತ ಕಡಿಮೆ ಇದೆ. ಮುಂದಿನ ಇದೇ ಗೊಬ್ಬರದ ಡ್ರಿಪ್ ಕಾರ್ಡ್‌ಗೆ +${deficitPerAc} ${c.unit}/ಎಕರೆ (ಗರಿಷ್ಠ ಮಿತಿಯವರೆಗೆ) ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಸೇರಿಸಲಾಗುತ್ತದೆ.`
+          : `⚖️ Under-Dose Make-Up (${getSaltOnlyTitle(c)}): Below recommended ${rec3Ac} ${c.unit}. The next scheduled Drip card with ${getSaltOnlyTitle(c)} will automatically increase by +${deficitPerAc}/acre up to its stage safe ceiling.`);
+      }
+    });
+  }
+
+  // 3. GATE P3: 21-Day Repeat-Salt / IRAC-FRAC Group Rotation & Seasonal Cap
+  if (isFoliar) {
+    cats.forEach(c => {
+      const resWarn = checkRecentSprayResistance(c.id, dateStr, null);
+      if (resWarn) warnings.push(LANG === "KN" ? resWarn.msgKn : resWarn.msgEn);
+      const sStat = getSeasonSprayStats(c.id);
+      if (sStat.exceededSalt) {
+        warnings.push(LANG === "KN"
+          ? `⚠️ ಹಂಗಾಮಿನ ಮಿತಿ (${getSaltOnlyTitle(c)}): ಈಗಾಗಲೇ ${sStat.usedSalt}/${sStat.maxSalt} ಬಾರಿ ಬಳಸಲಾಗಿದೆ.`
+          : `⚠️ Seasonal Cap Reached (${getSaltOnlyTitle(c)}): Used ${sStat.usedSalt}/${sStat.maxSalt} times this season.`);
+      }
+    });
+  }
+
+  // 4. SAFE-GAP DATE ANALYSIS (Against Completed History AND Pending Queue)
+  const draftRecipe = slots.map(s => {
+    const c = catalog[s.id];
+    if (isFoliar) return { input_id: s.id, dose_per_liter: Number(c.base_dose_per_liter || 1.0), actual_total_3ac: s.qty };
+    const sopMult = (dyn.dad >= 140 && wState.tMin > 18 && c.id === "WSF_00_00_50") ? 1.15 : 1.0;
+    return { input_id: s.id, dose_per_acre: Number((s.qty / (CFG.acres * sopMult)).toFixed(2)), actual_total_3ac: s.qty };
+  });
+  const draftCard = {
+    id: "DRAFT_NEW_CARD",
+    task_type: resolvedTaskType,
+    current_scheduled_date: dateStr,
+    resolved_recipe: draftRecipe
+  };
+
+  let suggestedSafeDate = dateStr;
+  let dateGapConflictMsg = null;
+
+  // 4A. Check against COMPLETED tasks
+  const compCheck = validateBackwardShiftAgainstCompleted(draftCard, dateStr);
+  if (!compCheck.ok) {
+    suggestedSafeDate = compCheck.suggestedDateStr;
+    dateGapConflictMsg = LANG === "KN"
+      ? `⏳ ಪೂರ್ಣಗೊಂಡ ಕೆಲಸದ ಅಂತರ ಎಚ್ಚರಿಕೆ: ${compCheck.blockingTask.current_scheduled_date} ರಂದು '${getSimpleTaskDescription(compCheck.blockingTask, true)}' ಪೂರ್ಣಗೊಂಡಿದೆ (${compCheck.requiredGapDays} ದಿನಗಳ ಸುರಕ್ಷಿತ ಅಂತರ ಬೇಕು). ಮುಂದಿನ ಸುರಕ್ಷಿತ ದಿನಾಂಕ: <b>${suggestedSafeDate}</b>.`
+      : `⏳ Safe-Gap Conflict with Completed Task: '${getSimpleTaskDescription(compCheck.blockingTask, false)}' was completed on ${compCheck.blockingTask.current_scheduled_date} (requires ${compCheck.requiredGapDays}d gap). Earliest safe date: <b>${suggestedSafeDate}</b>.`;
+  }
+
+  // 4B. Check against earlier PENDING / DELAYED tasks that precede dateStr within required gap
+  const activeTasks = tasks.filter(t => t.status !== "COMPLETED" && t.status !== "SKIPPED" && t.trigger_source !== "KEEP_NOTE_HISTORY");
+  for (const act of activeTasks) {
+    const reqGap = getRequiredSafeGapDays(act, draftCard);
+    const diff = diffDaysYMD(act.current_scheduled_date, dateStr);
+    if (reqGap > 0 && diff > 0 && diff < reqGap) {
+      const candSafe = addDaysYMD(act.current_scheduled_date, reqGap);
+      if (candSafe > suggestedSafeDate) suggestedSafeDate = candSafe;
+      dateGapConflictMsg = LANG === "KN"
+        ? `⏳ ಹಿಂದಿನ ಬಾಕಿ ಕಾರ್ಡ್ ಜೊತೆ ಅಂತರ ಸಾಲದು: ${act.current_scheduled_date} ರಂದು '${getSimpleTaskDescription(act, true)}' ನಿಗದಿಯಾಗಿದೆ (${reqGap} ದಿನಗಳ ಅಂತರ ಬೇಕು). ಶಿಫಾರಸು ಮಾಡಿದ ಸುರಕ್ಷಿತ ದಿನಾಂಕ: <b>${suggestedSafeDate}</b>.`
+        : `⏳ Too Close to Prior Scheduled Card: '${getSimpleTaskDescription(act, false)}' is scheduled on ${act.current_scheduled_date} (${reqGap}d safe gap required). Suggested safe date: <b>${suggestedSafeDate}</b>.`;
+    }
+  }
+
+  // 4C. Check Same-Day Coexistence vs. Forward Ripple on or after dateStr
+  const sameDayCompatible = activeTasks.filter(t => t.current_scheduled_date === dateStr && getRequiredSafeGapDays(draftCard, t) === 0);
+  const forwardColliding = activeTasks.filter(t => {
+    const reqGap = getRequiredSafeGapDays(draftCard, t);
+    const diff = diffDaysYMD(dateStr, t.current_scheduled_date);
+    return reqGap > 0 && diff >= 0 && diff < reqGap;
+  });
+
+  if (errors.length === 0) {
+    passes.push(LANG === "KN"
+      ? `✅ ಸಂಯೋಜನೆ ಸುರಕ್ಷಿತವಾಗಿದೆ (${dyn.dad} DAD • ~${estGdd} GDD): ಯಾವುದೇ ರಾಸಾಯನಿಕ ಒಡೆಯುವಿಕೆ ಅಥವಾ ಹಂತದ ನಿರ್ಬಂಧವಿಲ್ಲ.`
+      : `✅ Combination Safe (${dyn.dad} DAD • ~${estGdd} GDD): Passes Gate P1 (Stage/PHI) & Gate P2 (Tank-Mix Compatibility).`);
+  }
+
+  if (sameDayCompatible.length > 0) {
+    const names = sameDayCompatible.map(t => getSimpleTaskDescription(t, LANG === "KN")).join(", ");
+    passes.push(LANG === "KN"
+      ? `🤝 ಒಂದೇ ದಿನ ಮಾಡಲು ಸುರಕ್ಷಿತ: ${dateStr} ರಂದು ಇರುವ '${names}' ಜೊತೆಗೆ ಅದೇ ದಿನ ಸುರಕ್ಷಿತವಾಗಿ ಮಾಡಬಹುದು.`
+      : `🤝 Same-Day Coexistence Safe: Can safely run on ${dateStr} alongside '${names}' without conflict.`);
+  }
+
+  if (!dateGapConflictMsg && forwardColliding.length > 0) {
+    const firstCol = forwardColliding[0];
+    const reqG = getRequiredSafeGapDays(draftCard, firstCol);
+    const pushedTo = addDaysYMD(dateStr, reqG);
+    warnings.push(LANG === "KN"
+      ? `🌊 ಸ್ವಯಂಚಾಲಿತ ಮುಂದೂಡಿಕೆ (Safe-Gap Ripple): ಈ ಕಾರ್ಡ್ ಅನ್ನು ${dateStr} ಕ್ಕೆ ಸೇರಿಸಿದರೆ, '${getSimpleTaskDescription(firstCol, true)}' (${firstCol.current_scheduled_date}) ಕಾರ್ಡ್ ${pushedTo} ಕ್ಕೆ (+${reqG} ದಿನ ಅಂತರ) ಮತ್ತು ಮುಂದಿನ ಕಾರ್ಡ್‌ಗಳು ಒಂದೊಂದಾಗಿ ಸುರಕ್ಷಿತ ದಿನಾಂಕಕ್ಕೆ ಮುಂದೂಡಲ್ಪಡುತ್ತವೆ.`
+      : `🌊 Forward Safe-Gap Ripple Preview: Placing this card on ${dateStr} will shift '${getSimpleTaskDescription(firstCol, false)}' (${firstCol.current_scheduled_date}) to ${pushedTo} (+${reqG}d safe gap) and ripple downstream cards one-by-one.`);
+  } else if (!dateGapConflictMsg) {
+    passes.push(LANG === "KN"
+      ? `📅 ದಿನಾಂಕದ ಅಂತರ ಸುರಕ್ಷಿತವಾಗಿದೆ (${dateStr}): ಹಿಂದಿನ ಮತ್ತು ಮುಂದಿನ ಕೆಲಸಗಳ ನಡುವೆ ಸೂಕ್ತ ಅಂತರವಿದೆ.`
+      : `📅 Target Date (${dateStr}) Safe-Gap Verified: Clean spacing against both completed history and upcoming queue.`);
+  }
+
+  const walesHtml = draftRecipe.length > 1 ? `<div class="p-2 bg-white/90 border border-emerald-200 rounded-lg text-[11px] text-emerald-950">${getWalesMixingGuide(draftRecipe, CFG.drumL, isFoliar)}</div>` : "";
+
+  analysisBox.innerHTML = `
+    <div class="p-3 rounded-xl border-2 ${errors.length ? 'bg-red-50 border-red-300' : (dateGapConflictMsg || warnings.length) ? 'bg-amber-50/80 border-amber-300' : 'bg-emerald-50/80 border-emerald-300'} space-y-1.5">
+      <div class="font-extrabold text-slate-900 flex items-center justify-between">
+        <span>🔬 ${LANG === "KN" ? "ಸಂಯೋಜನೆ ಮತ್ತು ಸುರಕ್ಷಿತ ದಿನಾಂಕ ಪರೀಕ್ಷೆ (Live 3-Gate & Safe-Gap Analyzer)" : "Live 3-Gate Combination & Safe-Gap Date Analysis"}</span>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${errors.length ? 'bg-red-600 text-white' : dateGapConflictMsg ? 'bg-amber-500 text-slate-950' : 'bg-emerald-700 text-white'}">
+          ${errors.length ? (LANG === "KN" ? "❌ ಅಸುರಕ್ಷಿತ ಮಿಶ್ರಣ" : "❌ Blocked") : dateGapConflictMsg ? (LANG === "KN" ? "⚠️ ದಿನಾಂಕ ಬದಲಿಸಿ" : "⚠️ Date Gap Alert") : (LANG === "KN" ? "✅ ಸುರಕ್ಷಿತ" : "✅ Verified Safe")}
+        </span>
+      </div>
+      ${errors.map(e => `<div class="p-2 rounded-lg bg-red-100 border border-red-300 text-red-950 font-bold">${e}</div>`).join("")}
+      ${dateGapConflictMsg ? `
+        <div class="p-2.5 rounded-lg bg-amber-100 border border-amber-400 text-amber-950 flex flex-wrap items-center justify-between gap-2">
+          <div class="font-semibold">${dateGapConflictMsg}</div>
+          <button type="button" onclick="applySuggestedSafeDateToManual('${suggestedSafeDate}')" class="bg-amber-600 hover:bg-amber-700 text-white font-extrabold px-3 py-1.5 rounded-lg shadow shrink-0">
+            📅 ${LANG === "KN" ? `ಸುರಕ್ಷಿತ ದಿನಾಂಕ ಬಳಸಿ (${suggestedSafeDate})` : `Use Safe Date (${suggestedSafeDate})`}
+          </button>
+        </div>` : ""}
+      ${warnings.map(w => `<div class="p-2 rounded-lg bg-amber-100/80 border border-amber-300 text-amber-950 font-semibold">${w}</div>`).join("")}
+      ${passes.map(p => `<div class="text-emerald-900 font-bold">${p}</div>`).join("")}
+      ${walesHtml}
+    </div>
+  `;
+
+  return {
+    ok: errors.length === 0,
+    hasHardCombinationBlock: errors.length > 0,
+    hasDateGapConflict: Boolean(dateGapConflictMsg),
+    suggestedSafeDate,
+    dateGapConflictMsg,
+    resolvedTaskType,
+    draftRecipe,
+    autoTitleEn,
+    autoTitleKn
+  };
 }
 
 function goWeek(w) { curWk = Number(w); render(); }
@@ -4367,7 +4770,7 @@ async function updateItemRate(taskId, idx, newRateVal) {
   const tk = tasks.find(x => x.id === taskId); if (!tk || !tk.resolved_recipe[idx]) return;
   const it = tk.resolved_recipe[idx];
   const c = catalog[it.input_id];
-  const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task.type === "STANDALONE_COPPER" || tk.task_type === "STANDALONE_COPPER";
+  const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER";
 
   // 1. HARD LOCK ON FOLIAR CHEMICAL SPRAYS: Do not allow going above or below recommended rate!
   if (isFoliarCard) {
@@ -5340,6 +5743,29 @@ function runEnterpriseQASuite() {
   saveOutbox(savedOutboxSnapshot);
   assert("30. IndexedDB Outbox Update Coalescing & SERIAL PK Guard", coalescedOk && typeof openOutboxIDB === "function", "Coalesces sequential offline updates on same task row into 1 IDB transaction");
 
+  // Test 31: Backward Completed-Task Safe-Gap Validator & Cross-Track Same-Day Coexistence
+  const mockDoneCopper = { id: "done-cop-1", status: "COMPLETED", task_type: "STANDALONE_COPPER", current_scheduled_date: "2026-10-25", resolved_recipe: [{ input_id: "BAC_COSUIT_FMC", item_status: "COMPLETED" }] };
+  const mockPendingFoliar = { id: "pend-fol-1", status: "PENDING", task_type: "FOLIAR_SPRAY", current_scheduled_date: "2026-11-02", resolved_recipe: [{ input_id: "INS_SPINETORAM" }] };
+  const mockPendingDrip = { id: "pend-drip-1", status: "PENDING", task_type: "DRIP_MON_THU", current_scheduled_date: "2026-10-27", resolved_recipe: [{ input_id: "WSF_00_52_34" }] };
+  const savedTasksFor31 = tasks;
+  tasks = [mockDoneCopper];
+  const unsafeBackCheck = validateBackwardShiftAgainstCompleted(mockPendingFoliar, "2026-10-27");
+  const safeCrossTrackGap = getRequiredSafeGapDays(mockPendingFoliar, mockPendingDrip);
+  const copperToFoliarGap = getRequiredSafeGapDays(mockDoneCopper, mockPendingFoliar);
+  tasks = savedTasksFor31;
+  assert("31. Backward Safe-Gap Validator & Cross-Track Coexistence", !unsafeBackCheck.ok && unsafeBackCheck.suggestedDateStr === "2026-10-30" && safeCrossTrackGap === 0 && copperToFoliarGap === 5, `Blocks Foliar on Oct 27 after Oct 25 Copper (suggests ${unsafeBackCheck.suggestedDateStr}); allows Drip + Foliar on same day (0d gap)`);
+
+  // Test 32: Stage-Aware Drip Max Rate Cap & Under-Dose Make-Up Carryover
+  const stageABounds = getDripStageDoseBounds(mkp || { id: "WSF_00_52_34", base_dose_per_acre: 3.5 }, 35);
+  const stageC1Bounds = getDripStageDoseBounds(mkp || { id: "WSF_00_52_34", base_dose_per_acre: 3.5 }, 110);
+  const underDoseMakeUp = computeSafeNextDripDose(3.5, "UNDERDOSE_PREVIEW", 6.0, 10.5, stageC1Bounds.maxPerAcre);
+  assert("32. Stage-Aware Drip Rate Cap & Under-Dose Make-Up", stageABounds.maxPerAcre === 3.5 && stageC1Bounds.maxPerAcre === 5.25 && underDoseMakeUp === 5.0, `Stage A max=${stageABounds.maxPerAcre} kg/ac; Stage C1 max=${stageC1Bounds.maxPerAcre} kg/ac; 4.5kg under-dose boosts next card from 3.5 to ${underDoseMakeUp} kg/ac`);
+
+  // Test 33: Deterministic Combination Card Title Generator (No User-Typed Titles)
+  const autoTitleEn33 = generateAutoCardTitle("FOLIAR_SPRAY", ["INS_SPINETORAM", "FUN_FLUXA_PYRA"], false);
+  const autoTitleKn33 = generateAutoCardTitle("DRIP_SAT", ["WSF_CALCIUM_NITRATE"], true);
+  assert("33. Auto-Generated Bilingual Combination Card Titles", autoTitleEn33.includes("Foliar Spray") && autoTitleEn33.includes("Thrips") && autoTitleKn33.includes("ಕ್ಯಾಲ್ಸಿಯಂ"), `EN: "${autoTitleEn33.slice(0, 48)}..." | KN: "${autoTitleKn33.slice(0, 38)}..."`);
+
   const sortedResults = [...results].sort((a, b) => Number(a.pass) - Number(b.pass));
   const passed = results.filter(r => r.pass).length;
   const allPass = passed === results.length;
@@ -5464,44 +5890,119 @@ async function deleteCustomTask(id) {
 }
 
 async function saveManualActivity() {
-  const dateStr = document.getElementById("manDate").value, taskType = document.getElementById("manType").value;
-  const chem1 = document.getElementById("manChem1").value, chem2 = document.getElementById("manChem2").value;
-  const qty1 = sanitizeNonNegativeNumber(document.getElementById("manQty1").value, 0, 100000);
-  const qty2 = sanitizeNonNegativeNumber(document.getElementById("manQty2").value, 0, 100000);
-  const costRs = sanitizeNonNegativeNumber(document.getElementById("manCost").value, 0, 500000);
-  const notes = document.getElementById("manNotes").value.trim(), autoShift = document.getElementById("manShiftCheck").checked;
-  if (!dateStr || !chem1) return;
+  let dateStr = document.getElementById("manDate")?.value || todayYMD();
+  const cardStatus = document.getElementById("manStatus")?.value || "PENDING";
+  const costRs = sanitizeNonNegativeNumber(document.getElementById("manCost")?.value, 0, 500000);
+  const autoShift = document.getElementById("manShiftCheck")?.checked ?? true;
+
+  const analysis = analyzeNewCardDraft();
+  if (!analysis || !analysis.draftRecipe || !analysis.draftRecipe.length) {
+    alert(LANG === "KN" ? "ದಯವಿಟ್ಟು ಕನಿಷ್ಠ 1 ಔಷಧಿ ಅಥವಾ ಗೊಬ್ಬರವನ್ನು ಆರಿಸಿ." : "Please select at least 1 chemical or fertilizer.");
+    return;
+  }
+
+  // 1. Block unsafe chemical combinations (Gate P1 / Gate P2)
+  if (analysis.hasHardCombinationBlock) {
+    alert(LANG === "KN"
+      ? "❌ ನೀವು ಆಯ್ಕೆ ಮಾಡಿದ ಔಷಧಿ/ಗೊಬ್ಬರಗಳ ಸಂಯೋಜನೆಯು ಸುರಕ್ಷಿತವಲ್ಲ. ದಯವಿಟ್ಟು ಕೆಂಪು ಎಚ್ಚರಿಕೆಯನ್ನು ಸರಿಪಡಿಸಿ."
+      : "❌ The selected combination violates Gate P1 (Stage/PHI) or Gate P2 (Tank-Mix Compatibility). Please resolve the red error box before saving.");
+    return;
+  }
+
+  // 2. If the selected date violates a safe gap after an existing task, suggest the earliest safe date and ask for confirmation
+  if (analysis.hasDateGapConflict && analysis.suggestedSafeDate && analysis.suggestedSafeDate !== dateStr) {
+    const askSafeDate = LANG === "KN"
+      ? `${analysis.dateGapConflictMsg.replace(/<[^>]+>/g, "")}\n\nದಿನಾಂಕವನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಸುರಕ್ಷಿತ ದಿನಾಂಕಕ್ಕೆ (${analysis.suggestedSafeDate}) ಬದಲಿಸಿ ಕಾರ್ಡ್ ಸೇರಿಸಲೇ?`
+      : `${analysis.dateGapConflictMsg.replace(/<[^>]+>/g, "")}\n\nSwitch to the suggested safe date (${analysis.suggestedSafeDate}) and add this card?`;
+    if (!confirm(askSafeDate)) return;
+    dateStr = analysis.suggestedSafeDate;
+    document.getElementById("manDate").value = dateStr;
+  }
 
   const dyn = computeDynamicDadAndWeek(dateStr);
-  for (const cid of [chem1, chem2].filter(Boolean)) {
-    const pheno = checkPhenologyAndPhiLock(catalog[cid], dyn.dad);
-    if (!pheno.ok && !confirm((LANG === "KN" ? pheno.reasonKn : pheno.reasonEn) + "\n\nSave anyway?")) return;
-  }
-  if (chem1 && chem2) {
-    const comp = checkPairCompatibility(catalog[chem1], catalog[chem2]);
-    if (!comp.ok && !confirm((LANG === "KN" ? comp.reasonKn : comp.reasonEn) + "\n\nSave anyway?")) return;
-  }
+  const taskType = analysis.resolvedTaskType;
+  const isFoliar = taskType === "FOLIAR_SPRAY" || taskType === "STANDALONE_COPPER";
+  const recipe = analysis.draftRecipe.map(r => ({
+    ...r,
+    item_status: cardStatus === "COMPLETED" ? "COMPLETED" : "PENDING"
+  }));
 
-  const pairs = [{ id: chem1, q: qty1 }]; if (chem2) pairs.push({ id: chem2, q: qty2 });
-  const recipe = pairs.map(p => { const c = catalog[p.id]; return { ...(c?.base_dose_per_liter ? { input_id: p.id, dose_per_liter: Number(c.base_dose_per_liter) } : { input_id: p.id, dose_per_acre: Number(c?.base_dose_per_acre || 2) }), actual_total_3ac: p.q, item_status: "COMPLETED" }; });
-  const appliedIds = pairs.map(p => p.id);
-  const titleEn = `Manual Entry (${dateStr}): ${pairs.map(p => `${getSaltOnlyTitle(catalog[p.id], "EN") || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
-  const titleKn = `ದಾಖಲಿಸಿದ ಕೆಲಸ (${dateStr}): ${pairs.map(p => `${getSaltOnlyTitle(catalog[p.id], "KN") || p.id} (${p.q}${catalog[p.id]?.unit || ''})`).join(" + ")}${notes ? " [" + notes + "]" : ""}`;
+  // 3. Deterministic Auto-Generated Card Title (Never user-typed)
+  const titleEn = analysis.autoTitleEn;
+  const titleKn = analysis.autoTitleKn;
 
   const newId = genUUID();
-  const payload = { id: newId, env: APP_ENV, originally_scheduled_date: dateStr, current_scheduled_date: dateStr, effective_dad: dyn.dad, task_type: taskType, trigger_source: "MANUAL_ENTRY", status: "COMPLETED", resolved_recipe: recipe, cost_rs: costRs, custom_title_en: titleEn, custom_title_kn: titleKn, updated_by: activeUser, updated_at: new Date().toISOString(), executed_at: new Date().toISOString() };
+  const payload = {
+    id: newId,
+    env: APP_ENV,
+    originally_scheduled_date: dateStr,
+    current_scheduled_date: dateStr,
+    effective_dad: dyn.dad,
+    task_type: taskType,
+    trigger_source: "MANUAL_ENTRY",
+    status: cardStatus,
+    drum_liters: isFoliar ? CFG.drumL : 200,
+    drums_count: isFoliar ? CFG.drums : 1,
+    resolved_recipe: recipe,
+    cost_rs: costRs,
+    custom_title_en: titleEn,
+    custom_title_kn: titleKn,
+    updated_by: activeUser,
+    updated_at: new Date().toISOString(),
+    executed_at: cardStatus === "COMPLETED" ? new Date().toISOString() : null
+  };
+
   const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
   const inserted = (res.data && res.data[0]) ? res.data[0] : payload;
-  tasks.push({ ...inserted, week_number: dyn.week, stage_name: "Manual / Past Activity", target_description: titleEn, target_description_kn: titleKn });
+  const newCardObj = {
+    ...inserted,
+    week_number: dyn.week,
+    stage_name: cardStatus === "COMPLETED" ? "Manual / Past Activity" : "Scheduled Task",
+    target_description: titleEn,
+    target_description_kn: titleKn
+  };
+  tasks.push(newCardObj);
 
-  if (autoShift) {
-    const isCopper = taskType === "STANDALONE_COPPER" || appliedIds.some(id => catalog[id]?.is_copper_compound), shiftDays = isCopper ? 5 : 3;
-    const conflicting = tasks.find(t => (t.status === "PENDING" || t.status === "DELAYED") && t.id !== inserted.id && t.trigger_source !== "KEEP_NOTE_HISTORY" && ((isCopper && t.task_type === "FOLIAR_SPRAY") || t.task_type === taskType) && diffDaysYMD(dateStr, t.current_scheduled_date) >= 0 && diffDaysYMD(dateStr, t.current_scheduled_date) < shiftDays);
-    if (conflicting) await applyScheduleShift(conflicting, addDaysYMD(dateStr, shiftDays), "ALL", "MANUAL_OVERLAP");
+  // 4. If Drip card was added with an under-dose (or completed), sync next similar Drip card's make-up dose
+  if (!isFoliar) {
+    for (const r of newCardObj.resolved_recipe) {
+      const c = catalog[r.input_id];
+      const b = getDripStageDoseBounds(c, dyn.dad);
+      const sopMult = (dyn.dad >= 140 && wState.tMin > 18 && c?.id === "WSF_00_00_50") ? 1.15 : 1.0;
+      const rec3Ac = Number((b.recPerAcre * sopMult * CFG.acres).toFixed(2));
+      await syncNextDripDoseForItem(newCardObj, r, cardStatus, rec3Ac);
+    }
   }
-  await logAudit("MANUAL_WORK_LOGGED", titleEn, `Date: ${dateStr}`);
-  document.getElementById("manNotes").value = ""; document.getElementById("manCost").value = "";
-  curWk = dyn.week; showTab("TASKS"); render();
+
+  // 5. Ripple all same-day and future conflicting cards one-by-one using our iterative Safe-Gap Engine!
+  if (autoShift) {
+    if (cardStatus === "COMPLETED") {
+      await enforceCompletedAndCurativeCooldowns();
+      // Also ripple any colliding pending Drip or Foliar cards after this completed card
+      const minGap = isFoliar ? 5 : 2;
+      const collidingNext = tasks
+        .filter(t => t.id !== newCardObj.id && t.status !== "COMPLETED" && t.status !== "SKIPPED" && getRequiredSafeGapDays(newCardObj, t) > 0 && diffDaysYMD(dateStr, t.current_scheduled_date) >= 0 && diffDaysYMD(dateStr, t.current_scheduled_date) < getRequiredSafeGapDays(newCardObj, t))
+        .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date))[0];
+      if (collidingNext) {
+        const reqG = getRequiredSafeGapDays(newCardObj, collidingNext) || minGap;
+        await applyScheduleShift(collidingNext, addDaysYMD(dateStr, reqG), "TRACK", "NEW_CARD_SAFE_GAP", true, true);
+      }
+    } else {
+      await applyScheduleShift(newCardObj, dateStr, "TRACK", "NEW_CARD_SAFE_GAP", true, true);
+      if (isFoliar) {
+        await reconcileUpcomingBaselineFoliarAfterCurative(dateStr, newCardObj.resolved_recipe, newCardObj.id);
+      }
+    }
+  }
+
+  await logAudit(cardStatus === "COMPLETED" ? "MANUAL_WORK_LOGGED" : "CUSTOM_CARD_SCHEDULED", titleEn, `Date: ${dateStr} (${cardStatus})`);
+  if (document.getElementById("manCost")) document.getElementById("manCost").value = "";
+  if (document.getElementById("manChem2")) document.getElementById("manChem2").value = "";
+  if (document.getElementById("manChem3")) document.getElementById("manChem3").value = "";
+  refreshDynamicTaskWeeks();
+  curWk = computeDynamicDadAndWeek(dateStr).week;
+  showTab("TASKS");
+  render();
 }
 
 async function saveLeftover(id, v) {
