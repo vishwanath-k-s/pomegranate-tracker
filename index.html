@@ -3681,22 +3681,25 @@ function render() {
         const isCrit = cat.procurement_criticality === "CRITICAL_MUST_SOURCE";
         const rowBg = itemSt === "COMPLETED" ? "bg-emerald-50/80 border-emerald-300" : itemSt === "SKIPPED" ? "bg-slate-100 border-slate-200 opacity-60 line-through" : "bg-slate-50 border-slate-200";
 
+        const dripBounds = !metrics.isFoliar ? getDripStageDoseBounds(cat, tk.effective_dad, it) : null;
         const dosePillsHtml = metrics.isFoliar
           ? `<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
-               <span class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded px-2 py-0.5 text-slate-700">
-                 💧 <b>${LANG === "KN" ? "ಪ್ರಮಾಣ:" : "Rate:"}</b>
-                 <input type="number" step="0.1" min="0.05" value="${metrics.ratePerL}" onchange="updateItemRate('${tk.id}',${idx},this.value)" class="w-12 font-extrabold text-emerald-900 text-right border-b border-slate-300 focus:outline-none" />
+               <span class="inline-flex items-center gap-1 bg-slate-100 border border-slate-300 rounded px-2 py-0.5 text-slate-800" title="${LANG === 'KN' ? 'ಸಿಂಪಡಣೆ ಪ್ರಮಾಣವನ್ನು ಶಿಫಾರಸು ಮಾಡಿದ ಮಿತಿಯಲ್ಲಿ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : 'Foliar chemical rate is locked to recommended dose'}">
+                 🔒 <b>${LANG === "KN" ? "ನಿಗದಿತ ಪ್ರಮಾಣ:" : "Rec. Rate:"}</b>
+                 <input type="number" readonly value="${metrics.ratePerL}" onclick=" updateItemRate('${tk.id}',${idx},this.value)" class="w-12 bg-transparent font-extrabold text-emerald-900 text-right cursor-not-allowed focus:outline-none" />
                  <b>${metrics.rateUnit}/L</b>
                </span>
                <span class="bg-emerald-100/80 border border-emerald-300 rounded px-2 py-0.5 text-emerald-950">🪣 <b>${LANG === "KN" ? `ಪ್ರತಿ ${metrics.drumLiters}L ಡ್ರಮ್‌ಗೆ:` : `Per ${metrics.drumLiters}L Drum:`}</b> ${metrics.perDrumQty} ${metrics.rateUnit}</span>
              </div>`
           : `<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
-               <span class="inline-flex items-center gap-1 bg-sky-100/80 border border-sky-300 rounded px-2 py-0.5 text-sky-950">
+               <span class="inline-flex items-center gap-1 bg-sky-100/80 border border-sky-300 rounded px-2 py-0.5 text-sky-950" title="Rec: ${dripBounds.recPerAcre} ${metrics.displayUnit || cat.unit}/ac | Stage Max: ${dripBounds.maxPerAcre} ${metrics.displayUnit || cat.unit}/ac">
                  💧 <b>${LANG === "KN" ? "ಪ್ರತಿ ಎಕರೆಗೆ:" : "Per Acre:"}</b>
-                 <input type="number" step="0.25" min="0.1" value="${metrics.perAcreQty}" onchange="updateItemRate('${tk.id}',${idx},this.value)" class="w-12 bg-white rounded px-1 font-extrabold text-sky-950 text-right border border-sky-300 focus:outline-none" />
+                 <input type="number" step="0.25" min="${dripBounds.minPerAcre}" max="${dripBounds.maxPerAcre}" value="${metrics.perAcreQty}" onchange="updateItemRate('${tk.id}',${idx},this.value)" class="w-12 bg-white rounded px-1 font-extrabold text-sky-950 text-right border border-sky-300 focus:outline-none" />
                  <b>${metrics.displayUnit || cat.unit}</b>
+                 <span class="text-[10px] text-sky-800 font-semibold">(Max ${dripBounds.maxPerAcre})</span>
                </span>
                <span class="bg-white border border-slate-200 rounded px-2 py-0.5 text-slate-700">🌱 <b>${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ:" : "Per Plant:"}</b> ${metrics.perPlantGrams} g</span>
+               ${it.compensated_from_date ? `<span class="bg-amber-100 border border-amber-300 text-amber-950 rounded px-1.5 py-0.5 text-[10px] font-extrabold">⚖️ +Make-Up (${it.compensated_from_date})</span>` : ""}
              </div>`;
 
         const qtyLabel = itemSt === "COMPLETED"
@@ -4305,26 +4308,121 @@ function filterCardAddDropdown(taskId, queryStr, isFoliarCard) {
   if (q && matches.length >= 1) sel.value = matches[0].id;
 }
 
+// Returns Stage-Specific Recommended, Minimum, and Maximum Safe Drip Rates (kg/Ac or L/Ac)
+function getDripStageDoseBounds(cat, effectiveDad, itemObj = null) {
+  const dad = Number(effectiveDad) || 75;
+  const gModel = (typeof getGddStageModel === "function") ? getGddStageModel() : null;
+  const estGdd = gModel ? gModel.getStageForDad(dad).gdd : Math.round(dad * 15.5);
+
+  let recPerAcre = Number(itemObj?.orig_dose_per_acre || cat?.base_dose_per_acre || itemObj?.dose_per_acre || 2.5);
+  if (recPerAcre >= 50) recPerAcre = Number((recPerAcre / 1000).toFixed(2));
+
+  // Stage-specific ceiling multiplier & hard EC root-safety ceiling (kg/acre)
+  const id = cat?.id || "";
+  const isMicroOrBio = cat?.category === "BIOSTIMULANT" || /^MIC_|^BIO_/.test(id) || recPerAcre <= 1.2;
+
+  let stageMaxCap = 4.5;
+  let stageLabelEn = "Stage B (Guava-Size)";
+  let stageLabelKn = "ಹಂತ B (ಪೇರಳೆ ಗಾತ್ರ)";
+
+  if (estGdd < 950 && dad < 59) {
+    stageMaxCap = isMicroOrBio ? Number((recPerAcre * 1.25).toFixed(2)) : (id === "WSF_MGSO4" ? 2.5 : 3.5);
+    stageLabelEn = "Stage A (Flowering / Early Sizing)";
+    stageLabelKn = "ಹಂತ A (ಹೂವು ಮತ್ತು ಆರಂಭಿಕ ಕಾಯಿ)";
+  } else if (estGdd < 1450 && dad < 91) {
+    stageMaxCap = isMicroOrBio ? Number((recPerAcre * 1.35).toFixed(2)) : (id === "WSF_MGSO4" ? 3.0 : 4.5);
+    stageLabelEn = "Stage B (Guava-Size Expansion)";
+    stageLabelKn = "ಹಂತ B (ಪೇರಳೆ ಗಾತ್ರದ ಬೆಳವಣಿಗೆ)";
+  } else if (estGdd < 2150 && dad < 140) {
+    stageMaxCap = isMicroOrBio ? Number((recPerAcre * 1.50).toFixed(2)) : (id === "WSF_MGSO4" ? 3.5 : 5.5);
+    stageLabelEn = "Stage C1 (Aril Swelling)";
+    stageLabelKn = "ಹಂತ C1 (ಕಾಳು ತುಂಬುವ ಹಂತ)";
+  } else {
+    // Stage C2 / D (Color & Ripening >= 2,150 GDD or >= 140 DAD)
+    const hasN = Boolean(cat?.contains_nitrogen) || (Number(cat?.n_pct) || 0) > 0;
+    if (hasN) {
+      stageMaxCap = 0;
+    } else {
+      stageMaxCap = isMicroOrBio ? Number((recPerAcre * 1.50).toFixed(2)) : (id === "WSF_MGSO4" ? 3.5 : 6.5);
+    }
+    stageLabelEn = "Stage C2/D (Color & Ripening)";
+    stageLabelKn = "ಹಂತ C2/D (ಬಣ್ಣ ಮತ್ತು ಮಾಗುವ ಹಂತ)";
+  }
+
+  // Max allowed is the lesser of 1.5x recommended dose (EC safety cap) or the absolute stage ceiling, but never below recPerAcre (unless N-locked)
+  const ecCap = Number((recPerAcre * 1.5).toFixed(2));
+  const maxPerAcre = stageMaxCap === 0 ? 0 : Math.max(recPerAcre, Math.min(stageMaxCap, ecCap));
+  const minPerAcre = stageMaxCap === 0 ? 0 : Math.min(0.5, Number((recPerAcre * 0.25).toFixed(2)));
+
+  return {
+    recPerAcre: Number(recPerAcre.toFixed(2)),
+    minPerAcre: Number(minPerAcre.toFixed(2)),
+    maxPerAcre: Number(maxPerAcre.toFixed(2)),
+    stageLabelEn,
+    stageLabelKn
+  };
+}
+
 async function updateItemRate(taskId, idx, newRateVal) {
   const tk = tasks.find(x => x.id === taskId); if (!tk || !tk.resolved_recipe[idx]) return;
   const it = tk.resolved_recipe[idx];
   const c = catalog[it.input_id];
-  const cleanRate = sanitizeNonNegativeNumber(newRateVal, 1.0, 500);
-  if (cleanRate <= 0) return;
+  const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task.type === "STANDALONE_COPPER" || tk.task_type === "STANDALONE_COPPER";
 
-  const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER";
+  // 1. HARD LOCK ON FOLIAR CHEMICAL SPRAYS: Do not allow going above or below recommended rate!
   if (isFoliarCard) {
-    it.dose_per_liter = cleanRate;
-    delete it.dose_per_acre;
-  } else {
-    it.dose_per_acre = cleanRate;
-    delete it.dose_per_liter;
+    const recRateL = Number(c?.base_dose_per_liter || it.dose_per_liter || 1.0);
+    it.dose_per_liter = recRateL;
+    delete it.actual_total_3ac;
+    const drumsCount = Number(tk.drums_count) || CFG.drums;
+    const drumLiters = Number(tk.drum_liters) || CFG.drumL;
+    const metrics = getItemDoseMetrics(c, it, 1.0, drumsCount, drumLiters, false);
+    it.actual_total_3ac = metrics.suggestedTotal3Ac;
+    alert(LANG === "KN"
+      ? `🔒 ಎಲೆ ಸಿಂಪಡಣೆ ಪ್ರಮಾಣ ಲಾಕ್ ಆಗಿದೆ: ${getSaltOnlyTitle(c)} ಅನ್ನು ಶಿಫಾರಸು ಮಾಡಿದ ಪ್ರಮಾಣಕ್ಕಿಂತ (${recRateL} ${metrics.rateUnit}/L = ${metrics.perDrumQty} ${metrics.rateUnit}/ಡ್ರಮ್) ಹೆಚ್ಚು ಅಥವಾ ಕಡಿಮೆ ಮಾಡುವಂತಿಲ್ಲ!`
+      : `🔒 Foliar Spray Rate Locked: ${getSaltOnlyTitle(c)} must stay at its recommended concentration (${recRateL} ${metrics.rateUnit}/L = ${metrics.perDrumQty} ${metrics.rateUnit}/drum) to prevent phytotoxicity or sub-lethal resistance!`);
+    render();
+    return;
   }
+
+  // 2. DRIP FERTIGATION BOUNDS: Enforce Stage Max Ceiling & Trigger Next-Card Deficit Make-Up if Below Recommended!
+  const bounds = getDripStageDoseBounds(c, tk.effective_dad, it);
+  if (bounds.maxPerAcre === 0) {
+    alert(LANG === "KN"
+      ? `🔴 ಸಾರಜನಕ ನಿರ್ಬಂಧ (${tk.effective_dad} DAD): ಈ ಹಂತದಲ್ಲಿ ${getSaltOnlyTitle(c)} ಬಳಸುವಂತಿಲ್ಲ!`
+      : `🔴 Gate P1 Zero-Nitrogen Lock (${tk.effective_dad} DAD): ${getSaltOnlyTitle(c)} is locked during ${bounds.stageLabelEn}!`);
+    render();
+    return;
+  }
+
+  let cleanRate = sanitizeNonNegativeNumber(newRateVal, bounds.recPerAcre, 500);
+  if (cleanRate >= 50) cleanRate = Number((cleanRate / 1000).toFixed(2));
+  if (cleanRate <= 0) cleanRate = bounds.minPerAcre;
+
+  if (cleanRate > bounds.maxPerAcre) {
+    alert(LANG === "KN"
+      ? `⚠️ ಹಂತದ ಗರಿಷ್ಠ ಮಿತಿ (${bounds.stageLabelKn}): ${getSaltOnlyTitle(c)} ಅನ್ನು ಪ್ರತಿ ಎಕರೆಗೆ ಗರಿಷ್ಠ ${bounds.maxPerAcre} kg/L ಗಿಂತ ಹೆಚ್ಚು ನೀಡುವಂತಿಲ್ಲ (ಬೇರು ಸುಡುವುದನ್ನು ತಡೆಯಲು ${bounds.maxPerAcre} ಕ್ಕೆ ಹೊಂದಿಸಲಾಗಿದೆ).`
+      : `⚠️ Stage Max Rate Cap (${bounds.stageLabelEn}): ${getSaltOnlyTitle(c)} cannot exceed ${bounds.maxPerAcre} per acre at ${tk.effective_dad} DAD. Clamped to ${bounds.maxPerAcre}/acre.`);
+    cleanRate = bounds.maxPerAcre;
+  }
+
+  if (it.orig_dose_per_acre === undefined) {
+    it.orig_dose_per_acre = bounds.recPerAcre;
+  }
+  it.dose_per_acre = cleanRate;
+  delete it.dose_per_liter;
   delete it.actual_total_3ac;
+
+  const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
+  const sopMult = (taskDad >= 140 && wState.tMin > 18 && c?.id === "WSF_00_00_50") ? 1.15 : 1.0;
   const drumsCount = Number(tk.drums_count) || CFG.drums;
   const drumLiters = Number(tk.drum_liters) || CFG.drumL;
-  const metrics = getItemDoseMetrics(c, it, 1.0, drumsCount, drumLiters, !isFoliarCard);
+  const metrics = getItemDoseMetrics(c, it, sopMult, drumsCount, drumLiters, true);
   it.actual_total_3ac = metrics.suggestedTotal3Ac;
+
+  // If user reduced rate below recommended (or restored it), automatically compensate the next similar Drip card up to its stage max!
+  const recTotal3Ac = Number((bounds.recPerAcre * sopMult * CFG.acres).toFixed(2));
+  await syncNextDripDoseForItem(tk, it, it.item_status || "PENDING", recTotal3Ac);
 
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
   render();
@@ -4442,14 +4540,18 @@ function sanitizeNonNegativeNumber(rawVal, fallback = 0, maxVal = 1000000) {
   return Math.min(maxVal, Math.max(0, Number(n.toFixed(2))));
 }
 
-function computeSafeNextDripDose(baseOrigDose, status, actual3Ac, suggested3Ac) {
+function computeSafeNextDripDose(baseOrigDose, status, actual3Ac, suggested3Ac, maxAllowedPerAc = null) {
   const orig = Number(baseOrigDose) || 2.0;
-  if (status === "SKIPPED") return Number((orig * 1.5).toFixed(2));
-  if (status === "COMPLETED") {
+  const ceiling = (maxAllowedPerAc !== null && Number.isFinite(Number(maxAllowedPerAc)) && Number(maxAllowedPerAc) > 0)
+    ? Math.min(Number(maxAllowedPerAc), Number((orig * 1.5).toFixed(2)))
+    : Number((orig * 1.5).toFixed(2));
+
+  if (status === "SKIPPED") return ceiling;
+  if (status === "COMPLETED" || status === "UNDERDOSE_PREVIEW") {
     const rawDiff3Ac = Number((actual3Ac - suggested3Ac).toFixed(2));
-    if (Math.abs(rawDiff3Ac) < 0.5) return orig;
+    if (Math.abs(rawDiff3Ac) < 0.25) return orig;
     const deltaPerAc = Number((rawDiff3Ac / CFG.acres).toFixed(2));
-    return Math.min(Number((orig * 1.5).toFixed(2)), Math.max(0.5, Number((orig - deltaPerAc).toFixed(2))));
+    return Math.min(ceiling, Math.max(0.5, Number((orig - deltaPerAc).toFixed(2))));
   }
   return orig;
 }
@@ -4654,11 +4756,88 @@ async function saveTaskCost(taskId, val) {
 
 async function updateItemQty(taskId, idx, newVal, suggestedTotal3Ac) {
   const tk = tasks.find(x => x.id === taskId); if (!tk || !tk.resolved_recipe[idx]) return;
-  tk.resolved_recipe[idx].actual_total_3ac = sanitizeNonNegativeNumber(newVal, suggestedTotal3Ac, 100000);
+  const it = tk.resolved_recipe[idx];
+  const c = catalog[it.input_id];
+  const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER";
+
+  // 1. Foliar Spray Total Qty is locked to the recommended concentration x current tank spec
+  if (isFoliarCard) {
+    it.actual_total_3ac = suggestedTotal3Ac;
+    alert(LANG === "KN"
+      ? `🔒 ಎಲೆ ಸಿಂಪಡಣೆ ಪ್ರಮಾಣ ಲಾಕ್ ಆಗಿದೆ: ${getSaltOnlyTitle(c)} ಒಟ್ಟು ಪ್ರಮಾಣವು ${suggestedTotal3Ac} ${c?.unit || ''} ಆಗಿರಬೇಕು (ಡ್ರಮ್ ಸಂಖ್ಯೆ ಬದಲಿಸಿದರೆ ಮಾತ್ರ ಬದಲಾಗುತ್ತದೆ).`
+      : `🔒 Foliar Spray Quantity Locked: ${getSaltOnlyTitle(c)} total quantity is fixed at ${suggestedTotal3Ac} ${c?.unit || ''} for your ${tk.drums_count || CFG.drums}×${tk.drum_liters || CFG.drumL}L tank spec.`);
+    render();
+    return;
+  }
+
+  // 2. Drip Fertilizer Total 3-Acre Qty: Clamp at Stage Max Ceiling & Sync Per-Acre Rate + Next-Card Make-Up
+  const bounds = getDripStageDoseBounds(c, tk.effective_dad, it);
+  const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
+  const sopMult = (taskDad >= 140 && wState.tMin > 18 && c?.id === "WSF_00_00_50") ? 1.15 : 1.0;
+  const maxTotal3Ac = Number((bounds.maxPerAcre * sopMult * CFG.acres).toFixed(2));
+  const minTotal3Ac = Number((bounds.minPerAcre * CFG.acres).toFixed(2));
+  const recTotal3Ac = Number((bounds.recPerAcre * sopMult * CFG.acres).toFixed(2));
+
+  let cleanTotal = sanitizeNonNegativeNumber(newVal, suggestedTotal3Ac, 100000);
+  if (cleanTotal > maxTotal3Ac) {
+    alert(LANG === "KN"
+      ? `⚠️ ಹಂತದ ಗರಿಷ್ಠ ಮಿತಿ (${bounds.stageLabelKn}): 3 ಎಕರೆಗೆ ಗರಿಷ್ಠ ${maxTotal3Ac} kg/L (${bounds.maxPerAcre}/ಎಕರೆ) ಮಾತ್ರ ನೀಡಬಹುದು.`
+      : `⚠️ Stage Max Cap (${bounds.stageLabelEn}): Maximum allowed for 3 acres at ${tk.effective_dad} DAD is ${maxTotal3Ac} (${bounds.maxPerAcre}/acre).`);
+    cleanTotal = maxTotal3Ac;
+  } else if (cleanTotal < minTotal3Ac) {
+    cleanTotal = minTotal3Ac;
+  }
+
+  if (it.orig_dose_per_acre === undefined) it.orig_dose_per_acre = bounds.recPerAcre;
+  it.actual_total_3ac = cleanTotal;
+  it.dose_per_acre = Number((cleanTotal / (CFG.acres * sopMult)).toFixed(2));
+
+  await syncNextDripDoseForItem(tk, it, it.item_status || "PENDING", recTotal3Ac);
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString(); render();
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
 }
 
+async function syncNextDripDoseForItem(tk, item, newStatus, suggestedTotal3Ac) {
+  if (!item || (item.dose_per_acre === undefined && !catalog[item.input_id]?.base_dose_per_acre)) return;
+  const c = catalog[item.input_id];
+  const boundsNow = getDripStageDoseBounds(c, tk.effective_dad, item);
+  const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
+  const sopMult = (taskDad >= 140 && wState.tMin > 18 && c?.id === "WSF_00_00_50") ? 1.15 : 1.0;
+  const trueRec3Ac = Number((boundsNow.recPerAcre * sopMult * CFG.acres).toFixed(2));
+  const refSuggested3Ac = suggestedTotal3Ac || trueRec3Ac;
+  const applied3Ac = item.actual_total_3ac !== undefined ? Number(item.actual_total_3ac) : Number((Number(item.dose_per_acre || boundsNow.recPerAcre) * sopMult * CFG.acres).toFixed(2));
+
+  // Find the next chronologically scheduled uncompleted Drip task containing this fertilizer
+  const nextTask = tasks
+    .filter(f =>
+      f.id !== tk.id &&
+      f.status !== "COMPLETED" &&
+      f.status !== "SKIPPED" &&
+      f.task_type.startsWith("DRIP") &&
+      (f.current_scheduled_date > tk.current_scheduled_date || (f.current_scheduled_date === tk.current_scheduled_date && (f.template_id || 999) > (tk.template_id || 0))) &&
+      (f.resolved_recipe || []).some(r => r.input_id === item.input_id)
+    )
+    .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date) || (a.template_id || 0) - (b.template_id || 0))[0];
+
+  if (!nextTask) return;
+
+  const nextBounds = getDripStageDoseBounds(c, nextTask.effective_dad);
+  // If user lowered the dose on a PENDING card below recommended, treat as UNDERDOSE_PREVIEW so next card boosts immediately!
+  const effectiveMode = (newStatus === "PENDING" && applied3Ac < trueRec3Ac - 0.25) ? "UNDERDOSE_PREVIEW" : newStatus;
+
+  nextTask.resolved_recipe = nextTask.resolved_recipe.map(r => {
+    if (r.input_id !== item.input_id) return r;
+    const baseOrigDose = Number(r.orig_dose_per_acre !== undefined ? r.orig_dose_per_acre : (r.dose_per_acre || c?.base_dose_per_acre || 2.0));
+    const nextMaxAllowed = Math.max(baseOrigDose, nextBounds.maxPerAcre);
+    const newDose = computeSafeNextDripDose(baseOrigDose, effectiveMode, applied3Ac, trueRec3Ac, nextMaxAllowed);
+    const updatedItem = { ...r, orig_dose_per_acre: baseOrigDose, dose_per_acre: newDose };
+    if (newDose > baseOrigDose) updatedItem.compensated_from_date = tk.current_scheduled_date;
+    else delete updatedItem.compensated_from_date;
+    delete updatedItem.actual_total_3ac;
+    return updatedItem;
+  });
+  await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: nextTask.resolved_recipe }, matchCol: "id", matchVal: nextTask.id });
+}
 async function syncNextDripDoseForItem(tk, item, newStatus, suggestedTotal3Ac) {
   if (!item || !item.dose_per_acre) return;
   const nextTask = tasks.find(f => f.id !== tk.id && f.status !== "COMPLETED" && f.status !== "SKIPPED" && f.originally_scheduled_date > tk.originally_scheduled_date && (f.resolved_recipe || []).some(r => r.input_id === item.input_id && r.dose_per_acre));
@@ -4763,8 +4942,100 @@ function isTaskAfterInBaselineSequence(candidate, anchorTask, anchorOldDateStr) 
   return false;
 }
 
+// Computes the Agronomic Minimum Safe Gap (in days) required between two task cards (0 = can safely run on the exact same day!)
+function getRequiredSafeGapDays(cardA, cardB) {
+  if (!cardA || !cardB || cardA.id === cardB.id) return 0;
+  const isDripA = (cardA.task_type || "").startsWith("DRIP");
+  const isDripB = (cardB.task_type || "").startsWith("DRIP");
+
+  // 1. Cross-Track Independence: A Drip task and a Foliar/Copper spray can safely happen on the exact same day (0d gap)!
+  if (isDripA !== isDripB) return 0;
+
+  const recA = (cardA.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED");
+  const recB = (cardB.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED");
+  const catsA = recA.map(r => catalog[r.input_id]).filter(Boolean);
+  const catsB = recB.map(r => catalog[r.input_id]).filter(Boolean);
+
+  // 2. Both are Foliar / Copper Sprays:
+  if (!isDripA && !isDripB) {
+    const hasCopperA = cardA.task_type === "STANDALONE_COPPER" || catsA.some(c => c.is_copper_compound);
+    const hasCopperB = cardB.task_type === "STANDALONE_COPPER" || catsB.some(c => c.is_copper_compound);
+    // Gate P2: 5-day hard cooldown if either spray involves Copper
+    if (hasCopperA || hasCopperB) return 5;
+    // Standard Foliar-to-Foliar cooldown (tightens to 4d during active 72h high-humidity microclimate window, otherwise 5d)
+    const epiActive = (typeof evaluate72hEpidemiologicalWindow === "function") && evaluate72hEpidemiologicalWindow(wState).active;
+    return epiActive ? 4 : 5;
+  }
+
+  // 3. Both are Drip Fertigation Cards:
+  // Check if they share the exact same fertilizer salt
+  const idsA = new Set(recA.map(r => r.input_id));
+  const sharesSameSalt = recB.some(r => idsA.has(r.input_id));
+  if (sharesSameSalt) return 2;
+
+  // Check if any pair between Card A and Card B has a Calcium Nitrate / Sulphate / Phosphate precipitation conflict
+  for (const cA of catsA) {
+    for (const cB of catsB) {
+      if (!checkPairCompatibility(cA, cB).ok) return 2;
+    }
+  }
+
+  // If one card is purely a Micronutrient / Biostimulant drip (e.g. Humic, Chelated Fe/Zn, Boron) and compatible, allow same day (0d), otherwise 2d split
+  const isPureMicroA = catsA.length > 0 && catsA.every(c => c.category === "BIOSTIMULANT" || /^MIC_|^BIO_/.test(c.id));
+  const isPureMicroB = catsB.length > 0 && catsB.every(c => c.category === "BIOSTIMULANT" || /^MIC_|^BIO_/.test(c.id));
+  if (isPureMicroA || isPureMicroB) return 0;
+
+  return 2;
+}
+
+// Evaluates all COMPLETED tasks to check if `tk` can safely be placed on `candidateDateStr`.
+// If unsafe, returns { ok: false, suggestedDateStr, blockingTask, requiredGapDays, reasonEn, reasonKn }
+function validateBackwardShiftAgainstCompleted(tk, candidateDateStr) {
+  let earliestSafeDate = "2026-08-15";
+  let blockingTask = null;
+  let blockingGap = 0;
+
+  const completedTasks = tasks
+    .filter(t => t.id !== tk.id && t.status === "COMPLETED" && t.trigger_source !== "KEEP_NOTE_HISTORY")
+    .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date));
+
+  for (const doneTask of completedTasks) {
+    const reqGap = getRequiredSafeGapDays(doneTask, tk);
+    if (reqGap <= 0) continue;
+
+    // A pending task cannot be moved earlier than a completed task of the same track + its required safe cooldown gap,
+    // nor placed so close before a completed task that the gap is violated.
+    const diffFromDone = diffDaysYMD(doneTask.current_scheduled_date, candidateDateStr);
+    if (diffFromDone > -reqGap && diffFromDone < reqGap) {
+      const safeAfterDone = addDaysYMD(doneTask.current_scheduled_date, reqGap);
+      if (safeAfterDone > earliestSafeDate) {
+        earliestSafeDate = safeAfterDone;
+        blockingTask = doneTask;
+        blockingGap = reqGap;
+      }
+    }
+  }
+
+  if (blockingTask && candidateDateStr < earliestSafeDate) {
+    const doneDescEn = getSimpleTaskDescription(blockingTask, false);
+    const doneDescKn = getSimpleTaskDescription(blockingTask, true);
+    return {
+      ok: false,
+      suggestedDateStr: earliestSafeDate,
+      blockingTask,
+      requiredGapDays: blockingGap,
+      reasonEn: `⚠️ UNSAFE GAP AFTER COMPLETED TASK:\n• Completed: ${doneDescEn} on ${blockingTask.current_scheduled_date}\n• Required Safe Gap: ${blockingGap} days\n• Requested Date (${candidateDateStr}) is too close!\n\n✅ Earliest Safe Date is ${earliestSafeDate} (${formatDateWithWeekday(earliestSafeDate)}).\nShift to ${earliestSafeDate} instead?`,
+      reasonKn: `⚠️ ಪೂರ್ಣಗೊಂಡ ಕೆಲಸದ ನಂತರ ಸುರಕ್ಷಿತ ಅಂತರವಿಲ್ಲ:\n• ಪೂರ್ಣಗೊಂಡ ಕೆಲಸ: ${doneDescKn} (${blockingTask.current_scheduled_date})\n• ಕಡ್ಡಾಯ ಅಂತರ: ${blockingGap} ದಿನಗಳು\n• ನೀವು ಆರಿಸಿದ ದಿನಾಂಕ (${candidateDateStr}) ತುಂಬಾ ಹತ್ತಿರದಲ್ಲಿದೆ!\n\n✅ ಮುಂದಿನ ಸುರಕ್ಷಿತ ದಿನಾಂಕ: ${earliestSafeDate} (${formatDateWithWeekday(earliestSafeDate)}).\nಈ ಸುರಕ್ಷಿತ ದಿನಾಂಕಕ್ಕೆ ಬದಲಿಸಲೇ?`
+    };
+  }
+
+  return { ok: true, suggestedDateStr: candidateDateStr };
+}
+
 function getMinimumAllowedDateForTask(tk) {
-  return "2026-08-15";
+  if (!tk) return "2026-08-15";
+  const check = validateBackwardShiftAgainstCompleted(tk, "2026-08-15");
+  return check.ok ? "2026-08-15" : check.suggestedDateStr;
 }
 
 function openDelayModal(taskId) {
@@ -4772,7 +5043,7 @@ function openDelayModal(taskId) {
   activeDelayTaskId = taskId;
   document.getElementById("delayTaskName").textContent = `${formatDateWithWeekday(tk.current_scheduled_date)} — ${getSimpleTaskDescription(tk, LANG === "KN")}`;
   const dateInp = document.getElementById("delayCustomDate");
-  dateInp.min = getMinimumAllowedDateForTask(tk);
+  dateInp.min = "2026-08-15";
   dateInp.value = addDaysYMD(tk.current_scheduled_date, 1);
 
   const radioToSelect = document.querySelector('input[name="cascadeMode"][value="TRACK"]');
@@ -4785,83 +5056,143 @@ function closeDelayModal() { document.getElementById("delayModal").classList.add
 function setDelayOffset(days) {
   const tk = tasks.find(x => x.id === activeDelayTaskId); if (!tk) return;
   let candidate = addDaysYMD(tk.current_scheduled_date, days);
-  const minAllowed = getMinimumAllowedDateForTask(tk);
-  if (candidate < minAllowed) candidate = minAllowed;
+  if (candidate < "2026-08-15") candidate = "2026-08-15";
   document.getElementById("delayCustomDate").value = candidate;
 }
 function setDelayToOriginalDate() { const tk = tasks.find(x => x.id === activeDelayTaskId); if (tk) document.getElementById("delayCustomDate").value = tk.originally_scheduled_date || tk.current_scheduled_date; }
 
-async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason, keepCurrentWeekView = false) {
-  const oldDateStr = tk.current_scheduled_date; // Snapshot old date BEFORE mutating tk
-  const minAllowed = getMinimumAllowedDateForTask(tk);
-  const newDateStr = requestedDateStr < minAllowed ? minAllowed : requestedDateStr;
-  const deltaDays = diffDaysYMD(oldDateStr, newDateStr);
-  if (deltaDays === 0) return;
+async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason, keepCurrentWeekView = false, skipInteractiveConfirm = false) {
+  const oldDateStr = tk.current_scheduled_date;
+  let targetDateStr = requestedDateStr < "2026-08-15" ? "2026-08-15" : requestedDateStr;
 
-  const effMode = cascadeMode === "ALL" ? "ALL" : "TRACK"; // Never allow isolated single-card moves
+  // STEP 1: Check all COMPLETED tasks before/around targetDateStr to verify if targetDateStr is safe!
+  const safetyCheck = validateBackwardShiftAgainstCompleted(tk, targetDateStr);
+  if (!safetyCheck.ok) {
+    if (!skipInteractiveConfirm && !keepCurrentWeekView) {
+      const accepted = confirm(LANG === "KN" ? safetyCheck.reasonKn : safetyCheck.reasonEn);
+      if (!accepted) return;
+    }
+    targetDateStr = safetyCheck.suggestedDateStr;
+  }
+
+  const deltaDays = diffDaysYMD(oldDateStr, targetDateStr);
+  const effMode = cascadeMode === "ALL" ? "ALL" : "TRACK";
   const isDripTask = tk.task_type.startsWith("DRIP");
 
-  // Lock tk onto the exact date requested by the user
-  tk.current_scheduled_date = newDateStr;
-  tk.status = (newDateStr === tk.originally_scheduled_date) ? "PENDING" : "DELAYED";
-  tk.delay_reason = (tk.status === "PENDING") ? null : reason;
+  // Place anchor card tk onto targetDateStr (Day X)
+  tk.current_scheduled_date = targetDateStr;
+  tk.status = (targetDateStr === tk.originally_scheduled_date) ? "PENDING" : "DELAYED";
+  tk.delay_reason = (tk.status === "PENDING") ? null : (reason || "RESCHEDULED");
   tk.updated_by = activeUser;
   tk.updated_at = new Date().toISOString();
 
   const touchedMap = new Map([[tk.id, tk]]);
 
-  // 1. Shift subsequent tasks on the track (or all tracks if "ALL") using oldDateStr as reference
-  tasks.forEach(other => {
-    if (other.id === tk.id || other.status === "COMPLETED" || other.status === "SKIPPED" || other.trigger_source === "KEEP_NOTE_HISTORY") return;
-    const otherIsDrip = other.task_type.startsWith("DRIP");
-    if (effMode === "TRACK" && otherIsDrip !== isDripTask) return;
-    if (!isTaskAfterInBaselineSequence(other, tk, oldDateStr)) return;
+  // STEP 2: If shifting BACKWARD (deltaDays < 0), allow downstream DELAYED tasks (after oldDateStr) to pull back proportionally toward their baseline date (but not earlier than targetDateStr)
+  if (deltaDays < 0 && cascadeMode !== "SINGLE") {
+    tasks.forEach(other => {
+      if (other.id === tk.id || other.status === "COMPLETED" || other.status === "SKIPPED" || other.trigger_source === "KEEP_NOTE_HISTORY") return;
+      const otherIsDrip = other.task_type.startsWith("DRIP");
+      if (effMode === "TRACK" && otherIsDrip !== isDripTask) return;
+      if (!isTaskAfterInBaselineSequence(other, tk, oldDateStr)) return;
 
-    let uStr = addDaysYMD(other.current_scheduled_date, deltaDays);
-    if (other.originally_scheduled_date && uStr < other.originally_scheduled_date) uStr = other.originally_scheduled_date;
-    if (uStr !== other.current_scheduled_date) {
-      other.current_scheduled_date = uStr;
-      other.status = (uStr === other.originally_scheduled_date) ? "PENDING" : "DELAYED";
-      if (other.status === "PENDING") other.delay_reason = null;
+      let pulledDate = addDaysYMD(other.current_scheduled_date, deltaDays);
+      if (other.originally_scheduled_date && pulledDate < other.originally_scheduled_date) {
+        pulledDate = other.originally_scheduled_date;
+      }
+      if (pulledDate < targetDateStr) pulledDate = targetDateStr;
+
+      if (pulledDate !== other.current_scheduled_date) {
+        other.current_scheduled_date = pulledDate;
+        other.status = (pulledDate === other.originally_scheduled_date) ? "PENDING" : "DELAYED";
+        if (other.status === "PENDING") other.delay_reason = null;
+        other.updated_by = activeUser;
+        other.updated_at = new Date().toISOString();
+        touchedMap.set(other.id, other);
+      }
+    });
+  } else if (deltaDays > 0 && cascadeMode === "ALL") {
+    // If user explicitly picked "Shift ALL" on a forward shift, also shift the opposite track by deltaDays
+    tasks.forEach(other => {
+      if (other.id === tk.id || other.status === "COMPLETED" || other.status === "SKIPPED" || other.trigger_source === "KEEP_NOTE_HISTORY") return;
+      const otherIsDrip = other.task_type.startsWith("DRIP");
+      if (otherIsDrip === isDripTask) return; // Same-track cards will be rippled by exact safe gap below!
+      if (other.current_scheduled_date < oldDateStr) return;
+
+      const pushedOther = addDaysYMD(other.current_scheduled_date, deltaDays);
+      other.current_scheduled_date = pushedOther;
+      other.status = (pushedOther === other.originally_scheduled_date) ? "PENDING" : "DELAYED";
+      other.delay_reason = other.delay_reason || reason || "CASCADE_ALL";
       other.updated_by = activeUser;
       other.updated_at = new Date().toISOString();
       touchedMap.set(other.id, other);
-    }
-  });
-
-  // 2. If tk is a Curative Spray, reconcile its nearest Baseline Foliar spray
-  if (!isDripTask && tk.trigger_source === "SCOUTING_CURATIVE" && reason !== "CURATIVE_COOLDOWN") {
-    await reconcileUpcomingBaselineFoliarAfterCurative(newDateStr, tk.resolved_recipe || [], tk.id);
+    });
   }
 
-  // 3. Always enforce Forward Minimum Gap Guard (5d Foliar / 2d Drip) anchored at tk (newDateStr)
-  const minGapDays = isDripTask ? 2 : 5;
-  const forwardChain = [
-    tk,
-    ...tasks
-      .filter(t =>
-        t.id !== tk.id &&
-        t.status !== "COMPLETED" &&
-        t.status !== "SKIPPED" &&
-        t.trigger_source !== "KEEP_NOTE_HISTORY" &&
-        t.task_type.startsWith("DRIP") === isDripTask &&
-        t.current_scheduled_date >= newDateStr
-      )
-      .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date) || (a.template_id || 0) - (b.template_id || 0))
-  ];
+  // STEP 3: If tk is a Curative Spray, reconcile its nearest Baseline Foliar spray
+  if (!isDripTask && tk.trigger_source === "SCOUTING_CURATIVE" && reason !== "CURATIVE_COOLDOWN") {
+    await reconcileUpcomingBaselineFoliarAfterCurative(targetDateStr, tk.resolved_recipe || [], tk.id);
+  }
 
-  for (let i = 0; i < forwardChain.length - 1; i++) {
-    const curr = forwardChain[i];
-    const next = forwardChain[i + 1];
-    const gap = diffDaysYMD(curr.current_scheduled_date, next.current_scheduled_date);
-    if (gap < minGapDays) {
-      const pushedDate = addDaysYMD(curr.current_scheduled_date, minGapDays);
-      next.current_scheduled_date = pushedDate;
-      next.status = (pushedDate === next.originally_scheduled_date) ? "PENDING" : "DELAYED";
-      next.delay_reason = next.delay_reason || reason || "MIN_GAP_GUARD";
-      next.updated_by = activeUser;
-      next.updated_at = new Date().toISOString();
-      touchedMap.set(next.id, next);
+  // STEP 4: ITERATIVE SAFE-GAP RIPPLE ENGINE (Day X -> Same-Day Check -> Next Safe Day -> Re-Sort & New Base)
+  // Collect all active (PENDING/DELAYED) tasks on or after targetDateStr (plus any completed tasks near targetDateStr as fixed anchors)
+  const sortActiveQueue = (arr) => {
+    arr.sort((a, b) => {
+      if (a.current_scheduled_date !== b.current_scheduled_date) {
+        return a.current_scheduled_date.localeCompare(b.current_scheduled_date);
+      }
+      // On the exact same day X, the card the user just explicitly placed (tk) takes priority as the base!
+      if (a.id === tk.id) return -1;
+      if (b.id === tk.id) return 1;
+      // Curative sprays take priority over baseline sprays on the same day
+      if (a.trigger_source === "SCOUTING_CURATIVE" && b.trigger_source !== "SCOUTING_CURATIVE") return -1;
+      if (b.trigger_source === "SCOUTING_CURATIVE" && a.trigger_source !== "SCOUTING_CURATIVE") return 1;
+      return (a.template_id || 999) - (b.template_id || 999);
+    });
+  };
+
+  const activePool = tasks.filter(t =>
+    t.status !== "COMPLETED" &&
+    t.status !== "SKIPPED" &&
+    t.trigger_source !== "KEEP_NOTE_HISTORY" &&
+    t.current_scheduled_date >= targetDateStr
+  );
+
+  // Iteratively step through the sorted pool; whenever a card is pushed to a new safe day, re-sort so any intervening cards between Day X and the new safe day are processed in true chronological sequence and the pushed card becomes the new base!
+  let changedInPass = true;
+  let safetyCounter = 0;
+  while (changedInPass && safetyCounter < 200) {
+    changedInPass = false;
+    safetyCounter++;
+    sortActiveQueue(activePool);
+
+    for (let i = 0; i < activePool.length; i++) {
+      const baseCard = activePool[i];
+      for (let j = i + 1; j < activePool.length; j++) {
+        const candCard = activePool[j];
+        const reqGap = getRequiredSafeGapDays(baseCard, candCard);
+        if (reqGap <= 0) continue; // Safe to coexist on the exact same day!
+
+        const actualGap = diffDaysYMD(baseCard.current_scheduled_date, candCard.current_scheduled_date);
+        if (actualGap < reqGap) {
+          let nextSafeDate = addDaysYMD(baseCard.current_scheduled_date, reqGap);
+          // Also ensure nextSafeDate doesn't violate any COMPLETED task
+          const compCheck = validateBackwardShiftAgainstCompleted(candCard, nextSafeDate);
+          if (!compCheck.ok) nextSafeDate = compCheck.suggestedDateStr;
+
+          if (candCard.current_scheduled_date !== nextSafeDate) {
+            candCard.current_scheduled_date = nextSafeDate;
+            candCard.status = (nextSafeDate === candCard.originally_scheduled_date) ? "PENDING" : "DELAYED";
+            candCard.delay_reason = (candCard.status === "PENDING") ? null : (candCard.delay_reason || reason || "MIN_GAP_GUARD");
+            candCard.updated_by = activeUser;
+            candCard.updated_at = new Date().toISOString();
+            touchedMap.set(candCard.id, candCard);
+            changedInPass = true;
+            break; // Break inner loop & re-sort so intervening cards and the new base are evaluated in order!
+          }
+        }
+      }
+      if (changedInPass) break;
     }
   }
 
@@ -4888,7 +5219,7 @@ async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason, kee
     });
   }));
 
-  await logAudit(deltaDays > 0 ? "CASCADE_DELAY" : "CASCADE_SHIFT_BACK", cleanHardcodedDayPrefix(tk.target_description, false), `Shifted ${deltaDays > 0 ? '+' + deltaDays : deltaDays}d from ${oldDateStr} to ${newDateStr} (${effMode}: ${tasksToUpdateInDB.length} tasks)`);
+  await logAudit(deltaDays >= 0 ? "CASCADE_DELAY" : "CASCADE_SHIFT_BACK", cleanHardcodedDayPrefix(tk.target_description, false), `Shifted from ${oldDateStr} to ${targetDateStr} (${effMode}: ${tasksToUpdateInDB.length} tasks)`);
 }
 
 function runEnterpriseQASuite() {
