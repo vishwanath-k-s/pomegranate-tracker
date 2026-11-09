@@ -3840,7 +3840,6 @@ async function loadDB() {
   await enforceCompletedAndCurativeCooldowns();
   await reconcileAllDripDeficitsAcrossSchedule();
 }
-}
 
 function onManualTypeChange() {
   populateManualSelects(document.getElementById("manFilterSearch")?.value || "");
