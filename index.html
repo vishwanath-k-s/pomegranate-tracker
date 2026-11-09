@@ -3838,6 +3838,8 @@ async function loadDB() {
   }
   updateSyncBadge(); renderUserDropdown(); populateManualSelects(); populateBrandCheckerDropdowns();
   await enforceCompletedAndCurativeCooldowns();
+  await reconcileAllDripDeficitsAcrossSchedule();
+}
 }
 
 function onManualTypeChange() {
@@ -5600,66 +5602,176 @@ async function updateItemQty(taskId, idx, newVal, suggestedTotal3Ac) {
   await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
 }
 
+// Scans the entire Drip schedule chronologically (per fertilizer input_id):
+// 1. Applies retroactively to any cards ALREADY marked SKIPPED or under-dosed in the database.
+// 2. Boosts the 1st upcoming pending Drip card to its Stage Safe Upper Limit (maxPerAcre).
+// 3. If the skipped/under-dosed deficit exceeds what the 1st card can safely absorb, rolls the remaining deficit into the 2nd (and 3rd) upcoming Drip cards!
+async function reconcileAllDripDeficitsAcrossSchedule(filterInputId = null) {
+  const tmplMap = {};
+  (templates || []).forEach(t => { tmplMap[t.id] = t; });
+
+  const dripTasks = tasks
+    .filter(t => (t.task_type || "").startsWith("DRIP") && t.trigger_source !== "KEEP_NOTE_HISTORY" && t.current_scheduled_date >= "2026-08-15")
+    .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date) || (a.template_id || 999) - (b.template_id || 999));
+
+  if (!dripTasks.length) return;
+
+  // Collect all fertilizer input_ids present on Drip cards
+  const inputIdsToProcess = new Set();
+  dripTasks.forEach(tk => {
+    (tk.resolved_recipe || []).forEach(r => {
+      if (!r || !r.input_id) return;
+      if (filterInputId && r.input_id !== filterInputId) return;
+      inputIdsToProcess.add(r.input_id);
+    });
+  });
+
+  const dirtyTasksMap = new Map();
+
+  for (const inputId of inputIdsToProcess) {
+    const c = catalog[inputId];
+    let carryDeficitPerAc = 0;
+    let hasActiveSkipInCarry = false;
+    let latestDeficitDate = null;
+
+    for (const tk of dripTasks) {
+      const recipe = tk.resolved_recipe || [];
+      const itemIdx = recipe.findIndex(r => r.input_id === inputId);
+      if (itemIdx === -1) continue;
+
+      const r = recipe[itemIdx];
+      const tmplItem = (tk.template_id && tmplMap[tk.template_id]?.recipe_items)
+        ? tmplMap[tk.template_id].recipe_items.find(x => x.input_id === inputId)
+        : null;
+
+      let baseOrigDose = Number(
+        r.orig_dose_per_acre !== undefined
+          ? r.orig_dose_per_acre
+          : (tmplItem?.dose_per_acre || r.dose_per_acre || c?.base_dose_per_acre || 2.0)
+      );
+      if (baseOrigDose >= 50) baseOrigDose = Number((baseOrigDose / 1000).toFixed(2));
+
+      const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
+      const sopMult = (taskDad >= 140 && wState.tMin > 18 && inputId === "WSF_00_00_50") ? 1.15 : 1.0;
+      const effItemStatus = r.item_status || (tk.status === "COMPLETED" ? "COMPLETED" : tk.status === "SKIPPED" ? "SKIPPED" : "PENDING");
+
+      // CASE 1: Card or Item is SKIPPED -> Adds full baseline dose to rolling deficit & flags skip boost
+      if (effItemStatus === "SKIPPED" || tk.status === "SKIPPED") {
+        carryDeficitPerAc = Number((carryDeficitPerAc + baseOrigDose).toFixed(2));
+        hasActiveSkipInCarry = true;
+        latestDeficitDate = tk.current_scheduled_date;
+        continue;
+      }
+
+      // CASE 2: Card or Item is COMPLETED -> Either adds under-dose deficit or absorbs prior carry deficit
+      if (effItemStatus === "COMPLETED" || tk.status === "COMPLETED") {
+        const metricsDone = getItemDoseMetrics(c, r, sopMult, CFG.drums, CFG.drumL, true);
+        const appliedPerAc = Number((metricsDone.actualTotal3Ac / (CFG.acres * sopMult)).toFixed(2));
+        const diffPerAc = Number((appliedPerAc - baseOrigDose).toFixed(2));
+
+        if (diffPerAc < -0.08) {
+          // Completed with less than recommended -> add unapplied amount to rolling deficit
+          carryDeficitPerAc = Number((carryDeficitPerAc + Math.abs(diffPerAc)).toFixed(2));
+          latestDeficitDate = tk.current_scheduled_date;
+        } else if (diffPerAc > 0.08) {
+          // Completed with extra (or make-up) dose -> reduce rolling deficit
+          carryDeficitPerAc = Math.max(0, Number((carryDeficitPerAc - diffPerAc).toFixed(2)));
+          if (carryDeficitPerAc === 0) {
+            hasActiveSkipInCarry = false;
+            latestDeficitDate = null;
+          }
+        }
+        continue;
+      }
+
+      // CASE 3: Card/Item is PENDING or DELAYED
+      const currentDosePerAc = Number(r.dose_per_acre || baseOrigDose);
+      const isUserManualUnderDose = !r.compensated_from_date && currentDosePerAc < baseOrigDose - 0.08;
+
+      if (isUserManualUnderDose) {
+        // User manually lowered this pending card below recommended -> keep user's lower dose & roll deficit to next card!
+        const underDiff = Number((baseOrigDose - currentDosePerAc).toFixed(2));
+        carryDeficitPerAc = Number((carryDeficitPerAc + underDiff).toFixed(2));
+        latestDeficitDate = tk.current_scheduled_date;
+        continue;
+      }
+
+      const bounds = getDripStageDoseBounds(c, tk.effective_dad, { ...r, orig_dose_per_acre: baseOrigDose });
+      const stageSafeMax = Math.max(baseOrigDose, bounds.maxPerAcre);
+
+      let targetDosePerAc = baseOrigDose;
+      let targetCompDate = null;
+
+      if (carryDeficitPerAc > 0.05 && stageSafeMax > baseOrigDose) {
+        if (hasActiveSkipInCarry) {
+          // When a previous card was SKIPPED, boost this card up to its Stage Safe Upper Limit (stageSafeMax)!
+          targetDosePerAc = stageSafeMax;
+          const absorbedPerAc = Math.max(0, Number((stageSafeMax - baseOrigDose).toFixed(2)));
+          carryDeficitPerAc = Math.max(0, Number((carryDeficitPerAc - absorbedPerAc).toFixed(2)));
+          targetCompDate = latestDeficitDate;
+          // If there is still leftover deficit after hitting stageSafeMax, keep hasActiveSkipInCarry = false so subsequent cards absorb the exact remaining deficit up to their stageSafeMax
+          if (carryDeficitPerAc <= 0.05) {
+            hasActiveSkipInCarry = false;
+            latestDeficitDate = null;
+          }
+        } else {
+          // Under-dose or multi-card rollover remainder: add up to stageSafeMax
+          const desired = Number((baseOrigDose + carryDeficitPerAc).toFixed(2));
+          targetDosePerAc = Math.min(stageSafeMax, desired);
+          const absorbedPerAc = Math.max(0, Number((targetDosePerAc - baseOrigDose).toFixed(2)));
+          carryDeficitPerAc = Math.max(0, Number((carryDeficitPerAc - absorbedPerAc).toFixed(2)));
+          targetCompDate = latestDeficitDate;
+          if (carryDeficitPerAc <= 0.05) latestDeficitDate = null;
+        }
+      }
+
+      const nextMetrics = getItemDoseMetrics(c, { ...r, dose_per_acre: targetDosePerAc }, sopMult, CFG.drums, CFG.drumL, true);
+      const newTotal3Ac = nextMetrics.suggestedTotal3Ac;
+      const oldCompDate = r.compensated_from_date || null;
+
+      if (
+        Number(r.dose_per_acre) !== targetDosePerAc ||
+        Number(r.actual_total_3ac) !== newTotal3Ac ||
+        oldCompDate !== targetCompDate ||
+        r.orig_dose_per_acre !== baseOrigDose
+      ) {
+        const updatedItem = {
+          ...r,
+          orig_dose_per_acre: baseOrigDose,
+          dose_per_acre: targetDosePerAc,
+          actual_total_3ac: newTotal3Ac
+        };
+        if (targetCompDate) updatedItem.compensated_from_date = targetCompDate;
+        else delete updatedItem.compensated_from_date;
+
+        tk.resolved_recipe[itemIdx] = updatedItem;
+        dirtyTasksMap.set(tk.id, tk);
+      }
+    }
+  }
+
+  if (dirtyTasksMap.size > 0) {
+    await Promise.all(Array.from(dirtyTasksMap.values()).map(u =>
+      dbMutate({
+        table: "daily_task_queue",
+        type: "update",
+        payload: {
+          resolved_recipe: u.resolved_recipe,
+          updated_by: activeUser,
+          updated_at: new Date().toISOString()
+        },
+        matchCol: "id",
+        matchVal: u.id
+      })
+    ));
+  }
+}
+
 async function syncNextDripDoseForItem(tk, item, newStatus, suggestedTotal3Ac) {
   if (!tk || !item) return;
   const isDripCard = (tk.task_type || "").startsWith("DRIP");
   if (!isDripCard && item.dose_per_acre === undefined && !catalog[item.input_id]?.base_dose_per_acre) return;
-
-  const c = catalog[item.input_id];
-  const boundsNow = getDripStageDoseBounds(c, tk.effective_dad, item);
-  const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
-  const sopMult = (taskDad >= 140 && wState.tMin > 18 && c?.id === "WSF_00_00_50") ? 1.15 : 1.0;
-  const trueRec3Ac = Number((boundsNow.recPerAcre * sopMult * CFG.acres).toFixed(2));
-  const applied3Ac = item.actual_total_3ac !== undefined
-    ? Number(item.actual_total_3ac)
-    : Number((Number(item.dose_per_acre || boundsNow.recPerAcre) * sopMult * CFG.acres).toFixed(2));
-
-  // Find the next chronologically scheduled uncompleted Drip task containing this fertilizer
-  const nextTask = tasks
-    .filter(f =>
-      f.id !== tk.id &&
-      f.status !== "COMPLETED" &&
-      f.status !== "SKIPPED" &&
-      (f.task_type || "").startsWith("DRIP") &&
-      (f.current_scheduled_date > tk.current_scheduled_date || (f.current_scheduled_date === tk.current_scheduled_date && (f.template_id || 999) > (tk.template_id || 0))) &&
-      (f.resolved_recipe || []).some(r => r.input_id === item.input_id)
-    )
-    .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date) || (a.template_id || 0) - (b.template_id || 0))[0];
-
-  if (!nextTask) return;
-
-  // If user lowered the dose on a PENDING card below recommended, treat as UNDERDOSE_PREVIEW so next card boosts immediately!
-  const effectiveMode = (newStatus === "PENDING" && applied3Ac < trueRec3Ac - 0.25) ? "UNDERDOSE_PREVIEW" : newStatus;
-
-  nextTask.resolved_recipe = nextTask.resolved_recipe.map(r => {
-    if (r.input_id !== item.input_id) return r;
-    const baseOrigDose = Number(r.orig_dose_per_acre !== undefined ? r.orig_dose_per_acre : (r.dose_per_acre || c?.base_dose_per_acre || 2.0));
-    const nextBounds = getDripStageDoseBounds(c, nextTask.effective_dad, { ...r, orig_dose_per_acre: baseOrigDose });
-    const nextMaxAllowed = Math.max(baseOrigDose, nextBounds.maxPerAcre);
-    const newDose = computeSafeNextDripDose(baseOrigDose, effectiveMode, applied3Ac, trueRec3Ac, nextMaxAllowed);
-
-    const nextDad = computeDynamicDadAndWeek(nextTask.current_scheduled_date).dad;
-    const nextSopMult = (nextDad >= 140 && wState.tMin > 18 && c?.id === "WSF_00_00_50") ? 1.15 : 1.0;
-    const nextMetrics = getItemDoseMetrics(c, { ...r, dose_per_acre: newDose }, nextSopMult, CFG.drums, CFG.drumL, true);
-
-    const updatedItem = {
-      ...r,
-      orig_dose_per_acre: baseOrigDose,
-      dose_per_acre: newDose,
-      actual_total_3ac: nextMetrics.suggestedTotal3Ac
-    };
-    if (newDose > baseOrigDose) updatedItem.compensated_from_date = tk.current_scheduled_date;
-    else delete updatedItem.compensated_from_date;
-    return updatedItem;
-  });
-
-  await dbMutate({
-    table: "daily_task_queue",
-    type: "update",
-    payload: { resolved_recipe: nextTask.resolved_recipe, updated_by: activeUser, updated_at: new Date().toISOString() },
-    matchCol: "id",
-    matchVal: nextTask.id
-  });
+  await reconcileAllDripDeficitsAcrossSchedule(item.input_id);
 }
 
 async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
@@ -6183,6 +6295,20 @@ function runEnterpriseQASuite() {
   const boostedOnSkip = computeSafeNextDripDose(2.0, "SKIPPED", 0, 6.0, nextStageBMax);
   const restoredOnReset = computeSafeNextDripDose(2.0, "PENDING", 6.0, 6.0, nextStageBMax);
   assert("35. Skipped Drip Future Card Boost to Stage Upper Limit", nextStageBMax === 4.5 && boostedOnSkip === 4.5 && restoredOnReset === 2.0, `Skipping 2.0 kg/ac split-drip boosts next Stage B card to ${boostedOnSkip} kg/ac (13.5 kg/3ac safe limit); Reset restores ${restoredOnReset} kg/ac`);
+
+  // Test 36: Retroactive Already-Skipped Card Reconciliation & Multi-Card Rollover Across 2 Upcoming Cards
+  const savedTasks36 = tasks;
+  const mockSkipCard1 = { id: "t36-1", task_type: "DRIP_MON_THU", status: "SKIPPED", current_scheduled_date: "2026-10-26", effective_dad: 72, resolved_recipe: [{ input_id: "WSF_00_52_34", dose_per_acre: 3.5, item_status: "SKIPPED" }] };
+  const mockPendCard2 = { id: "t36-2", task_type: "DRIP_MON_THU", status: "PENDING", current_scheduled_date: "2026-10-29", effective_dad: 75, resolved_recipe: [{ input_id: "WSF_00_52_34", dose_per_acre: 3.5, orig_dose_per_acre: 3.5 }] };
+  const mockPendCard3 = { id: "t36-3", task_type: "DRIP_MON_THU", status: "PENDING", current_scheduled_date: "2026-11-02", effective_dad: 79, resolved_recipe: [{ input_id: "WSF_00_52_34", dose_per_acre: 2.0, orig_dose_per_acre: 2.0 }] };
+  tasks = [mockSkipCard1, mockPendCard2, mockPendCard3];
+  if (typeof reconcileAllDripDeficitsAcrossSchedule === "function") {
+    reconcileAllDripDeficitsAcrossSchedule("WSF_00_52_34");
+  }
+  const c2Dose = mockPendCard2.resolved_recipe[0].dose_per_acre;
+  const c3Dose = mockPendCard3.resolved_recipe[0].dose_per_acre;
+  tasks = savedTasks36;
+  assert("36. Retroactive Skipped Card & 2-Card Rollover", c2Dose === 4.5 && c3Dose === 4.5 && mockPendCard2.resolved_recipe[0].compensated_from_date === "2026-10-26" && mockPendCard3.resolved_recipe[0].compensated_from_date === "2026-10-26", `Skipping 3.5 kg/ac boosts Card 2 (3.5→${c2Dose} kg/ac Stage B cap) & rolls remaining 2.5 kg/ac deficit into Card 3 (2.0→${c3Dose} kg/ac)`);
 
   const sortedResults = [...results].sort((a, b) => Number(a.pass) - Number(b.pass));
   const passed = results.filter(r => r.pass).length;
