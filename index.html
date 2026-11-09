@@ -5112,27 +5112,31 @@ function getDripStageDoseBounds(cat, effectiveDad, itemObj = null) {
   const gModel = (typeof getGddStageModel === "function") ? getGddStageModel() : null;
   const estGdd = gModel ? gModel.getStageForDad(dad).gdd : Math.round(dad * 15.5);
 
-  let recPerAcre = Number(itemObj?.orig_dose_per_acre || cat?.base_dose_per_acre || itemObj?.dose_per_acre || 2.5);
+  let recPerAcre = Number(itemObj?.orig_dose_per_acre || itemObj?.dose_per_acre || cat?.base_dose_per_acre || 2.5);
   if (recPerAcre >= 50) recPerAcre = Number((recPerAcre / 1000).toFixed(2));
+
+  let catBasePerAcre = Number(cat?.base_dose_per_acre || recPerAcre);
+  if (catBasePerAcre >= 50) catBasePerAcre = Number((catBasePerAcre / 1000).toFixed(2));
+  const refFullPerAcre = Math.max(recPerAcre, catBasePerAcre);
 
   // Stage-specific ceiling multiplier & hard EC root-safety ceiling (kg/acre)
   const id = cat?.id || "";
-  const isMicroOrBio = cat?.category === "BIOSTIMULANT" || /^MIC_|^BIO_/.test(id) || recPerAcre <= 1.2;
+  const isMicroOrBio = cat?.category === "BIOSTIMULANT" || /^MIC_|^BIO_/.test(id) || refFullPerAcre <= 1.2;
 
   let stageMaxCap = 4.5;
   let stageLabelEn = "Stage B (Guava-Size)";
   let stageLabelKn = "ಹಂತ B (ಪೇರಳೆ ಗಾತ್ರ)";
 
   if (estGdd < 950 && dad < 59) {
-    stageMaxCap = isMicroOrBio ? Number((recPerAcre * 1.25).toFixed(2)) : (id === "WSF_MGSO4" ? 2.5 : 3.5);
+    stageMaxCap = isMicroOrBio ? Number((refFullPerAcre * 1.25).toFixed(2)) : (id === "WSF_MGSO4" ? 2.5 : 3.5);
     stageLabelEn = "Stage A (Flowering / Early Sizing)";
     stageLabelKn = "ಹಂತ A (ಹೂವು ಮತ್ತು ಆರಂಭಿಕ ಕಾಯಿ)";
   } else if (estGdd < 1450 && dad < 91) {
-    stageMaxCap = isMicroOrBio ? Number((recPerAcre * 1.35).toFixed(2)) : (id === "WSF_MGSO4" ? 3.0 : 4.5);
+    stageMaxCap = isMicroOrBio ? Number((refFullPerAcre * 1.35).toFixed(2)) : (id === "WSF_MGSO4" ? 3.0 : 4.5);
     stageLabelEn = "Stage B (Guava-Size Expansion)";
     stageLabelKn = "ಹಂತ B (ಪೇರಳೆ ಗಾತ್ರದ ಬೆಳವಣಿಗೆ)";
   } else if (estGdd < 2150 && dad < 140) {
-    stageMaxCap = isMicroOrBio ? Number((recPerAcre * 1.50).toFixed(2)) : (id === "WSF_MGSO4" ? 3.5 : 5.5);
+    stageMaxCap = isMicroOrBio ? Number((refFullPerAcre * 1.50).toFixed(2)) : (id === "WSF_MGSO4" ? 3.5 : 5.5);
     stageLabelEn = "Stage C1 (Aril Swelling)";
     stageLabelKn = "ಹಂತ C1 (ಕಾಳು ತುಂಬುವ ಹಂತ)";
   } else {
@@ -5141,14 +5145,14 @@ function getDripStageDoseBounds(cat, effectiveDad, itemObj = null) {
     if (hasN) {
       stageMaxCap = 0;
     } else {
-      stageMaxCap = isMicroOrBio ? Number((recPerAcre * 1.50).toFixed(2)) : (id === "WSF_MGSO4" ? 3.5 : 6.5);
+      stageMaxCap = isMicroOrBio ? Number((refFullPerAcre * 1.50).toFixed(2)) : (id === "WSF_MGSO4" ? 3.5 : 6.5);
     }
     stageLabelEn = "Stage C2/D (Color & Ripening)";
     stageLabelKn = "ಹಂತ C2/D (ಬಣ್ಣ ಮತ್ತು ಮಾಗುವ ಹಂತ)";
   }
 
-  // Max allowed is the lesser of 1.5x recommended dose (EC safety cap) or the absolute stage ceiling, but never below recPerAcre (unless N-locked)
-  const ecCap = Number((recPerAcre * 1.5).toFixed(2));
+  // Max allowed uses the catalog reference EC cap (1.5x full base dose) bounded by stageMaxCap, so split-drip cards (e.g. 2.0 kg/ac) can still scale up to the stage's safe upper limit when a prior card is skipped!
+  const ecCap = Number((refFullPerAcre * 1.5).toFixed(2));
   const maxPerAcre = stageMaxCap === 0 ? 0 : Math.max(recPerAcre, Math.min(stageMaxCap, ecCap));
   const minPerAcre = stageMaxCap === 0 ? 0 : Math.min(0.5, Number((recPerAcre * 0.25).toFixed(2)));
 
@@ -5341,9 +5345,10 @@ function sanitizeNonNegativeNumber(rawVal, fallback = 0, maxVal = 1000000) {
 function computeSafeNextDripDose(baseOrigDose, status, actual3Ac, suggested3Ac, maxAllowedPerAc = null) {
   const orig = Number(baseOrigDose) || 2.0;
   const ceiling = (maxAllowedPerAc !== null && Number.isFinite(Number(maxAllowedPerAc)) && Number(maxAllowedPerAc) > 0)
-    ? Math.min(Number(maxAllowedPerAc), Number((orig * 1.5).toFixed(2)))
+    ? Number(maxAllowedPerAc)
     : Number((orig * 1.5).toFixed(2));
 
+  // When a card/item is SKIPPED, boost the next card's suggested per-acre rate directly to the safe upper limit for that stage!
   if (status === "SKIPPED") return ceiling;
   if (status === "COMPLETED" || status === "UNDERDOSE_PREVIEW") {
     const rawDiff3Ac = Number((actual3Ac - suggested3Ac).toFixed(2));
@@ -5596,14 +5601,18 @@ async function updateItemQty(taskId, idx, newVal, suggestedTotal3Ac) {
 }
 
 async function syncNextDripDoseForItem(tk, item, newStatus, suggestedTotal3Ac) {
-  if (!item || (item.dose_per_acre === undefined && !catalog[item.input_id]?.base_dose_per_acre)) return;
+  if (!tk || !item) return;
+  const isDripCard = (tk.task_type || "").startsWith("DRIP");
+  if (!isDripCard && item.dose_per_acre === undefined && !catalog[item.input_id]?.base_dose_per_acre) return;
+
   const c = catalog[item.input_id];
   const boundsNow = getDripStageDoseBounds(c, tk.effective_dad, item);
   const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
   const sopMult = (taskDad >= 140 && wState.tMin > 18 && c?.id === "WSF_00_00_50") ? 1.15 : 1.0;
   const trueRec3Ac = Number((boundsNow.recPerAcre * sopMult * CFG.acres).toFixed(2));
-  const refSuggested3Ac = suggestedTotal3Ac || trueRec3Ac;
-  const applied3Ac = item.actual_total_3ac !== undefined ? Number(item.actual_total_3ac) : Number((Number(item.dose_per_acre || boundsNow.recPerAcre) * sopMult * CFG.acres).toFixed(2));
+  const applied3Ac = item.actual_total_3ac !== undefined
+    ? Number(item.actual_total_3ac)
+    : Number((Number(item.dose_per_acre || boundsNow.recPerAcre) * sopMult * CFG.acres).toFixed(2));
 
   // Find the next chronologically scheduled uncompleted Drip task containing this fertilizer
   const nextTask = tasks
@@ -5611,7 +5620,7 @@ async function syncNextDripDoseForItem(tk, item, newStatus, suggestedTotal3Ac) {
       f.id !== tk.id &&
       f.status !== "COMPLETED" &&
       f.status !== "SKIPPED" &&
-      f.task_type.startsWith("DRIP") &&
+      (f.task_type || "").startsWith("DRIP") &&
       (f.current_scheduled_date > tk.current_scheduled_date || (f.current_scheduled_date === tk.current_scheduled_date && (f.template_id || 999) > (tk.template_id || 0))) &&
       (f.resolved_recipe || []).some(r => r.input_id === item.input_id)
     )
@@ -5619,37 +5628,38 @@ async function syncNextDripDoseForItem(tk, item, newStatus, suggestedTotal3Ac) {
 
   if (!nextTask) return;
 
-  const nextBounds = getDripStageDoseBounds(c, nextTask.effective_dad);
   // If user lowered the dose on a PENDING card below recommended, treat as UNDERDOSE_PREVIEW so next card boosts immediately!
   const effectiveMode = (newStatus === "PENDING" && applied3Ac < trueRec3Ac - 0.25) ? "UNDERDOSE_PREVIEW" : newStatus;
 
   nextTask.resolved_recipe = nextTask.resolved_recipe.map(r => {
     if (r.input_id !== item.input_id) return r;
     const baseOrigDose = Number(r.orig_dose_per_acre !== undefined ? r.orig_dose_per_acre : (r.dose_per_acre || c?.base_dose_per_acre || 2.0));
+    const nextBounds = getDripStageDoseBounds(c, nextTask.effective_dad, { ...r, orig_dose_per_acre: baseOrigDose });
     const nextMaxAllowed = Math.max(baseOrigDose, nextBounds.maxPerAcre);
     const newDose = computeSafeNextDripDose(baseOrigDose, effectiveMode, applied3Ac, trueRec3Ac, nextMaxAllowed);
-    const updatedItem = { ...r, orig_dose_per_acre: baseOrigDose, dose_per_acre: newDose };
+
+    const nextDad = computeDynamicDadAndWeek(nextTask.current_scheduled_date).dad;
+    const nextSopMult = (nextDad >= 140 && wState.tMin > 18 && c?.id === "WSF_00_00_50") ? 1.15 : 1.0;
+    const nextMetrics = getItemDoseMetrics(c, { ...r, dose_per_acre: newDose }, nextSopMult, CFG.drums, CFG.drumL, true);
+
+    const updatedItem = {
+      ...r,
+      orig_dose_per_acre: baseOrigDose,
+      dose_per_acre: newDose,
+      actual_total_3ac: nextMetrics.suggestedTotal3Ac
+    };
     if (newDose > baseOrigDose) updatedItem.compensated_from_date = tk.current_scheduled_date;
     else delete updatedItem.compensated_from_date;
-    delete updatedItem.actual_total_3ac;
     return updatedItem;
   });
-  await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: nextTask.resolved_recipe }, matchCol: "id", matchVal: nextTask.id });
-}
-async function syncNextDripDoseForItem(tk, item, newStatus, suggestedTotal3Ac) {
-  if (!item || !item.dose_per_acre) return;
-  const nextTask = tasks.find(f => f.id !== tk.id && f.status !== "COMPLETED" && f.status !== "SKIPPED" && f.originally_scheduled_date > tk.originally_scheduled_date && (f.resolved_recipe || []).some(r => r.input_id === item.input_id && r.dose_per_acre));
-  if (!nextTask) return;
 
-  nextTask.resolved_recipe = nextTask.resolved_recipe.map(r => {
-    if (r.input_id !== item.input_id || !r.dose_per_acre) return r;
-    const baseOrigDose = Number(r.orig_dose_per_acre !== undefined ? r.orig_dose_per_acre : r.dose_per_acre);
-    const newDose = computeSafeNextDripDose(baseOrigDose, newStatus, item.actual_total_3ac ?? suggestedTotal3Ac, suggestedTotal3Ac);
-    const updatedItem = { ...r, orig_dose_per_acre: baseOrigDose, dose_per_acre: newDose };
-    delete updatedItem.actual_total_3ac;
-    return updatedItem;
+  await dbMutate({
+    table: "daily_task_queue",
+    type: "update",
+    payload: { resolved_recipe: nextTask.resolved_recipe, updated_by: activeUser, updated_at: new Date().toISOString() },
+    matchCol: "id",
+    matchVal: nextTask.id
   });
-  await dbMutate({ table: "daily_task_queue", type: "update", payload: { resolved_recipe: nextTask.resolved_recipe }, matchCol: "id", matchVal: nextTask.id });
 }
 
 async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
@@ -5689,6 +5699,7 @@ async function splitRemainingItemsToTomorrow(taskId) {
 
 async function markWholeCard(taskId, st) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
+  const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER";
   const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
   const sopMult = (taskDad >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
   const drumsCount = Number(tk.drums_count) || CFG.drums;
@@ -5698,15 +5709,15 @@ async function markWholeCard(taskId, st) {
   tk.resolved_recipe = (tk.resolved_recipe || []).map(r => {
     const c = catalog[r.input_id];
     const m = r.input_id === "WSF_00_00_50" ? sopMult : 1.0;
-    const metrics = getItemDoseMetrics(c, r, m, drumsCount, drumLiters);
+    const metrics = getItemDoseMetrics(c, r, m, drumsCount, drumLiters, !isFoliarCard);
     return { ...r, item_status: st, actual_total_3ac: metrics.actualTotal3Ac };
   });
 
-  for (const r of tk.resolved_recipe) {
-    if (r.dose_per_acre) {
+  if (!isFoliarCard) {
+    for (const r of tk.resolved_recipe) {
       const c = catalog[r.input_id];
       const m = r.input_id === "WSF_00_00_50" ? sopMult : 1.0;
-      const metrics = getItemDoseMetrics(c, r, m, drumsCount, drumLiters);
+      const metrics = getItemDoseMetrics(c, r, m, drumsCount, drumLiters, true);
       await syncNextDripDoseForItem(tk, r, st, metrics.suggestedTotal3Ac);
     }
   }
@@ -6161,6 +6172,18 @@ function runEnterpriseQASuite() {
   const autoTitleKn33 = generateAutoCardTitle("DRIP_SAT", ["WSF_CALCIUM_NITRATE"], true);
   assert("33. Auto-Generated Bilingual Combination Card Titles", autoTitleEn33.includes("Foliar Spray") && autoTitleEn33.includes("Thrips") && autoTitleKn33.includes("ಕ್ಯಾಲ್ಸಿಯಂ"), `EN: "${autoTitleEn33.slice(0, 48)}..." | KN: "${autoTitleKn33.slice(0, 38)}..."`);
 
+  // Test 34: Multi-Component Co-Formulation Nutrient Parsing (Yab-CalciB: Calcium 11% + Boron 2% SL)
+  const yabCalciB = catalog["MIC_YAB_CALCIB"] || { id: "CUSTOM_TEST_CAB", active_ingredient: "Calcium 11% + Boron 2% SL", category: "BIOSTIMULANT" };
+  const parsedCaB = getEffectiveNutrientPct(yabCalciB);
+  const coversCrack = doesItemCoverThreat("MIC_YAB_CALCIB", "CRACKING");
+  assert("34. Multi-Component Ca 11% + B 2% Parsing (Yab-CalciB)", parsedCaB.ca === 11 && parsedCaB.b === 2 && coversCrack, `Parsed Ca=${parsedCaB.ca}%, Boron=${parsedCaB.b}%, Anti-Cracking Shield=${coversCrack}`);
+
+  // Test 35: Skipped Split-Drip Card Updates Future Card to Stage Safe Upper Limit & Reset Restores Baseline
+  const nextStageBMax = getDripStageDoseBounds(mkp || { id: "WSF_00_52_34", base_dose_per_acre: 3.5 }, 75, { orig_dose_per_acre: 2.0 }).maxPerAcre;
+  const boostedOnSkip = computeSafeNextDripDose(2.0, "SKIPPED", 0, 6.0, nextStageBMax);
+  const restoredOnReset = computeSafeNextDripDose(2.0, "PENDING", 6.0, 6.0, nextStageBMax);
+  assert("35. Skipped Drip Future Card Boost to Stage Upper Limit", nextStageBMax === 4.5 && boostedOnSkip === 4.5 && restoredOnReset === 2.0, `Skipping 2.0 kg/ac split-drip boosts next Stage B card to ${boostedOnSkip} kg/ac (13.5 kg/3ac safe limit); Reset restores ${restoredOnReset} kg/ac`);
+
   const sortedResults = [...results].sort((a, b) => Number(a.pass) - Number(b.pass));
   const passed = results.filter(r => r.pass).length;
   const allPass = passed === results.length;
@@ -6203,7 +6226,22 @@ async function confirmDelayModal() {
 async function resetCardWithCascade(taskId) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
   delete tk.drums_count; delete tk.drum_liters;
-  tk.resolved_recipe = (tk.resolved_recipe || []).map(r => { const c = { ...r }; delete c.item_status; delete c.actual_total_3ac; delete c.applied_delta_per_acre; return c; });
+  tk.resolved_recipe = (tk.resolved_recipe || []).map(r => {
+    const c = { ...r };
+    if (c.orig_dose_per_acre !== undefined) c.dose_per_acre = c.orig_dose_per_acre;
+    delete c.item_status; delete c.actual_total_3ac; delete c.applied_delta_per_acre; delete c.compensated_from_date;
+    return c;
+  });
+
+  // If this was a Drip card that previously boosted a future card (via Skip or Under-dose), restore the future card's dose back to normal!
+  if ((tk.task_type || "").startsWith("DRIP")) {
+    for (const r of tk.resolved_recipe) {
+      const c = catalog[r.input_id];
+      const metrics = getItemDoseMetrics(c, r, 1.0, CFG.drums, CFG.drumL, true);
+      await syncNextDripDoseForItem(tk, r, "PENDING", metrics.suggestedTotal3Ac);
+    }
+  }
+
   if (tk.originally_scheduled_date && tk.current_scheduled_date !== tk.originally_scheduled_date) {
     const delta = diffDaysYMD(tk.current_scheduled_date, tk.originally_scheduled_date);
     const askMsg = LANG === "KN" ? `ಈ ಕೆಲಸವನ್ನು ಮೂಲ ದಿನಾಂಕಕ್ಕೆ (${tk.originally_scheduled_date}) ತರಲಾಗುತ್ತಿದೆ. ಮುಂದಿನ ಎಲ್ಲಾ ಕೆಲಸಗಳನ್ನೂ ${delta} ದಿನ ಹಿಂದೆ ತರಲೇ?` : `Resetting to original date (${tk.originally_scheduled_date}). Also shift all subsequent tasks by ${delta} days?`;
