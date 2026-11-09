@@ -315,101 +315,189 @@
     </div>
   </div>
 
-  <!-- SMART ADD NEW CHEMICAL MODAL -->
+  <!-- SMART ADD NEW CHEMICAL MODAL (Supports Single-Salt, 2-to-3 Co-Formulations, Ca+B / NPK+Micro & Dual Foliar/Drip) -->
   <div id="newChemModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-4 max-h-[92vh] overflow-y-auto space-y-2.5 text-xs">
+    <div class="bg-white w-full max-w-xl rounded-t-2xl sm:rounded-2xl p-4 max-h-[94vh] overflow-y-auto space-y-2.5 text-xs">
       <div class="flex items-center justify-between border-b pb-2">
-        <h3 class="font-extrabold text-base text-slate-900">➕ Add New Store Brand / Chemical</h3>
-        <button onclick="document.getElementById('newChemModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
+        <div>
+          <h3 class="font-extrabold text-base text-slate-900">➕ Add New Store Brand / Multi-Component Input</h3>
+          <p class="text-[11px] text-slate-500">Supports single salts, 2-to-3 co-formulations (e.g., Calcium 11% + Boron 2%), and dual Foliar + Drip products.</p>
+        </div>
+        <button onclick="closeNewChemModal()" class="font-bold text-lg px-2">✕</button>
       </div>
+
+      <!-- Quick Attach Brand to Existing Salt Container (Populated dynamically by openNewChemModal) -->
+      <div id="ncQuickBrandAttachBox" class="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl space-y-1.5 text-xs"></div>
+
+      <!-- Quick Preset Bar for Common Co-Formulations -->
+      <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+        <span class="font-bold text-slate-500">⚡ Quick Presets:</span>
+        <button type="button" onclick="fillNewChemPreset('YAB_CALCIB')" class="px-2 py-0.5 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold border border-emerald-300">🧪 Yab-CalciB (Ca 11% + B 2%)</button>
+        <button type="button" onclick="fillNewChemPreset('CUSTODIA')" class="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold border">🍄 2-Salt Fungicide</button>
+        <button type="button" onclick="fillNewChemPreset('NPK_MICRO')" class="px-2 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold border border-amber-300">⚖️ NPK + Mg/B Grade</button>
+      </div>
+
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label class="font-bold block mb-0.5 text-slate-700">1. Store Brand Name (English):</label>
-          <input type="text" id="ncNameEn" oninput="previewSmartChem()" placeholder="e.g., Cosuit (FMC) / Validacin" class="w-full border rounded-lg px-2.5 py-1.5 font-bold" />
+          <input type="text" id="ncNameEn" oninput="previewSmartChem()" placeholder="e.g., Yab-CalciB (Yabam) / Cosuit" class="w-full border rounded-lg px-2.5 py-1.5 font-bold" />
         </div>
         <div>
           <label class="font-bold block mb-0.5 text-slate-700">Salt / Name in Kannada (Optional):</label>
-          <input type="text" id="ncNameKn" placeholder="ಉದಾ: ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್" class="w-full border rounded-lg px-2.5 py-1.5" />
+          <input type="text" id="ncNameKn" oninput="previewSmartChem()" placeholder="ಉದಾ: ದ್ರವ ಕ್ಯಾಲ್ಸಿಯಂ 11% + ಬೋರಾನ್ 2%" class="w-full border rounded-lg px-2.5 py-1.5" />
         </div>
       </div>
+
+      <!-- 2. MULTI-COMPONENT ACTIVE SALT & CONCENTRATION BUILDER -->
       <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-        <div class="font-extrabold text-slate-800">2. Active Salt &amp; Composition (Displayed as Main Title):</div>
-        <div>
-          <label class="font-semibold text-slate-600 block mb-0.5">Base Active Salt (Pick from suggestions or type new):</label>
-          <input type="text" id="ncSaltBase" list="knownSaltsList" oninput="onSaltOrPctChange()" placeholder="e.g., Copper Hydroxide OR Validamycin" class="w-full border rounded-lg px-2.5 py-1.5 font-bold bg-white" />
-          <datalist id="knownSaltsList"></datalist>
+        <div class="flex flex-wrap items-center justify-between gap-1">
+          <span class="font-extrabold text-slate-800">2. Active Salt(s) / Nutrient Components &amp; Individual %:</span>
+          <select id="ncPctBasis" onchange="previewSmartChem()" class="border rounded px-1.5 py-0.5 text-[10px] font-bold bg-white text-slate-700" title="FCO Standard uses % w/w (Weight/Weight)">
+            <option value="WW">% w/w (FCO Standard Min)</option>
+            <option value="WV">% w/v (Weight / Volume)</option>
+          </select>
         </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="font-semibold text-slate-600 block mb-0.5">Concentration (%):</label>
+        <datalist id="knownSaltsList"></datalist>
+
+        <!-- Component 1 (Primary) -->
+        <div class="grid grid-cols-12 gap-1.5 items-center">
+          <div class="col-span-8">
+            <label class="text-[10px] font-bold text-slate-600 block">Component 1 (Primary Salt or Element):</label>
+            <input type="text" id="ncSaltBase" list="knownSaltsList" oninput="onSaltOrPctChange(1)" placeholder="e.g., Calcium (or Copper Hydroxide)" class="w-full border rounded-lg px-2 py-1.5 font-bold bg-white" />
+          </div>
+          <div class="col-span-4">
+            <label class="text-[10px] font-bold text-slate-600 block">Comp 1 (%):</label>
             <div class="flex items-center border rounded-lg bg-white px-2 py-1.5">
-              <input type="number" step="0.01" id="ncSaltPct" oninput="onSaltOrPctChange()" placeholder="e.g., 61.41 or 3" class="w-full font-extrabold focus:outline-none" />
+              <input type="number" step="0.01" min="0" max="100" id="ncSaltPct" oninput="onSaltOrPctChange(1)" placeholder="e.g., 11" class="w-full font-extrabold focus:outline-none text-right" />
               <span class="font-bold text-slate-500 ml-1">%</span>
             </div>
           </div>
-          <div>
-            <label class="font-semibold text-slate-600 block mb-0.5">Formulation Code (W-A-L-E-S):</label>
-            <select id="ncFormulation" onchange="previewSmartChem()" class="w-full border rounded-lg px-2 py-1.5 font-bold bg-white">
+        </div>
+
+        <!-- Component 2 (Co-Formulation Partner, e.g., Boron 2% or Tebuconazole 18.3%) -->
+        <div class="grid grid-cols-12 gap-1.5 items-center">
+          <div class="col-span-8">
+            <label class="text-[10px] font-bold text-slate-600 block">Component 2 (2nd Salt / Element — Optional):</label>
+            <input type="text" id="ncSaltBase2" list="knownSaltsList" oninput="onSaltOrPctChange(2)" placeholder="e.g., Boron (or Tebuconazole)" class="w-full border rounded-lg px-2 py-1.5 font-bold bg-white" />
+          </div>
+          <div class="col-span-4">
+            <label class="text-[10px] font-bold text-slate-600 block">Comp 2 (%):</label>
+            <div class="flex items-center border rounded-lg bg-white px-2 py-1.5">
+              <input type="number" step="0.01" min="0" max="100" id="ncSaltPct2" oninput="onSaltOrPctChange(2)" placeholder="e.g., 2" class="w-full font-extrabold focus:outline-none text-right" />
+              <span class="font-bold text-slate-500 ml-1">%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Component 3 (Optional 3rd Component) -->
+        <div id="ncComp3Row" class="hidden grid grid-cols-12 gap-1.5 items-center">
+          <div class="col-span-8">
+            <label class="text-[10px] font-bold text-slate-600 block">Component 3 (3rd Salt / Element — Optional):</label>
+            <input type="text" id="ncSaltBase3" list="knownSaltsList" oninput="onSaltOrPctChange(3)" placeholder="e.g., Zinc / Magnesium / 3rd Salt" class="w-full border rounded-lg px-2 py-1.5 font-bold bg-white" />
+          </div>
+          <div class="col-span-4">
+            <label class="text-[10px] font-bold text-slate-600 block">Comp 3 (%):</label>
+            <div class="flex items-center border rounded-lg bg-white px-2 py-1.5">
+              <input type="number" step="0.01" min="0" max="100" id="ncSaltPct3" oninput="onSaltOrPctChange(3)" placeholder="e.g., 1.5" class="w-full font-extrabold focus:outline-none text-right" />
+              <span class="font-bold text-slate-500 ml-1">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+          <button type="button" onclick="document.getElementById('ncComp3Row').classList.toggle('hidden')" class="text-[11px] font-bold text-indigo-700 hover:underline">
+            ➕ Add / Toggle 3rd Component
+          </button>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] font-semibold text-slate-600">Formulation (W-A-L-E-S):</span>
+            <select id="ncFormulation" onchange="previewSmartChem()" class="border rounded-lg px-2 py-1 font-bold bg-white">
+              <option value="SL">SL / L (Soluble Liquid — Mix 3rd)</option>
+              <option value="SC">SC (Suspension Liquid — Mix 3rd)</option>
               <option value="WG">WG / WDG (Granules — Mix 1st)</option>
               <option value="DF">DF (Dry Flowable — Mix 1st)</option>
               <option value="WP">WP (Wettable Powder — Mix 1st)</option>
               <option value="SP">SP (Soluble Powder — Mix 2nd)</option>
-              <option value="SC">SC (Suspension Liquid — Mix 3rd)</option>
               <option value="OD">OD (Oil Dispersion — Mix 3rd)</option>
-              <option value="SL">SL / L (Soluble Liquid — Mix 3rd)</option>
               <option value="EC">EC (Emulsifiable Liquid — Mix Last)</option>
               <option value="WSF">WSF (Water-Soluble Fertilizer)</option>
             </select>
           </div>
         </div>
-        <div id="ncStrengthScaleHint" class="hidden text-[11px] text-indigo-800 bg-indigo-50 border border-indigo-200 rounded px-2 py-1 font-semibold"></div>
+
+        <div id="ncStrengthScaleHint" class="hidden text-[11px] text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1.5 font-semibold"></div>
       </div>
-      <div class="grid grid-cols-2 gap-2">
+
+      <!-- 3. CATEGORY & 4. APPLICATION MODE (Supports FOLIAR, DRIP, and BOTH) -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div>
           <label class="font-bold block mb-0.5 text-slate-700">3. Function / Category:</label>
-          <select id="ncCat" onchange="previewSmartChem()" class="w-full border rounded-lg px-2 py-1.5 font-semibold">
-            <option value="BACTERICIDE">Bactericide (ಬ್ಯಾಕ್ಟೀರಿಯಾ ನಾಶಕ)</option>
+          <select id="ncCat" onchange="onNewChemCatOrMethodChange()" class="w-full border rounded-lg px-2 py-1.5 font-semibold">
+            <option value="BIOSTIMULANT">Micronutrient / Ca-B / Bio (ಲಘು ಪೋಷಕಾಂಶ)</option>
+            <option value="FERTIGATION">Macro WSF Fertilizer (ಡ್ರಿಪ್ ಗೊಬ್ಬರ)</option>
             <option value="FUNGICIDE">Fungicide (ಶಿಲೀಂಧ್ರನಾಶಕ)</option>
             <option value="INSECTICIDE">Insecticide / Miticide (ಕೀಟನಾಶಕ)</option>
-            <option value="FERTIGATION">Drip Fertilizer (ಡ್ರಿಪ್ ಗೊಬ್ಬರ)</option>
-            <option value="BIOSTIMULANT">Micronutrient / Bio (ಲಘು ಪೋಷಕಾಂಶ)</option>
+            <option value="BACTERICIDE">Bactericide (ಬ್ಯಾಕ್ಟೀರಿಯಾ ನಾಶಕ)</option>
           </select>
         </div>
         <div>
           <label class="font-bold block mb-0.5 text-slate-700">4. Application Mode:</label>
-          <select id="ncMethod" onchange="previewSmartChem()" class="w-full border rounded-lg px-2 py-1.5 font-semibold">
-            <option value="FOLIAR">🌿 Foliar Spray (per Liter)</option>
-            <option value="DRIP">💧 Drip Fertigation (per Acre)</option>
+          <select id="ncMethod" onchange="onNewChemCatOrMethodChange()" class="w-full border rounded-lg px-2 py-1.5 font-semibold">
+            <option value="BOTH">🌿+💧 Both Foliar &amp; Drip (ಎರಡಕ್ಕೂ)</option>
+            <option value="FOLIAR">🌿 Foliar Spray Only (per Liter)</option>
+            <option value="DRIP">💧 Drip Fertigation Only (per Acre)</option>
+          </select>
+        </div>
+        <div>
+          <label class="font-bold block mb-0.5 text-slate-700">IRAC / FRAC Group (Optional):</label>
+          <input type="text" id="ncGroup" oninput="previewSmartChem()" placeholder="e.g., FRAC-11+3 or IRAC-5" class="w-full border rounded-lg px-2 py-1.5 font-mono font-bold" />
+        </div>
+      </div>
+
+      <!-- 5. DOSAGE SPECIFICATION (Supports Foliar per Liter AND/OR Drip per Acre) -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2.5 bg-emerald-50/60 border border-emerald-200 rounded-xl">
+        <div id="ncFoliarDoseBox">
+          <label class="font-bold block mb-0.5 text-emerald-950" id="ncDoseLabel">5A. Foliar Dose (per Liter):</label>
+          <div class="flex items-center gap-1">
+            <input type="number" step="0.05" min="0.05" id="ncDose" oninput="previewSmartChem()" value="2.0" class="w-full border rounded-lg px-2 py-1.5 font-extrabold text-emerald-900 bg-white" />
+            <span class="text-[11px] font-bold text-slate-600">/L</span>
+          </div>
+        </div>
+        <div id="ncDripDoseBox">
+          <label class="font-bold block mb-0.5 text-sky-950">5B. Drip / Soil Dose (per Acre):</label>
+          <div class="flex items-center gap-1">
+            <input type="number" step="0.1" min="0.1" id="ncDoseAcre" oninput="previewSmartChem()" value="1.0" class="w-full border rounded-lg px-2 py-1.5 font-extrabold text-sky-900 bg-white" />
+            <span class="text-[11px] font-bold text-slate-600">/Ac</span>
+          </div>
+        </div>
+        <div>
+          <label class="font-bold block mb-0.5 text-slate-700">Base Unit:</label>
+          <select id="ncUnit" onchange="previewSmartChem()" class="w-full border rounded-lg px-2 py-1.5 font-bold bg-white">
+            <option value="ml">ml (ಮಿ.ಲೀ — Liquids)</option>
+            <option value="g">g (ಗ್ರಾಂ — Powders)</option>
+            <option value="L">L (ಲೀಟರ್ — Bulk Liquid)</option>
+            <option value="kg">kg (ಕೆ.ಜಿ — Bags)</option>
           </select>
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="font-bold block mb-0.5 text-slate-700" id="ncDoseLabel">5. Dose per Liter:</label>
-          <input type="number" step="0.05" id="ncDose" oninput="previewSmartChem()" value="1.25" class="w-full border rounded-lg px-2.5 py-1.5 font-extrabold text-emerald-900" />
+
+      <!-- 6. COMPLETE 6-ELEMENT NUTRIENT LEDGER SPECIFICATION (N, P2O5, K2O, Ca, Mg, B) -->
+      <div id="ncNutrientBox" class="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
+        <div class="flex items-center justify-between">
+          <span class="font-extrabold text-amber-950">⚖️ 6. Elemental / FCO Nutrient % (Auto-Synced from Components → Plant Ledger):</span>
+          <span class="text-[10px] text-amber-800 font-semibold">Auto-fills Ca%, B%, Mg%, NPK%</span>
         </div>
-        <div>
-          <label class="font-bold block mb-0.5 text-slate-700">Unit:</label>
-          <select id="ncUnit" onchange="previewSmartChem()" class="w-full border rounded-lg px-2 py-1.5 font-bold">
-            <option value="g">g (ಗ್ರಾಂ)</option>
-            <option value="ml">ml (ಮಿ.ಲೀ)</option>
-            <option value="kg">kg (ಕೆ.ಜಿ)</option>
-            <option value="L">L (ಲೀಟರ್)</option>
-          </select>
-        </div>
-      </div>
-      <div id="ncNutrientBox" class="hidden p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
-        <div class="font-bold text-amber-950">⚖️ Elemental Nutrient % (Updates Plant NPK-Ca-Mg Ledger):</div>
-        <div class="grid grid-cols-5 gap-1.5 text-center">
-          <div><span class="text-[10px] font-bold">N %</span><input type="number" step="0.1" id="ncN" value="0" oninput="previewSmartChem()" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
-          <div><span class="text-[10px] font-bold">P₂O₅ %</span><input type="number" step="0.1" id="ncP" value="0" oninput="previewSmartChem()" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
-          <div><span class="text-[10px] font-bold">K₂O %</span><input type="number" step="0.1" id="ncK" value="0" oninput="previewSmartChem()" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
-          <div><span class="text-[10px] font-bold">Ca %</span><input type="number" step="0.1" id="ncCa" value="0" oninput="previewSmartChem()" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
-          <div><span class="text-[10px] font-bold">Mg %</span><input type="number" step="0.1" id="ncMg" value="0" oninput="previewSmartChem()" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
+        <div class="grid grid-cols-6 gap-1.5 text-center">
+          <div><span class="text-[10px] font-extrabold text-sky-900">N %</span><input type="number" step="0.1" min="0" max="100" id="ncN" value="0" oninput="previewSmartChem(true)" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
+          <div><span class="text-[10px] font-extrabold text-amber-900">P₂O₅ %</span><input type="number" step="0.1" min="0" max="100" id="ncP" value="0" oninput="previewSmartChem(true)" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
+          <div><span class="text-[10px] font-extrabold text-rose-900">K₂O %</span><input type="number" step="0.1" min="0" max="100" id="ncK" value="0" oninput="previewSmartChem(true)" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
+          <div><span class="text-[10px] font-extrabold text-indigo-900">Ca %</span><input type="number" step="0.1" min="0" max="100" id="ncCa" value="0" oninput="previewSmartChem(true)" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
+          <div><span class="text-[10px] font-extrabold text-emerald-900">Mg %</span><input type="number" step="0.1" min="0" max="100" id="ncMg" value="0" oninput="previewSmartChem(true)" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
+          <div><span class="text-[10px] font-extrabold text-purple-900">Boron (B) %</span><input type="number" step="0.1" min="0" max="100" id="ncB" value="0" oninput="previewSmartChem(true)" class="w-full border rounded px-1 py-1 text-center font-bold bg-white border-purple-300" /></div>
         </div>
       </div>
+
       <div id="ncRecognitionPreview" class="p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-[11px] text-emerald-950 space-y-1"></div>
-      <button onclick="saveNewChemical()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-2.5 rounded-xl shadow text-sm">💾 Save &amp; Wire Into All Calculations</button>
+      <button type="button" onclick="saveNewChemical()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-2.5 rounded-xl shadow text-sm">💾 Save &amp; Wire Into All Orchard Calculations</button>
     </div>
   </div>
 
@@ -824,15 +912,36 @@ function findMatchingCatalogItemByBaseSalt(baseSaltStr) {
 
 function populateKnownSaltsDatalist() {
   const dl = document.getElementById("knownSaltsList"); if (!dl) return;
+  const singleElements = [
+    { val: "Calcium (as Ca)", desc: "Secondary Nutrient — Rind Cell Wall & Anti-Cracking" },
+    { val: "Boron (as B)", desc: "Micronutrient — Calcium Mobility & Pollination" },
+    { val: "Magnesium (as Mg)", desc: "Secondary Nutrient — Chlorophyll & Sugar Translocation" },
+    { val: "Chelated Zinc (Zn-EDTA)", desc: "Micronutrient — Auxin & Canopy Synthesis" },
+    { val: "Chelated Iron (Fe-EDTA)", desc: "Micronutrient — Photosynthesis" },
+    { val: "Orthosilicic Acid (Silicon)", desc: "Biostimulant — Cuticle & Sunburn Shield" },
+    { val: "Potassium (as K2O)", desc: "Macro Nutrient — Aril Weight & Sweetness" },
+    { val: "Phosphorus (as P2O5)", desc: "Macro Nutrient — Root & Cell Division" },
+    { val: "Nitrogen (as N)", desc: "Macro Nutrient — Vegetative Sizing (<140 DAD)" }
+  ];
   const uniqueBases = new Map();
   Object.values(catalog).forEach(c => {
-    const cleanBase = (c.active_ingredient || "").replace(/\([^)]*\)/g, "").replace(/\b\d+(\.\d+)?\s*%\s*(WG|WDG|WP|DF|SP|SC|OD|SL|EC|L)?/gi, "").trim();
-    if (cleanBase && !uniqueBases.has(cleanBase.toLowerCase())) uniqueBases.set(cleanBase.toLowerCase(), c);
+    const raw = (c.active_ingredient || "").replace(/\([^)]*\)/g, "");
+    // Add both the full active ingredient and individual split parts for '+' co-formulations
+    const parts = raw.split("+").map(p => p.replace(/\b\d+(\.\d+)?\s*(%|g\/l|ppm)?\s*(WG|WDG|WP|DF|SP|SC|OD|SL|EC|L|SG|WSF)?/gi, "").trim()).filter(Boolean);
+    parts.forEach(part => {
+      if (part.length > 2 && !uniqueBases.has(part.toLowerCase())) {
+        uniqueBases.set(part.toLowerCase(), `${c.active_ingredient} (${c.popular_brands || ""})`);
+      }
+    });
+    const cleanFull = raw.replace(/\b\d+(\.\d+)?\s*%\s*(WG|WDG|WP|DF|SP|SC|OD|SL|EC|L|SG)?/gi, "").trim();
+    if (cleanFull && !uniqueBases.has(cleanFull.toLowerCase())) {
+      uniqueBases.set(cleanFull.toLowerCase(), `${c.active_ingredient} (${c.popular_brands || ""})`);
+    }
   });
-  dl.innerHTML = Array.from(uniqueBases.entries()).map(([_, c]) => {
-    const cleanBase = (c.active_ingredient || "").replace(/\b\d+(\.\d+)?\s*%\s*(WG|WDG|WP|DF|SP|SC|OD|SL|EC|L)?/gi, "").trim();
-    return `<option value="${cleanBase}">${c.active_ingredient} (${c.popular_brands || ""})</option>`;
-  }).join("");
+  dl.innerHTML = [
+    ...singleElements.map(e => `<option value="${e.val}">${e.desc}</option>`),
+    ...Array.from(uniqueBases.entries()).map(([ clean, label ]) => `<option value="${clean}">${label}</option>`)
+  ].join("");
 }
 
 // ============================================================================
@@ -1104,7 +1213,7 @@ function getItemDoseMetrics(cat, it, mult = 1.0, drumsCount = CFG.drums, drumLit
   }
 }
 
-// Extracts FCO Nutrient % from catalog columns, with automatic fallback parsing for N:P:K grades & Ca/Mg/B salts
+// Extracts FCO Nutrient % from catalog columns, with automatic fallback parsing for N:P:K(:Mg) grades & explicit Ca/Mg/B % in multi-component names (e.g., "Calcium 11% + Boron 2% SL")
 function getEffectiveNutrientPct(c) {
   if (!c) return { n: 0, p: 0, k: 0, ca: 0, mg: 0, b: 0 };
   let n  = Number(c.n_pct)  || 0;
@@ -1115,11 +1224,27 @@ function getEffectiveNutrientPct(c) {
   let b  = Number(c.b_pct)  || 0;
 
   const txt = `${c.id || ""} ${c.name_en || ""} ${c.active_ingredient || ""}`;
-  // Auto-parse NPK ratio patterns like "19:19:19", "00:52:34", "12-61-00", "13_00_45" if DB columns are 0
+  // 1. Auto-parse 3-part or 4-part NPK(:Mg) ratio patterns like "19:19:19", "00:52:34", "00:35:30:8"
   if (n === 0 && p === 0 && k === 0) {
-    const m = txt.match(/\b(\d{1,2})[:\-_](\d{1,2})[:\-_](\d{1,2})\b/);
-    if (m) { n = Number(m[1]); p = Number(m[2]); k = Number(m[3]); }
+    const m4 = txt.match(/\b(\d{1,2})[:\-_](\d{1,2})[:\-_](\d{1,2})[:\-_](\d{1,2})\b/);
+    const m3 = txt.match(/\b(\d{1,2})[:\-_](\d{1,2})[:\-_](\d{1,2})\b/);
+    if (m4) { n = Number(m4[1]); p = Number(m4[2]); k = Number(m4[3]); if (mg === 0) mg = Number(m4[4]); }
+    else if (m3) { n = Number(m3[1]); p = Number(m3[2]); k = Number(m3[3]); }
   }
+  // 2. Parse explicit element percentages from multi-component active_ingredient strings (e.g. "Calcium 11% + Boron 2%")
+  if (ca === 0) {
+    const caMatch = txt.match(/(?:calcium|(?:\bca\b))[^0-9+%]*(\d+(?:\.\d+)?)\s*%/i);
+    if (caMatch) ca = Number(caMatch[1]);
+  }
+  if (b === 0) {
+    const bMatch = txt.match(/(?:boron|(?:\bb\b))[^0-9+%]*(\d+(?:\.\d+)?)\s*%/i);
+    if (bMatch) b = Number(bMatch[1]);
+  }
+  if (mg === 0) {
+    const mgMatch = txt.match(/(?:magnesium|mgso4|(?:\bmg\b))[^0-9+%]*(\d+(?:\.\d+)?)\s*%/i);
+    if (mgMatch) mg = Number(mgMatch[1]);
+  }
+  // 3. Standard salt fallbacks when % is not written in the name
   if (ca === 0 && /calcium nitrate/i.test(txt)) { ca = 18.8; if (n === 0) n = 15.5; }
   if (ca === 0 && /ca[\-\s]?b|chelated ca/i.test(txt)) { ca = 10.0; if (b === 0) b = 2.0; }
   if (mg === 0 && /magnesium sulphate|mgso4/i.test(txt)) { mg = 9.6; }
@@ -1194,7 +1319,7 @@ function doesItemCoverThreat(inputId, code) {
   if (code === "FRUIT_BORER") return BORER_IDS.includes(inputId)  || BORER_GROUPS.some(g => grp.includes(g))  || (inputId.startsWith("CUSTOM_") && c.category === "INSECTICIDE");
   if (code === "MEALYBUG")    return MEALY_IDS.includes(inputId)  || MEALY_GROUPS.some(g => grp.includes(g))  || (inputId.startsWith("CUSTOM_") && c.category === "INSECTICIDE");
   if (code === "FRUIT_ROT")   return ROT_IDS.includes(inputId)    || c.category === "FUNGICIDE";
-  if (code === "CRACKING")    return ["MIC_CA_B_LIQUID", "BIO_ORTHOSILICIC", "MIC_BORON_20", "MIC_CHELATED_CA", "WSF_CALCIUM_NITRATE", "PGR_GA3"].includes(inputId);
+  if (code === "CRACKING")    return ["MIC_CA_B_LIQUID", "MIC_YAB_CALCIB", "BIO_ORTHOSILICIC", "MIC_BORON_20", "MIC_CHELATED_CA", "WSF_CALCIUM_NITRATE", "PGR_GA3"].includes(inputId) || Number(c.ca_pct) > 0 || Number(c.b_pct) > 0 || /calcium|boron|calci|orthosilicic|silicon/i.test(c.active_ingredient || "");
   return false;
 }
 
@@ -2637,53 +2762,109 @@ function getSimpleTaskDescription(tk, isKn) {
   return cleanHardcodedDayPrefix(raw, isKn);
 }
 
-// Opens "+ New Chemical" Modal & Injects Quick "Add Brand to Existing Salt (e.g. TAG Ride)" Panel
+// Opens "+ Add New Store Brand / Multi-Component Chemical" Modal
 function openNewChemModal() {
   populateKnownSaltsDatalist();
-  ["ncBrand", "ncSalt", "ncPct", "ncDose"].forEach(id => {
+  ["ncNameEn", "ncNameKn", "ncSaltBase", "ncSaltPct", "ncSaltBase2", "ncSaltPct2", "ncSaltBase3", "ncSaltPct3", "ncGroup"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = "";
   });
-  const hint = document.getElementById("ncAutoScaleHint");
+  ["ncN", "ncP", "ncK", "ncCa", "ncMg", "ncB"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "0";
+  });
+  if (document.getElementById("ncDose")) document.getElementById("ncDose").value = "2.0";
+  if (document.getElementById("ncDoseAcre")) document.getElementById("ncDoseAcre").value = "1.0";
+  if (document.getElementById("ncComp3Row")) document.getElementById("ncComp3Row").classList.add("hidden");
+  const hint = document.getElementById("ncStrengthScaleHint");
   if (hint) { hint.classList.add("hidden"); hint.innerHTML = ""; }
 
   const modalEl = document.getElementById("newChemModal");
   if (!modalEl) return;
 
-  // Inject "Quick Add Brand Name to Existing Salt" box at top of modal if not already present
-  let attachBox = document.getElementById("ncQuickBrandAttachBox");
-  if (!attachBox) {
-    const brandInp = document.getElementById("ncBrand");
-    const formContainer = brandInp ? brandInp.closest(".space-y-3") || brandInp.parentElement.parentElement : null;
-    if (formContainer) {
-      attachBox = document.createElement("div");
-      attachBox.id = "ncQuickBrandAttachBox";
-      attachBox.className = "p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2 text-xs mb-2";
-      formContainer.insertBefore(attachBox, formContainer.firstChild);
-    }
-  }
-
+  const attachBox = document.getElementById("ncQuickBrandAttachBox");
   if (attachBox) {
     const sortedSalts = Object.values(catalog).sort((a, b) => getSaltOnlyTitle(a, "EN").localeCompare(getSaltOnlyTitle(b, "EN")));
     attachBox.innerHTML = `
-      <div class="font-extrabold text-indigo-950">🏷️ ${LANG === "KN" ? "ಈಗಾಗಲೇ ಇರುವ ಲವಣಾಂಶಕ್ಕೆ ಹೊಸ ಕಂಪನಿ ಹೆಸರು ಸೇರಿಸಿ (ಉದಾ: TAG Ride):" : "Option 1: Add New Brand Name to Existing Salt (e.g. TAG Ride)"}</div>
-      <select id="ncExistingSaltSelect" class="w-full border border-indigo-300 rounded-lg px-2 py-1.5 bg-white font-bold text-slate-900">
-        <option value="">-- ${LANG === "KN" ? "ಲವಣಾಂಶ ಆರಿಸಿ" : "Select Existing Active Salt"} --</option>
-        ${sortedSalts.map(c => `<option value="${c.id}">🧪 ${getSaltOnlyTitle(c)} — [${getBrandOnlySubtitle(c)}]</option>`).join("")}
-      </select>
-      <div class="flex items-center gap-1.5">
-        <input id="ncQuickBrandName" type="text" placeholder="${LANG === 'KN' ? 'ಹೊಸ ಕಂಪನಿ ಹೆಸರು (ಉದಾ: TAG Ride)' : 'New Brand Name (e.g. TAG Ride, Custodia Prime)'}" class="flex-1 border border-indigo-300 rounded-lg px-2.5 py-1.5 bg-white font-bold text-slate-900" />
-        <button type="button" onclick="saveBrandToExistingSaltFromModal()" class="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold px-3 py-1.5 rounded-lg shrink-0 shadow">
-          ➕ ${LANG === "KN" ? "ಕಂಪನಿ ಸೇರಿಸಿ" : "Save Brand"}
-        </button>
+      <div class="font-extrabold text-indigo-950">🏷️ ${LANG === "KN" ? "ಆಯ್ಕೆ 1: ಈಗಾಗಲೇ ಇರುವ ಲವಣಾಂಶಕ್ಕೆ ಹೊಸ ಕಂಪನಿ ಹೆಸರು ಮಾತ್ರ ಸೇರಿಸಿ:" : "Option 1: Same Salt & Same % Strength? Just Attach Brand Name:"}</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+        <select id="ncExistingSaltSelect" class="w-full border border-indigo-300 rounded-lg px-2 py-1.5 bg-white font-bold text-slate-900">
+          <option value="">-- ${LANG === "KN" ? "ಲವಣಾಂಶ ಆರಿಸಿ" : "Select Existing Active Salt"} --</option>
+          ${sortedSalts.map(c => `<option value="${c.id}">🧪 ${getSaltOnlyTitle(c)} — [${getBrandOnlySubtitle(c)}]</option>`).join("")}
+        </select>
+        <div class="flex items-center gap-1.5">
+          <input id="ncQuickBrandName" type="text" placeholder="${LANG === 'KN' ? 'ಹೊಸ ಕಂಪನಿ ಹೆಸರು' : 'New Brand Name'}" class="flex-1 border border-indigo-300 rounded-lg px-2 py-1.5 bg-white font-bold text-slate-900" />
+          <button type="button" onclick="saveBrandToExistingSaltFromModal()" class="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold px-2.5 py-1.5 rounded-lg shrink-0 shadow">
+            ➕ ${LANG === "KN" ? "ಸೇರಿಸಿ" : "Attach"}
+          </button>
+        </div>
       </div>
-      <div class="text-[10px] text-indigo-800 border-t border-indigo-200 pt-1.5 font-semibold">
-        ⬇️ ${LANG === "KN" ? "ಅಥವಾ ಕೆಳಗೆ ಸಂಪೂರ್ಣ ಹೊಸ ಲವಣಾಂಶವನ್ನು (New Active Salt) ಸೇರಿಸಿ:" : "Option 2: Or fill below to add a brand-new Active Salt to the catalog:"}
+      <div class="text-[10px] text-indigo-800 border-t border-indigo-200 pt-1 font-semibold">
+        ⬇️ ${LANG === "KN" ? "ಆಯ್ಕೆ 2: ಬೇರೆ % ಪ್ರಮಾಣ ಅಥವಾ ಬಹು-ಲವಣಾಂಶ (ಉದಾ: Calcium 11% + Boron 2%) ಹೊಂದಿದ್ದರೆ ಕೆಳಗೆ ಭರ್ತಿ ಮಾಡಿ:" : "Option 2: Different % Strength or Multi-Component Product (e.g. Yab-CalciB Ca 11% + B 2%)? Fill below:"}
       </div>
     `;
   }
 
+  onNewChemCatOrMethodChange();
+  previewSmartChem();
   modalEl.classList.remove("hidden");
+}
+
+function fillNewChemPreset(presetCode) {
+  if (presetCode === "YAB_CALCIB") {
+    document.getElementById("ncNameEn").value = "Yab-CalciB (Yabam)";
+    document.getElementById("ncNameKn").value = "ದ್ರವ ಕ್ಯಾಲ್ಸಿಯಂ 11% + ಬೋರಾನ್ 2% SL (Yab-CalciB)";
+    document.getElementById("ncSaltBase").value = "Calcium (as Ca)";
+    document.getElementById("ncSaltPct").value = "11";
+    document.getElementById("ncSaltBase2").value = "Boron (as B)";
+    document.getElementById("ncSaltPct2").value = "2";
+    document.getElementById("ncSaltBase3").value = "";
+    document.getElementById("ncSaltPct3").value = "";
+    document.getElementById("ncPctBasis").value = "WW";
+    document.getElementById("ncFormulation").value = "SL";
+    document.getElementById("ncCat").value = "BIOSTIMULANT";
+    document.getElementById("ncMethod").value = "BOTH";
+    document.getElementById("ncDose").value = "2.0";
+    document.getElementById("ncDoseAcre").value = "1.0";
+    document.getElementById("ncUnit").value = "ml";
+  } else if (presetCode === "CUSTODIA") {
+    document.getElementById("ncNameEn").value = "Custodia Prime (Adama)";
+    document.getElementById("ncNameKn").value = "ಅಜಾಕ್ಸಿಸ್ಟ್ರೋಬಿನ್ 11% + ಟೆಬುಕೊನಜೋಲ್ 18.3% SC";
+    document.getElementById("ncSaltBase").value = "Azoxystrobin";
+    document.getElementById("ncSaltPct").value = "11";
+    document.getElementById("ncSaltBase2").value = "Tebuconazole";
+    document.getElementById("ncSaltPct2").value = "18.3";
+    document.getElementById("ncFormulation").value = "SC";
+    document.getElementById("ncCat").value = "FUNGICIDE";
+    document.getElementById("ncMethod").value = "FOLIAR";
+    document.getElementById("ncGroup").value = "FRAC-11+3";
+    document.getElementById("ncDose").value = "1.0";
+    document.getElementById("ncUnit").value = "ml";
+  } else if (presetCode === "NPK_MICRO") {
+    document.getElementById("ncNameEn").value = "Yab-Boss 00:35:30 + 8% MgO";
+    document.getElementById("ncNameKn").value = "00:35:30 + 8% MgO (ಪೊಟ್ಯಾಷ್-ರಂಜಕ-ಮೆಗ್ನೀಸಿಯಮ್)";
+    document.getElementById("ncSaltBase").value = "NPK 00:35:30";
+    document.getElementById("ncSaltPct").value = "";
+    document.getElementById("ncSaltBase2").value = "Magnesium (as MgO)";
+    document.getElementById("ncSaltPct2").value = "8";
+    document.getElementById("ncFormulation").value = "WSF";
+    document.getElementById("ncCat").value = "FERTIGATION";
+    document.getElementById("ncMethod").value = "BOTH";
+    document.getElementById("ncDose").value = "3.0";
+    document.getElementById("ncDoseAcre").value = "3.0";
+    document.getElementById("ncUnit").value = "kg";
+  }
+  onNewChemCatOrMethodChange();
+  onSaltOrPctChange(1);
+}
+
+function onNewChemCatOrMethodChange() {
+  const method = document.getElementById("ncMethod")?.value || "BOTH";
+  const foliarBox = document.getElementById("ncFoliarDoseBox");
+  const dripBox = document.getElementById("ncDripDoseBox");
+  if (foliarBox) foliarBox.classList.toggle("hidden", method === "DRIP");
+  if (dripBox) dripBox.classList.toggle("hidden", method === "FOLIAR");
+  previewSmartChem();
 }
 
 async function saveBrandToExistingSaltFromModal() {
@@ -2711,103 +2892,282 @@ function closeNewChemModal() {
   document.getElementById("newChemModal")?.classList.add("hidden");
 }
 
-function onSaltOrPctChange() {
-  const saltVal = (document.getElementById("ncSalt")?.value || "").trim();
-  const pctVal = Number(document.getElementById("ncPct")?.value || 0);
-  const hintBox = document.getElementById("ncAutoScaleHint");
-  if (!hintBox) return;
+// Handles typing/selecting in Component 1, 2, or 3:
+// - If user picks a '+' co-formulation in Component 1 (e.g. "Chelated Calcium + Boron Liquid" or "Azoxystrobin 11% + Tebuconazole 18.3%"),
+//   it automatically splits the parts across Component 1, Component 2, and Component 3 so each component has its own separate % input!
+// - If single salt with a different %, auto-scales the recommended dose from the catalog reference!
+function onSaltOrPctChange(slotIdx = 1) {
+  const s1El = document.getElementById("ncSaltBase");
+  const p1El = document.getElementById("ncSaltPct");
+  const s2El = document.getElementById("ncSaltBase2");
+  const p2El = document.getElementById("ncSaltPct2");
+  const s3El = document.getElementById("ncSaltBase3");
+  const p3El = document.getElementById("ncSaltPct3");
+  const hintBox = document.getElementById("ncStrengthScaleHint");
 
-  const matched = findMatchingCatalogItemByBaseSalt(saltVal);
-  if (!matched) { hintBox.classList.add("hidden"); return; }
-
-  if (document.getElementById("ncCat")) document.getElementById("ncCat").value = matched.category || "INSECTICIDE";
-  if (document.getElementById("ncForm")) document.getElementById("ncForm").value = getFormulationCode(matched);
-  if (document.getElementById("ncUnit")) document.getElementById("ncUnit").value = matched.unit || "ml";
-  if (matched.irac_frac_group && document.getElementById("ncGroup")) document.getElementById("ncGroup").value = matched.irac_frac_group;
-
-  const refPct = extractConcentrationPct(matched.active_ingredient);
-  const refDoseL = Number(matched.base_dose_per_liter || 0);
-  if (refPct && pctVal > 0 && pctVal <= 100 && refDoseL > 0) {
-    const scaledDoseL = Number(((refDoseL * refPct) / pctVal).toFixed(2));
-    if (document.getElementById("ncDose")) document.getElementById("ncDose").value = scaledDoseL;
-    const perDrum = Math.round(scaledDoseL * CFG.drumL);
-    hintBox.classList.remove("hidden");
-    hintBox.innerHTML = `✨ <b>Auto-Scaled Dose:</b> Matched <b>${matched.active_ingredient}</b> (${refDoseL} ${matched.unit}/L). Scaled for <b>${pctVal}%</b> → <b>${scaledDoseL} ${matched.unit}/L</b> (<b>${perDrum} ${matched.unit} / ${CFG.drumL}L Drum</b>).`;
-  } else if (refDoseL > 0) {
-    if (document.getElementById("ncDose")) document.getElementById("ncDose").value = refDoseL;
-    hintBox.classList.remove("hidden");
-    hintBox.innerHTML = `✨ Matched existing salt <b>${matched.active_ingredient}</b> (Standard rate: <b>${refDoseL} ${matched.unit}/L</b>).`;
+  // 1. Auto-split '+' strings entered or selected in Component 1
+  const rawS1 = (s1El?.value || "").trim();
+  if (rawS1.includes("+")) {
+    const parts = rawS1.split("+").map(p => p.trim()).filter(Boolean);
+    const parsePart = (str) => {
+      const m = str.match(/(\d+(?:\.\d+)?)\s*%/);
+      const pct = m ? m[1] : "";
+      const name = str
+        .replace(/(\d+(?:\.\d+)?)\s*%/g, "")
+        .replace(/\b(WG|WDG|WP|DF|SP|SC|OD|SL|EC|L|SG|Liquid|Solution|Powder)\b/gi, "")
+        .trim();
+      return { name: name || str, pct };
+    };
+    if (parts[0] && s1El) {
+      const c1 = parsePart(parts[0]);
+      s1El.value = c1.name;
+      if (c1.pct && p1El && !p1El.value) p1El.value = c1.pct;
+    }
+    if (parts[1] && s2El) {
+      const c2 = parsePart(parts[1]);
+      s2El.value = c2.name;
+      if (c2.pct && p2El && !p2El.value) p2El.value = c2.pct;
+    }
+    if (parts[2] && s3El) {
+      const c3 = parsePart(parts[2]);
+      document.getElementById("ncComp3Row")?.classList.remove("hidden");
+      s3El.value = c3.name;
+      if (c3.pct && p3El && !p3El.value) p3El.value = c3.pct;
+    }
   }
+
+  // 2. Single-Salt Auto-Scaling Reference Hint (when only Component 1 is filled)
+  const cleanS1 = (s1El?.value || "").trim();
+  const cleanS2 = (s2El?.value || "").trim();
+  const pct1 = Number(p1El?.value || 0);
+
+  if (hintBox) {
+    if (cleanS1 && !cleanS2) {
+      const matched = findMatchingCatalogItemByBaseSalt(cleanS1);
+      if (matched) {
+        if (document.getElementById("ncCat")) document.getElementById("ncCat").value = matched.category || "INSECTICIDE";
+        if (document.getElementById("ncFormulation")) document.getElementById("ncFormulation").value = getFormulationCode(matched);
+        if (document.getElementById("ncUnit")) document.getElementById("ncUnit").value = matched.unit || "ml";
+        if (matched.irac_frac_group && document.getElementById("ncGroup")) document.getElementById("ncGroup").value = matched.irac_frac_group;
+
+        const refPct = extractConcentrationPct(matched.active_ingredient);
+        const refDoseL = Number(matched.base_dose_per_liter || 0);
+        if (refPct && pct1 > 0 && pct1 <= 100 && refDoseL > 0) {
+          const scaledDoseL = Number(((refDoseL * refPct) / pct1).toFixed(2));
+          if (document.getElementById("ncDose")) document.getElementById("ncDose").value = scaledDoseL;
+          const perDrum = Math.round(scaledDoseL * CFG.drumL);
+          hintBox.classList.remove("hidden");
+          hintBox.innerHTML = `✨ <b>Single-Salt Strength Scaling:</b> Matched <b>${matched.active_ingredient}</b> (${refDoseL} ${matched.unit}/L). Scaled for <b>${pct1}%</b> → <b>${scaledDoseL} ${matched.unit}/L</b> (<b>${perDrum} ${matched.unit} / ${CFG.drumL}L Drum</b>).`;
+        } else {
+          hintBox.classList.add("hidden");
+        }
+      } else {
+        hintBox.classList.add("hidden");
+      }
+    } else if (cleanS1 && cleanS2) {
+      hintBox.classList.remove("hidden");
+      hintBox.innerHTML = `🧬 <b>Multi-Component Co-Formulation Active:</b> Each component's concentration (%) is tracked separately and synced into the Nutrient Ledger &amp; 3-Gate Tank-Mix Validator below.`;
+    } else {
+      hintBox.classList.add("hidden");
+    }
+  }
+
+  previewSmartChem(false);
 }
 
-async function saveCustomChemToCatalog() {
-  const brand = (document.getElementById("ncBrand")?.value || "").trim();
-  const baseSalt = (document.getElementById("ncSalt")?.value || "").trim();
-  const pct = (document.getElementById("ncPct")?.value || "").trim();
-  const cat = document.getElementById("ncCat")?.value || "INSECTICIDE";
-  const form = document.getElementById("ncForm")?.value || "SC";
-  const group = (document.getElementById("ncGroup")?.value || "").trim();
+// Builds the formatted Active Ingredient Title, auto-syncs Component % into the 6-Element Nutrient Ledger (N, P2O5, K2O, Ca, Mg, B), and renders a live recognition preview!
+function previewSmartChem(manualNutrientEdit = false) {
+  const brand = (document.getElementById("ncNameEn")?.value || "").trim();
+  const s1 = (document.getElementById("ncSaltBase")?.value || "").trim();
+  const p1 = (document.getElementById("ncSaltPct")?.value || "").trim();
+  const s2 = (document.getElementById("ncSaltBase2")?.value || "").trim();
+  const p2 = (document.getElementById("ncSaltPct2")?.value || "").trim();
+  const s3 = (document.getElementById("ncSaltBase3")?.value || "").trim();
+  const p3 = (document.getElementById("ncSaltPct3")?.value || "").trim();
+  const form = document.getElementById("ncFormulation")?.value || "SL";
+  const cat = document.getElementById("ncCat")?.value || "BIOSTIMULANT";
+  const method = document.getElementById("ncMethod")?.value || "BOTH";
   const unit = document.getElementById("ncUnit")?.value || "ml";
-  const doseVal = sanitizeNonNegativeNumber(document.getElementById("ncDose")?.value, 1.0, 500);
+  const doseL = Number(document.getElementById("ncDose")?.value || 0);
+  const doseAc = Number(document.getElementById("ncDoseAcre")?.value || 0);
 
-  if (!brand || !baseSalt) {
-    alert(LANG === "KN" ? "ದಯವಿಟ್ಟು ಕಂಪನಿ ಹೆಸರು ಮತ್ತು ಲವಣಾಂಶ ನಮೂದಿಸಿ." : "Please enter both Brand Name and Active Salt.");
+  const comps = [
+    { name: s1, pct: p1 },
+    { name: s2, pct: p2 },
+    { name: s3, pct: p3 }
+  ].filter(c => c.name);
+
+  // 1. Auto-sync Component 1/2/3 percentages into the 6-Element Nutrient Ledger (unless user is manually typing in the nutrient boxes)
+  if (!manualNutrientEdit && comps.length > 0) {
+    let autoN = 0, autoP = 0, autoK = 0, autoCa = 0, autoMg = 0, autoB = 0;
+    comps.forEach(comp => {
+      const low = comp.name.toLowerCase();
+      const val = Number(comp.pct) || 0;
+      const m4 = low.match(/\b(\d{1,2})[:\-_](\d{1,2})[:\-_](\d{1,2})[:\-_](\d{1,2})\b/);
+      const m3 = low.match(/\b(\d{1,2})[:\-_](\d{1,2})[:\-_](\d{1,2})\b/);
+      if (m4) {
+        autoN = Number(m4[1]); autoP = Number(m4[2]); autoK = Number(m4[3]); autoMg = Number(m4[4]);
+      } else if (m3) {
+        autoN = Number(m3[1]); autoP = Number(m3[2]); autoK = Number(m3[3]);
+      }
+      if (/calcium|\bca\b/i.test(low) && val > 0) autoCa = val;
+      if (/boron|\bb\b/i.test(low) && val > 0) autoB = val;
+      if (/magnesium|mgso4|\bmgo?\b/i.test(low) && val > 0) autoMg = val;
+      if (/nitrogen|\bn\b/i.test(low) && !/nitrate/i.test(low) && val > 0) autoN = val;
+      if (/phosphorus|p2o5/i.test(low) && val > 0) autoP = val;
+      if (/potassium|potash|k2o/i.test(low) && val > 0) autoK = val;
+      if (/calcium nitrate/i.test(low)) { autoCa = val || 18.8; autoN = 15.5; }
+    });
+    if (autoN > 0 || autoP > 0 || autoK > 0 || autoCa > 0 || autoMg > 0 || autoB > 0) {
+      if (document.getElementById("ncN")) document.getElementById("ncN").value = autoN;
+      if (document.getElementById("ncP")) document.getElementById("ncP").value = autoP;
+      if (document.getElementById("ncK")) document.getElementById("ncK").value = autoK;
+      if (document.getElementById("ncCa")) document.getElementById("ncCa").value = autoCa;
+      if (document.getElementById("ncMg")) document.getElementById("ncMg").value = autoMg;
+      if (document.getElementById("ncB")) document.getElementById("ncB").value = autoB;
+    }
+  }
+
+  // 2. Construct standardized Active Ingredient string (e.g., "Calcium 11% + Boron 2% SL")
+  const cleanCompLabel = (rawName, pctStr) => {
+    const baseClean = rawName.replace(/\s*\(as\s+[^)]+\)/gi, "").trim();
+    return pctStr ? `${baseClean} ${pctStr}%` : baseClean;
+  };
+  const joinedComps = comps.map(c => cleanCompLabel(c.name, c.pct)).join(" + ");
+  const fullSaltTitle = joinedComps ? `${joinedComps} ${form}` : `(Enter Active Salt / Element above)`;
+
+  const nVal  = Number(document.getElementById("ncN")?.value || 0);
+  const pVal  = Number(document.getElementById("ncP")?.value || 0);
+  const kVal  = Number(document.getElementById("ncK")?.value || 0);
+  const caVal = Number(document.getElementById("ncCa")?.value || 0);
+  const mgVal = Number(document.getElementById("ncMg")?.value || 0);
+  const bVal  = Number(document.getElementById("ncB")?.value || 0);
+
+  const rateUnit = (unit === "kg" || unit === "g") ? "g" : "ml";
+  const macroUnit = (unit === "kg" || unit === "g") ? "kg" : "L";
+  const perDrum = Math.round(doseL * CFG.drumL);
+  const totalFoliar3Ac = (unit === "kg" || unit === "L") ? Number(((perDrum * CFG.drums) / 1000).toFixed(2)) : (perDrum * CFG.drums);
+  const totalDrip3Ac = Number((doseAc * CFG.acres).toFixed(2));
+
+  // Calculate exact elemental grams/plant delivered per application
+  const sampleGrams3Ac = method !== "DRIP" ? (perDrum * CFG.drums) : (totalDrip3Ac * 1000);
+  const gPerPlantTotal = sampleGrams3Ac / CFG.plants;
+  const nutBadges = [];
+  if (nVal > 0)  nutBadges.push(`N: ${nVal}% (+${(gPerPlantTotal * nVal / 100).toFixed(2)}g/plant)`);
+  if (pVal > 0)  nutBadges.push(`P₂O₅: ${pVal}% (+${(gPerPlantTotal * pVal / 100).toFixed(2)}g/plant)`);
+  if (kVal > 0)  nutBadges.push(`K₂O: ${kVal}% (+${(gPerPlantTotal * kVal / 100).toFixed(2)}g/plant)`);
+  if (caVal > 0) nutBadges.push(`Ca: ${caVal}% (+${(gPerPlantTotal * caVal / 100).toFixed(2)}g/plant)`);
+  if (mgVal > 0) nutBadges.push(`Mg: ${mgVal}% (+${(gPerPlantTotal * mgVal / 100).toFixed(2)}g/plant)`);
+  if (bVal > 0)  nutBadges.push(`Boron (B): ${bVal}% (+${(gPerPlantTotal * bVal / 100).toFixed(2)}g/plant)`);
+
+  const prevEl = document.getElementById("ncRecognitionPreview");
+  if (prevEl) {
+    prevEl.innerHTML = `
+      <div class="font-extrabold text-emerald-950">🔍 Live Recognition &amp; Orchard Math Preview:</div>
+      <div>🧪 <b>Main Card Title (Active Salt):</b> <span class="text-slate-900 font-bold">${fullSaltTitle}</span></div>
+      <div>🏷️ <b>Store Brand Subtitle:</b> ${brand || "Custom Brand"} • <b>W-A-L-E-S Order:</b> [${form}]</div>
+      ${method !== "DRIP" ? `<div>🌿 <b>Foliar Math (${CFG.drums}×${CFG.drumL}L):</b> ${doseL} ${rateUnit}/L → <b>${perDrum} ${rateUnit}/drum</b> → <b>${totalFoliar3Ac} ${unit} / 3 Acres</b></div>` : ""}
+      ${method !== "FOLIAR" ? `<div>💧 <b>Drip Math (3 Acres):</b> ${doseAc} ${macroUnit}/Acre → <b>${totalDrip3Ac} ${macroUnit} / 3 Acres</b></div>` : ""}
+      ${nutBadges.length ? `<div class="text-indigo-900 font-bold">⚖️ <b>Nutrient Ledger Impact:</b> ${nutBadges.join(" • ")}</div>` : ""}
+    `;
+  }
+
+  return {
+    brand, fullSaltTitle, comps, form, cat, method, unit,
+    doseL: method !== "DRIP" ? doseL : null,
+    doseAc: method !== "FOLIAR" ? doseAc : null,
+    nVal, pVal, kVal, caVal, mgVal, bVal
+  };
+}
+
+async function saveNewChemical() {
+  const snap = previewSmartChem(true);
+  if (!snap.brand || snap.comps.length === 0) {
+    alert(LANG === "KN" ? "ದಯವಿಟ್ಟು ಕಂಪನಿ ಹೆಸರು ಮತ್ತು ಕನಿಷ್ಠ 1 ಲವಣಾಂಶವನ್ನು ನಮೂದಿಸಿ." : "Please enter the Store Brand Name and at least Component 1.");
     return;
   }
 
-  const isDrip = cat === "FERTIGATION";
-  const fullSaltName = pct ? `${baseSalt} ${pct}% ${form}` : `${baseSalt} (${form})`;
-  const matchedExisting = findMatchingCatalogItemByBaseSalt(baseSalt);
-  const exactSameStrength = matchedExisting && (!pct || extractConcentrationPct(matchedExisting.active_ingredient) === Number(pct));
+  const nameKnInput = (document.getElementById("ncNameKn")?.value || "").trim();
+  const groupInput = (document.getElementById("ncGroup")?.value || "").trim();
+  const isCopper = snap.comps.some(c => /copper/i.test(c.name));
+  const hasN = snap.nVal > 0 || snap.comps.some(c => /nitrate|urea|ammonium/i.test(c.name));
 
-  if (exactSameStrength) {
-    const curBrands = matchedExisting.popular_brands ? matchedExisting.popular_brands.split(",").map(s => s.trim()) : [];
-    if (!curBrands.some(b => b.toLowerCase() === brand.toLowerCase())) {
-      matchedExisting.popular_brands = curBrands.length ? `${matchedExisting.popular_brands}, ${brand}` : brand;
-      await dbMutate({ table: "inputs_catalog", type: "update", payload: { popular_brands: matchedExisting.popular_brands }, matchCol: "id", matchVal: matchedExisting.id });
+  // Check if an existing catalog item has the exact same normalized active ingredient AND exact same concentration %
+  const exactExisting = Object.values(catalog).find(c =>
+    (c.active_ingredient || "").toLowerCase().trim() === snap.fullSaltTitle.toLowerCase().trim()
+  );
+
+  if (exactExisting) {
+    const curBrands = exactExisting.popular_brands ? exactExisting.popular_brands.split(",").map(s => s.trim()) : [];
+    if (!curBrands.some(b => b.toLowerCase() === snap.brand.toLowerCase())) {
+      exactExisting.popular_brands = curBrands.length ? `${exactExisting.popular_brands}, ${snap.brand}` : snap.brand;
+      await dbMutate({ table: "inputs_catalog", type: "update", payload: { popular_brands: exactExisting.popular_brands }, matchCol: "id", matchVal: exactExisting.id });
     }
-    const dirRow = { brand_name: brand, company_name: "Custom Brand", input_id: matchedExisting.id, primary_use_en: matchedExisting.active_ingredient };
+    const dirRow = { brand_name: snap.brand, company_name: "Store Brand", input_id: exactExisting.id, primary_use_en: exactExisting.active_ingredient };
     brandsDir.unshift(dirRow);
     await dbMutate({ table: "commercial_brands_directory", type: "insert", payload: [dirRow] });
     closeNewChemModal();
     populateManualSelects(); populateBrandCheckerDropdowns(); render();
-    alert(LANG === "KN" ? `'${brand}' ಕಂಪನಿ ಹೆಸರನ್ನು '${getSaltOnlyTitle(matchedExisting)}' ಲವಣಾಂಶಕ್ಕೆ ಸೇರಿಸಲಾಗಿದೆ!` : `Added brand '${brand}' to existing salt '${getSaltOnlyTitle(matchedExisting)}'!`);
+    alert(LANG === "KN" ? `'${snap.brand}' ಅನ್ನು '${getSaltOnlyTitle(exactExisting)}' ಗೆ ಸೇರಿಸಲಾಗಿದೆ!` : `Attached brand '${snap.brand}' to '${getSaltOnlyTitle(exactExisting)}'!`);
     return;
   }
 
   const newId = "CUSTOM_" + Date.now();
-  const isCopper = /copper/i.test(baseSalt);
-  const newCatRow = {
+  const knTitle = nameKnInput || snap.fullSaltTitle;
+  KN_SALT_ONLY_MAP[newId] = knTitle;
+
+  // Build row for Supabase inputs_catalog (omits b_pct from SQL payload if table only has n/p/k/ca/mg columns, while keeping b_pct in memory & active_ingredient string so getEffectiveNutrientPct parses it 100%!)
+  const dbRow = {
     id: newId,
-    name_en: `${brand} (${fullSaltName})`,
-    name_kn: `${brand} (${fullSaltName})`,
-    category: cat,
-    active_ingredient: fullSaltName,
-    irac_frac_group: group || null,
-    formulation_type: form,
-    application_method: isDrip ? "DRIP" : "FOLIAR",
-    base_dose_per_liter: isDrip ? null : doseVal,
-    base_dose_per_acre: isDrip ? doseVal : null,
-    unit: unit,
-    phi_days: cat === "BIOSTIMULANT" ? 0 : 14,
+    name_en: `${snap.brand} (${snap.fullSaltTitle})`,
+    name_kn: knTitle,
+    category: snap.cat,
+    active_ingredient: snap.fullSaltTitle,
+    irac_frac_group: groupInput || null,
+    formulation_type: snap.form,
+    application_method: snap.method,
+    base_dose_per_liter: snap.doseL,
+    base_dose_per_acre: snap.doseAc,
+    unit: snap.unit,
+    phi_days: (snap.cat === "BIOSTIMULANT" || snap.cat === "FERTIGATION") ? 0 : 14,
     is_copper_compound: isCopper,
-    incompatible_with_copper: !isCopper && (cat === "INSECTICIDE" || cat === "BIOSTIMULANT"),
-    incompatible_with_calcium: false,
-    contains_nitrogen: false,
+    incompatible_with_copper: !isCopper && (snap.cat === "INSECTICIDE" || snap.cat === "BIOSTIMULANT"),
+    incompatible_with_calcium: /sulphate|phosphate|00:52:34|00:00:50|mgso4/i.test(snap.fullSaltTitle),
+    contains_nitrogen: hasN,
+    n_pct: snap.nVal,
+    p_pct: snap.pVal,
+    k_pct: snap.kVal,
+    ca_pct: snap.caVal,
+    mg_pct: snap.mgVal,
     procurement_criticality: "FLEXIBLE",
-    popular_brands: brand
+    popular_brands: snap.brand
   };
 
-  catalog[newId] = newCatRow;
-  const dirRow = { brand_name: brand, company_name: "Custom Added", input_id: newId, primary_use_en: fullSaltName };
+  catalog[newId] = { ...dbRow, b_pct: snap.bVal };
+  const dirRow = { brand_name: snap.brand, company_name: "Custom Added", input_id: newId, primary_use_en: snap.fullSaltTitle };
   brandsDir.unshift(dirRow);
 
-  await dbMutate({ table: "inputs_catalog", type: "insert", payload: [newCatRow] });
+  // If this is a Calcium + Boron product, auto-link it as an approved swap alternative to MIC_CA_B_LIQUID
+  if (snap.caVal > 0 && snap.bVal > 0 && CURATED_APPROVED_SUBS["MIC_CA_B_LIQUID"] === undefined) {
+    CURATED_APPROVED_SUBS["MIC_CA_B_LIQUID"] = [];
+  }
+  if (snap.caVal > 0 && snap.bVal > 0) {
+    CURATED_APPROVED_SUBS["MIC_CA_B_LIQUID"].unshift({
+      id: newId,
+      noteEn: `${snap.brand} (${snap.fullSaltTitle}) — ${snap.doseL ? Math.round(snap.doseL * CFG.drumL) + ' ' + snap.unit + '/drum' : snap.doseAc + ' ' + snap.unit + '/acre'}`,
+      noteKn: `${snap.brand} (${knTitle})`
+    });
+  }
+
+  await dbMutate({ table: "inputs_catalog", type: "insert", payload: [dbRow] });
   await dbMutate({ table: "commercial_brands_directory", type: "insert", payload: [dirRow] });
   closeNewChemModal();
   populateManualSelects(); populateBrandCheckerDropdowns(); render();
-  alert(LANG === "KN" ? `ಹೊಸ ಔಷಧಿ '${fullSaltName} (${brand})' ಯಶಸ್ವಿಯಾಗಿ ಸೇರಿಸಲಾಗಿದೆ!` : `Saved '${fullSaltName} (${brand})' to catalog!`);
+  alert(LANG === "KN"
+    ? `✅ '${snap.fullSaltTitle} [${snap.brand}]' ಯಶಸ್ವಿಯಾಗಿ ಸೇರಿಸಲಾಗಿದೆ ಮತ್ತು ಎಲ್ಲಾ ಲೆಕ್ಕಾಚಾರಗಳಿಗೆ ಜೋಡಿಸಲಾಗಿದೆ!`
+    : `✅ Saved '${snap.fullSaltTitle} [${snap.brand}]' and wired into NPK-Ca-Mg-B Ledger, Risk Shields & Task Cards!`);
 }
+const saveCustomChemToCatalog = saveNewChemical;
 
 function computeScheduleTrueTargetsToDate(refDateStr) {
   const toDate = { N: 0, P: 0, K: 0, Ca: 0, Mg: 0, B: 0 };
@@ -3387,6 +3747,40 @@ async function clearCurrentEnvAuditLog() {
 
 // Pre-registers Custodia Prime (FUN_AZOXY_TEBU), TAG Ride (INS_ACETAMIPRID), and Karate (INS_REEVA5)
 function ensureBuiltInStoreBrands() {
+  // Pre-register Yab-CalciB (Yabam: Calcium 11% w/w + Boron 2% w/w SL, Foliar 2 ml/L & Drip 1 L/Acre)
+  if (!catalog["MIC_YAB_CALCIB"]) {
+    catalog["MIC_YAB_CALCIB"] = {
+      id: "MIC_YAB_CALCIB",
+      name_en: "Yab-CalciB (Calcium 11% + Boron 2% SL)",
+      name_kn: "ದ್ರವ ಕ್ಯಾಲ್ಸಿಯಂ 11% + ಬೋರಾನ್ 2% SL (Yab-CalciB)",
+      category: "BIOSTIMULANT",
+      active_ingredient: "Calcium 11% + Boron 2% SL",
+      irac_frac_group: null,
+      formulation_type: "SL",
+      application_method: "BOTH",
+      base_dose_per_liter: 2.0,
+      base_dose_per_acre: 1.0,
+      unit: "ml",
+      phi_days: 0,
+      is_copper_compound: false,
+      incompatible_with_copper: true,
+      incompatible_with_calcium: false,
+      contains_nitrogen: false,
+      n_pct: 0, p_pct: 0, k_pct: 0, ca_pct: 11.0, mg_pct: 0, b_pct: 2.0,
+      procurement_criticality: "FLEXIBLE",
+      popular_brands: "Yab-CalciB (Yabam)"
+    };
+  }
+  KN_SALT_ONLY_MAP["MIC_YAB_CALCIB"] = "ದ್ರವ ಕ್ಯಾಲ್ಸಿಯಂ 11% + ಬೋರಾನ್ 2% SL";
+  if (!CURATED_APPROVED_SUBS["MIC_CA_B_LIQUID"]) CURATED_APPROVED_SUBS["MIC_CA_B_LIQUID"] = [];
+  if (!CURATED_APPROVED_SUBS["MIC_CA_B_LIQUID"].some(x => x.id === "MIC_YAB_CALCIB")) {
+    CURATED_APPROVED_SUBS["MIC_CA_B_LIQUID"].unshift({
+      id: "MIC_YAB_CALCIB",
+      noteEn: "Yab-CalciB (11% Ca + 2% B SL — use 2.0 ml/L = 400 ml/200L drum foliar, or 1.0 L/acre drip).",
+      noteKn: "ಯಾಬ್-ಕ್ಯಾಲ್ಸಿಬಿ (11% Ca + 2% B — ಪ್ರತಿ 200L ಡ್ರಮ್‌ಗೆ 400 ಮಿ.ಲೀ ಅಥವಾ ಎಕರೆಗೆ 1 ಲೀಟರ್ ಡ್ರಿಪ್)."
+    });
+  }
+
   if (catalog["FUN_AZOXY_TEBU"] && !(catalog["FUN_AZOXY_TEBU"].popular_brands || "").includes("Custodia Prime")) {
     catalog["FUN_AZOXY_TEBU"].popular_brands = "Custodia Prime, Custodia (Adama), Azoteb";
   }
@@ -3394,6 +3788,7 @@ function ensureBuiltInStoreBrands() {
     catalog["INS_ACETAMIPRID"].popular_brands = "TAG Ride, Pride (UPL), Manik (Rallis)";
   }
   const extraBrands = [
+    { brand_name: "Yab-CalciB", company_name: "Yabam International", input_id: "MIC_YAB_CALCIB" },
     { brand_name: "Custodia Prime", company_name: "Adama", input_id: "FUN_AZOXY_TEBU" },
     { brand_name: "TAG Ride", company_name: "Tropical Agro", input_id: "INS_ACETAMIPRID" },
     { brand_name: "Karate", company_name: "Syngenta", input_id: "INS_REEVA5" }
