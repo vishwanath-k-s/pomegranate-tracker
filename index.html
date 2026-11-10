@@ -1783,7 +1783,7 @@ function validateCardCombinationRules(existingRecipe, candidateCat) {
   return { ok: true };
 }
 
-function buildSynergisticFoliarRecipe(foliarIssues) {
+function buildSynergisticFoliarRecipe(foliarIssues, hasExistingInsecticide = false) {
   const codes = new Set(foliarIssues.map(x => x.code));
   const outRecipe = [];
 
@@ -1796,7 +1796,7 @@ function buildSynergisticFoliarRecipe(foliarIssues) {
   }
 
   if (codes.has("MEALYBUG")) {
-    if (outRecipe.length > 0) {
+    if (outRecipe.length > 0 || hasExistingInsecticide) {
       outRecipe.push({ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 });
     } else {
       outRecipe.push({ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 }, { input_id: "INS_BUPROFEZIN", dose_per_liter: 1.5 });
@@ -1883,12 +1883,16 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
     await applyScheduleShift(nextBaselineSpray, minCooldownDate, "TRACK", "CURATIVE_COOLDOWN", true, true);
   }
 
-  // 3. Deduplicate overlapping insecticide/fungicide salts on that nearest baseline foliar spray
+  // 3. Deduplicate overlapping insecticide/fungicide salts on that nearest baseline foliar spray (NEVER overwrite user's manual deletions/swaps with tmpl.recipe_items!)
   if (!isCopperCurative && nextBaselineSpray.task_type === "FOLIAR_SPRAY") {
-    const tmpl = templates.find(x => x.id === nextBaselineSpray.template_id);
-    const baseSourceRecipe = (tmpl && Array.isArray(tmpl.recipe_items)) ? tmpl.recipe_items.map(r => ({ ...r })) : (nextBaselineSpray.resolved_recipe || []);
+    const seenIds = new Set();
+    const currentRecipe = (nextBaselineSpray.resolved_recipe || []).filter(r => {
+      if (!r || !r.input_id || seenIds.has(r.input_id)) return false;
+      seenIds.add(r.input_id);
+      return true;
+    });
 
-    let deduplicated = baseSourceRecipe.filter(r => {
+    let deduplicated = currentRecipe.filter(r => {
       const rCat = catalog[r.input_id];
       if (!rCat) return true;
       if (rCat.category === "BIOSTIMULANT" || rCat.category === "FERTIGATION") return true;
@@ -1897,8 +1901,8 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
       return true;
     });
 
-    if (deduplicated.length < baseSourceRecipe.length) {
-      if (!deduplicated.some(r => r.input_id === "BIO_ORTHOSILICIC") && catalog["BIO_ORTHOSILICIC"]) {
+    if (deduplicated.length < currentRecipe.length) {
+      if (deduplicated.length === 0 && catalog["BIO_ORTHOSILICIC"]) {
         deduplicated.push({ input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 });
       }
       const newNamesEn = deduplicated.map(r => getSaltOnlyTitle(catalog[r.input_id], "EN") || r.input_id).join(" + ");
@@ -1908,12 +1912,8 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
       nextBaselineSpray.custom_title_kn = `ಎಲೆ ಸಿಂಪಡಣೆ (${curativeDateStr} ಸಿಂಪಡಣೆ ನಂತರ ಹೊಂದಾಣಿಕೆ ಮಾಡಲಾಗಿದೆ): ${newNamesKn}`;
       nextBaselineSpray.target_description = nextBaselineSpray.custom_title_en;
       nextBaselineSpray.target_description_kn = nextBaselineSpray.custom_title_kn;
-    } else if (tmpl) {
-      nextBaselineSpray.resolved_recipe = baseSourceRecipe;
-      nextBaselineSpray.custom_title_en = null;
-      nextBaselineSpray.custom_title_kn = null;
-      nextBaselineSpray.target_description = tmpl.target_description;
-      nextBaselineSpray.target_description_kn = "";
+    } else {
+      nextBaselineSpray.resolved_recipe = currentRecipe;
     }
   }
 
@@ -2100,18 +2100,27 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
 
   if (foliarIssues.length > 0) {
     const foliarDateStr = chosenDateStr;
-    const rawSynergistic = buildSynergisticFoliarRecipe(foliarIssues);
 
-    const existingCurative = tasks.find(t =>
-      t.status === "PENDING" &&
-      t.trigger_source === "SCOUTING_CURATIVE" &&
-      t.task_type === "FOLIAR_SPRAY" &&
-      diffDaysYMD(todayYMD(), t.current_scheduled_date) >= 0 &&
-      diffDaysYMD(todayYMD(), t.current_scheduled_date) <= 7
-    );
+    // Find ANY uncompleted (PENDING or DELAYED) FOLIAR_SPRAY card within -1 to +3 days of foliarDateStr (including a delayed BASELINE card like Nov 3rd sitting on Nov 10th!)
+    const existingFoliarCard = tasks
+      .filter(t =>
+        (t.status === "PENDING" || t.status === "DELAYED") &&
+        t.task_type === "FOLIAR_SPRAY" &&
+        diffDaysYMD(foliarDateStr, t.current_scheduled_date) >= -1 &&
+        diffDaysYMD(foliarDateStr, t.current_scheduled_date) <= 3
+      )
+      .sort((a, b) => {
+        const distA = Math.abs(diffDaysYMD(foliarDateStr, a.current_scheduled_date));
+        const distB = Math.abs(diffDaysYMD(foliarDateStr, b.current_scheduled_date));
+        if (distA !== distB) return distA - distB;
+        return (a.trigger_source === "SCOUTING_CURATIVE" ? 0 : 1) - (b.trigger_source === "SCOUTING_CURATIVE" ? 0 : 1);
+      })[0];
+
+    const hasExistingIns = Boolean(existingFoliarCard && (existingFoliarCard.resolved_recipe || []).some(r => r.item_status !== "SKIPPED" && catalog[r.input_id]?.category === "INSECTICIDE"));
+    const rawSynergistic = buildSynergisticFoliarRecipe(foliarIssues, hasExistingIns);
 
     // Auto-rotate any salt that was already sprayed within the past 21-25 days!
-    const rotResult = pickRotationSafeRecipe(rawSynergistic, foliarDateStr, existingCurative?.id || null);
+    const rotResult = pickRotationSafeRecipe(rawSynergistic, foliarDateStr, existingFoliarCard?.id || null);
     const synergisticRecipe = rotResult.recipe;
     if (rotResult.rotatedNotesEn.length) {
       allRotatedNotes.push(...(LANG === "KN" ? rotResult.rotatedNotesKn : rotResult.rotatedNotesEn));
@@ -2120,36 +2129,49 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
     const titleEn = "Curative Foliar Spray (Pest & Disease Control)";
     const titleKn = "ತುರ್ತು ಎಲೆ ಸಿಂಪಡಣೆ (ರೋಗ ಮತ್ತು ಕೀಟ ನಿಯಂತ್ರಣ)";
 
-    let activeCurativeTask = existingCurative;
-    if (existingCurative) {
+    let activeCurativeTask = existingFoliarCard;
+    if (existingFoliarCard) {
+      // Deduplicate any accidental duplicate input_ids already on the card while preserving user deletions
+      const seenOnCard = new Set();
+      existingFoliarCard.resolved_recipe = (existingFoliarCard.resolved_recipe || []).filter(r => {
+        if (!r || !r.input_id || seenOnCard.has(r.input_id)) return false;
+        seenOnCard.add(r.input_id);
+        return true;
+      });
+
       synergisticRecipe.forEach(newItem => {
         const candCat = catalog[newItem.input_id];
-        if (!existingCurative.resolved_recipe.some(x => x.input_id === newItem.input_id) && validateCardCombinationRules(existingCurative.resolved_recipe, candCat).ok) {
-          existingCurative.resolved_recipe.push(newItem);
+        if (!existingFoliarCard.resolved_recipe.some(x => x.input_id === newItem.input_id) && validateCardCombinationRules(existingFoliarCard.resolved_recipe, candCat).ok) {
+          existingFoliarCard.resolved_recipe.push(newItem);
         }
       });
-      existingCurative.current_scheduled_date = foliarDateStr;
-      existingCurative.custom_title_en = titleEn;
-      existingCurative.custom_title_kn = titleKn;
-      existingCurative.updated_by = activeUser;
-      existingCurative.updated_at = new Date().toISOString();
+
+      const activeIdsNow = existingFoliarCard.resolved_recipe.filter(r => r.item_status !== "SKIPPED").map(r => r.input_id);
+      const mergedTitleEn = generateAutoCardTitle("FOLIAR_SPRAY", activeIdsNow, false);
+      const mergedTitleKn = generateAutoCardTitle("FOLIAR_SPRAY", activeIdsNow, true);
+
+      existingFoliarCard.current_scheduled_date = foliarDateStr;
+      existingFoliarCard.custom_title_en = mergedTitleEn;
+      existingFoliarCard.custom_title_kn = mergedTitleKn;
+      existingFoliarCard.updated_by = activeUser;
+      existingFoliarCard.updated_at = new Date().toISOString();
 
       const dyn = computeDynamicDadAndWeek(foliarDateStr);
-      existingCurative.effective_dad = dyn.dad;
-      existingCurative.week_number = dyn.week;
-      existingCurative.target_description = titleEn;
-      existingCurative.target_description_kn = titleKn;
+      existingFoliarCard.effective_dad = dyn.dad;
+      existingFoliarCard.week_number = dyn.week;
+      existingFoliarCard.target_description = mergedTitleEn;
+      existingFoliarCard.target_description_kn = mergedTitleKn;
       targetWeekToOpen = dyn.week;
 
       await dbMutate({
         table: "daily_task_queue", type: "update",
         payload: {
           current_scheduled_date: foliarDateStr, effective_dad: dyn.dad,
-          resolved_recipe: existingCurative.resolved_recipe,
-          custom_title_en: titleEn, custom_title_kn: titleKn,
-          updated_by: activeUser, updated_at: existingCurative.updated_at
+          resolved_recipe: existingFoliarCard.resolved_recipe,
+          custom_title_en: mergedTitleEn, custom_title_kn: mergedTitleKn,
+          updated_by: activeUser, updated_at: existingFoliarCard.updated_at
         },
-        matchCol: "id", matchVal: existingCurative.id
+        matchCol: "id", matchVal: existingFoliarCard.id
       });
     } else {
       const dyn = computeDynamicDadAndWeek(foliarDateStr);
