@@ -1331,18 +1331,22 @@ function doesItemCoverThreat(inputId, code) {
 
 function getQueuedTaskCoveringIssue(code) {
   const tStr = todayYMD();
-  const upcomingSprays = tasks.filter(t =>
-    (t.status === "PENDING" || t.status === "DELAYED") &&
-    diffDaysYMD(tStr, t.current_scheduled_date) >= 0 &&
-    diffDaysYMD(tStr, t.current_scheduled_date) <= 8
-  );
+  const upcomingSprays = tasks
+    .filter(t =>
+      (t.status === "PENDING" || t.status === "DELAYED") &&
+      diffDaysYMD(tStr, t.current_scheduled_date) >= 0 &&
+      diffDaysYMD(tStr, t.current_scheduled_date) <= 5
+    )
+    .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date));
 
   for (const tk of upcomingSprays) {
-    const activeIds = (tk.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").map(r => r.input_id);
-    const isNearWindow = (tk.trigger_source === "SCOUTING_CURATIVE" || diffDaysYMD(tStr, tk.current_scheduled_date) <= 5);
-    const needsNearWindow = ["THRIPS_SCAR", "FRUIT_BORER", "CRACKING"].includes(code);
+    const daysAway = diffDaysYMD(tStr, tk.current_scheduled_date);
+    const isCurative = tk.trigger_source === "SCOUTING_CURATIVE" || tk.trigger_source === "RAIN_EMERGENCY";
+    // Baseline cards only count as "already queued for today's active risk" if they are within 0-2 days (not 5 days away in next week!)
+    if (!isCurative && daysAway > 2) continue;
 
-    if ((!needsNearWindow || isNearWindow) && activeIds.some(id => doesItemCoverThreat(id, code))) {
+    const activeIds = (tk.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").map(r => r.input_id);
+    if (activeIds.some(id => doesItemCoverThreat(id, code))) {
       return tk;
     }
   }
@@ -1859,39 +1863,27 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
   const curativeGroups = new Set((curativeRecipe || []).map(r => catalog[r.input_id]?.irac_frac_group).filter(Boolean));
   const isCopperCurative = (curativeRecipe || []).some(r => catalog[r.input_id]?.is_copper_compound);
 
-  // Find the nearest uncompleted baseline Foliar or Copper spray that was originally scheduled around this curative spray
-  const nextBaselineSpray = tasks.find(t =>
-    t.id !== curativeTaskId &&
-    (t.status === "PENDING" || t.status === "DELAYED") &&
-    t.trigger_source === "BASELINE" &&
-    (t.task_type === "FOLIAR_SPRAY" || t.task_type === "STANDALONE_COPPER") &&
-    diffDaysYMD(curativeDateStr, t.current_scheduled_date) >= -2 &&
-    diffDaysYMD(curativeDateStr, t.current_scheduled_date) <= 10
-  );
+  // 1. Find the earliest uncompleted baseline Foliar/Copper spray scheduled on or within 7 days after this curative spray
+  const nextBaselineSpray = tasks
+    .filter(t =>
+      t.id !== curativeTaskId &&
+      (t.status === "PENDING" || t.status === "DELAYED") &&
+      t.trigger_source === "BASELINE" &&
+      (t.task_type === "FOLIAR_SPRAY" || t.task_type === "STANDALONE_COPPER") &&
+      diffDaysYMD(curativeDateStr, t.current_scheduled_date) >= -1 &&
+      diffDaysYMD(curativeDateStr, t.current_scheduled_date) <= 7
+    )
+    .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date) || (a.template_id || 999) - (b.template_id || 999))[0];
 
   if (!nextBaselineSpray) return;
 
-  // Target date is 5 days after the Curative Spray (or the baseline spray's original date, whichever is later)
+  // 2. If the baseline spray is closer than 5 days after the curative spray, ripple it (and all subsequent Week 13/14 sprays!) forward via applyScheduleShift
   const minCooldownDate = addDaysYMD(curativeDateStr, 5);
-  const origBaseDate = nextBaselineSpray.originally_scheduled_date || nextBaselineSpray.current_scheduled_date;
-  const desiredBaseDate = origBaseDate > minCooldownDate ? origBaseDate : minCooldownDate;
-
-  // If the baseline spray needs to move (either forward for 5d cooldown, or backward when Curative moved earlier):
-  if ((curativeRecipe || []).length > 0 && nextBaselineSpray.current_scheduled_date !== desiredBaseDate) {
-    // Only auto-pull backward if it was previously delayed by CURATIVE_COOLDOWN or MIN_GAP_GUARD
-    if (desiredBaseDate > nextBaselineSpray.current_scheduled_date || ["CURATIVE_COOLDOWN", "MIN_GAP_GUARD"].includes(nextBaselineSpray.delay_reason)) {
-      nextBaselineSpray.current_scheduled_date = desiredBaseDate;
-      nextBaselineSpray.status = (desiredBaseDate === origBaseDate) ? "PENDING" : "DELAYED";
-      nextBaselineSpray.delay_reason = (nextBaselineSpray.status === "PENDING") ? null : "CURATIVE_COOLDOWN";
-      nextBaselineSpray.updated_by = activeUser;
-      nextBaselineSpray.updated_at = new Date().toISOString();
-      const dyn = computeDynamicDadAndWeek(desiredBaseDate);
-      nextBaselineSpray.effective_dad = dyn.dad;
-      nextBaselineSpray.week_number = dyn.week;
-    }
+  if ((curativeRecipe || []).length > 0 && nextBaselineSpray.current_scheduled_date < minCooldownDate) {
+    await applyScheduleShift(nextBaselineSpray, minCooldownDate, "TRACK", "CURATIVE_COOLDOWN", true, true);
   }
 
-  // Deduplicate overlapping insecticide/fungicide salts if both are non-copper foliar sprays
+  // 3. Deduplicate overlapping insecticide/fungicide salts on that nearest baseline foliar spray
   if (!isCopperCurative && nextBaselineSpray.task_type === "FOLIAR_SPRAY") {
     const tmpl = templates.find(x => x.id === nextBaselineSpray.template_id);
     const baseSourceRecipe = (tmpl && Array.isArray(tmpl.recipe_items)) ? tmpl.recipe_items.map(r => ({ ...r })) : (nextBaselineSpray.resolved_recipe || []);
@@ -2176,7 +2168,8 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
       tasks.push(activeCurativeTask);
     }
 
-    await reconcileUpcomingBaselineFoliarAfterCurative(foliarDateStr, activeCurativeTask.resolved_recipe, activeCurativeTask.id);
+    await applyScheduleShift(activeCurativeTask, foliarDateStr, "TRACK", "CURATIVE_COOLDOWN", true, true);
+    await reconcileUpcomingBaselineFoliarAfterCurative(activeCurativeTask.current_scheduled_date, activeCurativeTask.resolved_recipe, activeCurativeTask.id);
   }
 
   if (copperIssues.length > 0) {
@@ -2202,10 +2195,11 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
       updated_by: activeUser, updated_at: new Date().toISOString()
     };
     const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
-    tasks.push({ ...(res.data?.[0] || payload), week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn });
-    await reconcileUpcomingBaselineFoliarAfterCurative(baseDate, insertedCopper.resolved_recipe, insertedCopper.id);
+    const insertedCopper = { ...(res.data?.[0] || payload), week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn };
+    tasks.push(insertedCopper);
+    await applyScheduleShift(insertedCopper, baseDate, "TRACK", "CURATIVE_COOLDOWN", true, true);
+    await reconcileUpcomingBaselineFoliarAfterCurative(insertedCopper.current_scheduled_date, insertedCopper.resolved_recipe, insertedCopper.id);
   }
-
   if (allRotatedNotes.length > 0) {
     alert(LANG === "KN"
       ? `🔄 21 ದಿನಗಳ ಪುನರಾವರ್ತನೆ ತಡೆಯಲು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಪರ್ಯಾಯ ಔಷಧಿ ಬಳಸಲಾಗಿದೆ:\n• ${allRotatedNotes.join("\n• ")}`
@@ -6450,43 +6444,48 @@ async function deleteCustomTask(id) {
   await dbMutate({ table: "daily_task_queue", type: "delete", matchCol: "id", matchVal: id });
 
   // If a Curative Foliar Spray was deleted, automatically restore any baseline spray that was deduplicated/pushed by it!
-  if (tk && tk.trigger_source === "SCOUTING_CURATIVE" && tk.task_type === "FOLIAR_SPRAY") {
-    const affectedBaseline = tasks.find(b =>
-      b.trigger_source === "BASELINE" &&
-      b.task_type === "FOLIAR_SPRAY" &&
-      (b.status === "PENDING" || b.status === "DELAYED") &&
-      Math.abs(diffDaysYMD(tk.current_scheduled_date, b.current_scheduled_date)) <= 7
-    );
-    if (affectedBaseline) {
-      const tmpl = templates.find(x => x.id === affectedBaseline.template_id);
+  if (tk && tk.trigger_source === "SCOUTING_CURATIVE" && (tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER")) {
+    const affectedBaselines = tasks
+      .filter(b =>
+        b.trigger_source === "BASELINE" &&
+        (b.task_type === "FOLIAR_SPRAY" || b.task_type === "STANDALONE_COPPER") &&
+        (b.status === "PENDING" || b.status === "DELAYED") &&
+        diffDaysYMD(tk.current_scheduled_date, b.current_scheduled_date) >= -1 &&
+        diffDaysYMD(tk.current_scheduled_date, b.current_scheduled_date) <= 8
+      )
+      .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date) || (a.template_id || 999) - (b.template_id || 999));
+
+    const firstBase = affectedBaselines[0];
+    if (firstBase) {
+      const tmpl = templates.find(x => x.id === firstBase.template_id);
       if (tmpl && Array.isArray(tmpl.recipe_items)) {
-        affectedBaseline.resolved_recipe = tmpl.recipe_items.map(r => ({ ...r }));
-        affectedBaseline.custom_title_en = null;
-        affectedBaseline.custom_title_kn = null;
-        affectedBaseline.target_description = tmpl.target_description;
-        affectedBaseline.target_description_kn = "";
-        if (affectedBaseline.originally_scheduled_date && affectedBaseline.originally_scheduled_date >= todayYMD()) {
-          affectedBaseline.current_scheduled_date = affectedBaseline.originally_scheduled_date;
-          affectedBaseline.status = "PENDING";
-          affectedBaseline.delay_reason = null;
-        }
-        const dyn = computeDynamicDadAndWeek(affectedBaseline.current_scheduled_date);
-        affectedBaseline.effective_dad = dyn.dad;
-        affectedBaseline.week_number = dyn.week;
-        await dbMutate({
-          table: "daily_task_queue", type: "update",
-          payload: {
-            current_scheduled_date: affectedBaseline.current_scheduled_date,
-            effective_dad: dyn.dad,
-            status: affectedBaseline.status,
-            delay_reason: affectedBaseline.delay_reason,
-            resolved_recipe: affectedBaseline.resolved_recipe,
-            custom_title_en: null, custom_title_kn: null,
-            updated_by: activeUser, updated_at: new Date().toISOString()
-          },
-          matchCol: "id", matchVal: affectedBaseline.id
-        });
+        firstBase.resolved_recipe = tmpl.recipe_items.map(r => ({ ...r }));
+        firstBase.custom_title_en = null;
+        firstBase.custom_title_kn = null;
+        firstBase.target_description = tmpl.target_description;
+        firstBase.target_description_kn = "";
       }
+      // Pull the pushed baseline card (and downstream Week 14+ sprays) back to its original date or the earliest safe date from today!
+      const earliestSafe = getMinimumAllowedDateForTask(firstBase);
+      const origDate = firstBase.originally_scheduled_date || todayYMD();
+      const restoredDate = [origDate, earliestSafe, todayYMD()].sort()[2];
+      if (restoredDate < firstBase.current_scheduled_date) {
+        await applyScheduleShift(firstBase, restoredDate, "TRACK", null, true, true);
+      }
+      const dyn = computeDynamicDadAndWeek(firstBase.current_scheduled_date);
+      await dbMutate({
+        table: "daily_task_queue", type: "update",
+        payload: {
+          current_scheduled_date: firstBase.current_scheduled_date,
+          effective_dad: dyn.dad,
+          status: firstBase.status,
+          delay_reason: firstBase.delay_reason,
+          resolved_recipe: firstBase.resolved_recipe,
+          custom_title_en: null, custom_title_kn: null,
+          updated_by: activeUser, updated_at: new Date().toISOString()
+        },
+        matchCol: "id", matchVal: firstBase.id
+      });
     }
   }
 
