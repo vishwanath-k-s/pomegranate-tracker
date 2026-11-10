@@ -602,7 +602,13 @@ let usersList = [{ id: 1, name: "Vishwanath" }];
 let curWk = 11, catalog = {}, subs = [], brandsDir = [], leftovers = {}, tasks = [], templates = [], auditLogs = [];
 let selectedRiskCodes = new Set();
 let farmRainToday = null;
-let wState = { tempNow: 29.0, humidity: 58, rain24: 0, prob4: 0, tMax: 30.5, tMin: 18.2, rh72Avg: 64, rain72Sum: 0, riskScore: 28, cumulativeGdd: 1105, updatedAt: "", mode: "LIVE" };
+let wState = (() => {
+  const fallback = { tempNow: 29.0, humidity: 58, rain24: 0, prob4: 0, tMax: 30.5, tMin: 18.2, rh72Avg: 64, rain72Sum: 0, riskScore: 28, cumulativeGdd: 1385, avgDailyGdd: 15.8, forecast15dDailyRate: 14.8, updatedAt: "", mode: "LIVE" };
+  try {
+    const cached = JSON.parse(localStorage.getItem("h_weather_state_cache_v1") || "null");
+    return (cached && cached.cumulativeGdd > 1200) ? { ...fallback, ...cached } : fallback;
+  } catch { return fallback; }
+})();
 let activeDelayTaskId = null;
 let activeSwapContext = { taskId: null, itemIdx: null, primaryInputId: null };
 
@@ -2428,9 +2434,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   const todayDad = diffDaysYMD("2026-08-15", tStr);
   curWk = (todayDad >= 0 && todayDad <= 220) ? Math.floor(todayDad / 7) + 1 : 11;
   await flushOutbox();
+  await loadDB();
   await loadWeather();
   setInterval(() => { flushOutbox(); if (wState.mode !== "SIM") loadWeather().then(render); }, 25 * 60 * 1000);
-  await loadDB();
   render();
 });
 
@@ -2453,13 +2459,50 @@ async function switchEnv(newEnv) { APP_ENV = newEnv; localStorage.setItem("h_env
 async function loadWeather() {
   try {
     const tStr = todayYMD();
-    const forecastEndStr = addDaysYMD(tStr, 15);
+    // Anchor forecast end_date to UTC date + 14d so 00:00–05:30 AM IST never exceeds Open-Meteo's 16-day UTC limit!
+    const utcTodayStr = new Date().toISOString().split("T")[0];
+    const forecastEndStr = addDaysYMD(utcTodayStr, 14);
+    // Keep Open-Meteo start_date within 60 days so we never hit Open-Meteo's 92-day past limit after Nov 15 (92 DAD)!
+    const apiStartStr = addDaysYMD(utcTodayStr, -60) > "2026-08-15" ? addDaysYMD(utcTodayStr, -60) : "2026-08-15";
     const sixDaysAgoStr = addDaysYMD(tStr, -6);
-    const [r, rainRes] = await Promise.all([
-      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&current=temperature_2m,relative_humidity_2m,precipitation&hourly=precipitation,precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&start_date=2026-08-15&end_date=${forecastEndStr}`),
-      sb.from("farm_rain_logs").select("*").gte("log_date", sixDaysAgoStr).lte("log_date", tStr)
+
+    const [r, rainRes, histTelRes] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&current=temperature_2m,relative_humidity_2m,precipitation&hourly=precipitation,precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&start_date=${apiStartStr}&end_date=${forecastEndStr}`),
+      sb.from("farm_rain_logs").select("*").gte("log_date", sixDaysAgoStr).lte("log_date", tStr),
+      apiStartStr > "2026-08-15"
+        ? sb.from("weather_telemetry_history").select("*").gte("log_date", "2026-08-15").lt("log_date", apiStartStr).order("log_date", { ascending: true })
+        : Promise.resolve({ data: [] })
     ]);
     const d = await r.json(), hr = new Date().getHours();
+    if (!d || !d.daily || !Array.isArray(d.daily.time)) throw new Error("Open-Meteo daily array missing");
+
+    // Prepend any archived days before apiStartStr from Supabase weather_telemetry_history so 2026-08-15 -> Harvest is 100% continuous!
+    const archivedRows = histTelRes?.data || [];
+    if (archivedRows.length > 0 && d.daily.time[0] > "2026-08-15") {
+      const preTimes = [], preMax = [], preMin = [], preRain = [], preHourlyRh = [], preHourlyPrecip = [], preHourlyProb = [];
+      archivedRows.forEach(ar => {
+        if (ar.log_date < d.daily.time[0]) {
+          preTimes.push(ar.log_date);
+          preMax.push(Number(ar.temp_max_c ?? 30.5));
+          preMin.push(Number(ar.temp_min_c ?? 18.5));
+          preRain.push(Number(ar.rain_mm ?? 0));
+          for (let h = 0; h < 24; h++) {
+            preHourlyRh.push(Number(ar.humidity_mean_pct ?? 64));
+            preHourlyPrecip.push(0);
+            preHourlyProb.push(0);
+          }
+        }
+      });
+      d.daily.time = [...preTimes, ...d.daily.time];
+      d.daily.temperature_2m_max = [...preMax, ...(d.daily.temperature_2m_max || [])];
+      d.daily.temperature_2m_min = [...preMin, ...(d.daily.temperature_2m_min || [])];
+      d.daily.precipitation_sum = [...preRain, ...(d.daily.precipitation_sum || [])];
+      if (d.hourly) {
+        d.hourly.relative_humidity_2m = [...preHourlyRh, ...(d.hourly.relative_humidity_2m || [])];
+        d.hourly.precipitation = [...preHourlyPrecip, ...(d.hourly.precipitation || [])];
+        d.hourly.precipitation_probability = [...preHourlyProb, ...(d.hourly.precipitation_probability || [])];
+      }
+    }
     const recentFarmRains = {};
     (rainRes?.data || []).forEach(row => {
       if (row && row.log_date !== undefined && row.rain_mm !== null && row.rain_mm !== undefined) {
@@ -2580,6 +2623,7 @@ async function loadWeather() {
 
     const allRisks = computeAllSixRisks();
     wState.riskScore = allRisks.BLIGHT_SPOT.score;
+    try { localStorage.setItem("h_weather_state_cache_v1", JSON.stringify(wState)); } catch {}
 
     if (navigator.onLine && telemetryUpserts.length > 0) {
       telemetryUpserts[telemetryUpserts.length - 1].disease_risk_score = wState.riskScore;
@@ -2587,10 +2631,14 @@ async function loadWeather() {
       const { data: cronRes } = await sb.rpc("run_daily_orchard_engine");
       if (cronRes) wState.cronSummary = cronRes;
     }
-  } catch (e) {}
+  } catch (e) {
+    try {
+      const cachedW = JSON.parse(localStorage.getItem("h_weather_state_cache_v1") || "null");
+      if (cachedW && cachedW.cumulativeGdd) wState = { ...wState, ...cachedW };
+    } catch {}
+  }
   updateWBar();
 }
-
 function updateWBar() {
   const srcTag = wState.mode === "FARM_LOGGED" ? (LANG === "KN" ? " (🏡 ತೋಟ)" : " (🏡 Farm)") : "";
   document.getElementById("wTemp").textContent = LANG === "KN" ? `🌡️ ಈಗ: ${wState.tempNow}°C (${wState.tMax}°/${wState.tMin}°)` : `🌡️ Now: ${wState.tempNow}°C (${wState.tMax}°/${wState.tMin}°)`;
