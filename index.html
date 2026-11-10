@@ -1335,15 +1335,20 @@ function getQueuedTaskCoveringIssue(code) {
     .filter(t =>
       (t.status === "PENDING" || t.status === "DELAYED") &&
       diffDaysYMD(tStr, t.current_scheduled_date) >= 0 &&
-      diffDaysYMD(tStr, t.current_scheduled_date) <= 5
+      diffDaysYMD(tStr, t.current_scheduled_date) <= 12
     )
     .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date));
 
   for (const tk of upcomingSprays) {
     const daysAway = diffDaysYMD(tStr, tk.current_scheduled_date);
-    const isCurative = tk.trigger_source === "SCOUTING_CURATIVE" || tk.trigger_source === "RAIN_EMERGENCY";
-    // Baseline cards only count as "already queued for today's active risk" if they are within 0-2 days (not 5 days away in next week!)
-    if (!isCurative && daysAway > 2) continue;
+    const isCurativeOrModified =
+      tk.trigger_source === "SCOUTING_CURATIVE" ||
+      tk.trigger_source === "RAIN_EMERGENCY" ||
+      Boolean(tk.custom_title_en);
+
+    // Curative or Smart-Combined cards count up to 12 days out (covering +5d/+10d Copper Blight cooldown shifts);
+    // untouched Baseline cards only count if they are due within the next 0–4 days.
+    if (!isCurativeOrModified && daysAway > 4) continue;
 
     const activeIds = (tk.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").map(r => r.input_id);
     if (activeIds.some(id => doesItemCoverThreat(id, code))) {
@@ -1858,32 +1863,33 @@ function pickRotationSafeRecipe(rawRecipe, refDateStr, excludeTaskId = null) {
   return { recipe: safeList, rotatedNotesEn, rotatedNotesKn };
 }
 
-async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, curativeRecipe, curativeTaskId) {
+async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, curativeRecipe, curativeTaskId, extraExcludeId = null) {
   const curativeInputIds = new Set((curativeRecipe || []).map(r => r.input_id));
   const curativeGroups = new Set((curativeRecipe || []).map(r => catalog[r.input_id]?.irac_frac_group).filter(Boolean));
   const isCopperCurative = (curativeRecipe || []).some(r => catalog[r.input_id]?.is_copper_compound);
 
-  // 1. Find the earliest uncompleted baseline Foliar/Copper spray scheduled on or within 7 days after this curative spray
+  // Only look at uncompleted BASELINE sprays scheduled ON or AFTER curativeDateStr (diff >= 0, NEVER grab an earlier card!)
   const nextBaselineSpray = tasks
     .filter(t =>
       t.id !== curativeTaskId &&
+      t.id !== extraExcludeId &&
       (t.status === "PENDING" || t.status === "DELAYED") &&
       t.trigger_source === "BASELINE" &&
       (t.task_type === "FOLIAR_SPRAY" || t.task_type === "STANDALONE_COPPER") &&
-      diffDaysYMD(curativeDateStr, t.current_scheduled_date) >= -1 &&
-      diffDaysYMD(curativeDateStr, t.current_scheduled_date) <= 7
+      diffDaysYMD(curativeDateStr, t.current_scheduled_date) >= 0 &&
+      diffDaysYMD(curativeDateStr, t.current_scheduled_date) <= 6
     )
     .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date) || (a.template_id || 999) - (b.template_id || 999))[0];
 
   if (!nextBaselineSpray) return;
 
-  // 2. If the baseline spray is closer than 5 days after the curative spray, ripple it (and all subsequent Week 13/14 sprays!) forward via applyScheduleShift
+  // Ripple the colliding baseline spray (and any downstream sprays) to curativeDateStr + 5 days
   const minCooldownDate = addDaysYMD(curativeDateStr, 5);
   if ((curativeRecipe || []).length > 0 && nextBaselineSpray.current_scheduled_date < minCooldownDate) {
     await applyScheduleShift(nextBaselineSpray, minCooldownDate, "TRACK", "CURATIVE_COOLDOWN", true, true);
   }
 
-  // 3. Deduplicate overlapping insecticide/fungicide salts on that nearest baseline foliar spray (NEVER overwrite user's manual deletions/swaps with tmpl.recipe_items!)
+  // Deduplicate overlapping insecticide/fungicide salts using nextBaselineSpray.resolved_recipe (NEVER overwrite with tmpl.recipe_items!)
   if (!isCopperCurative && nextBaselineSpray.task_type === "FOLIAR_SPRAY") {
     const seenIds = new Set();
     const currentRecipe = (nextBaselineSpray.resolved_recipe || []).filter(r => {
@@ -2084,29 +2090,38 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
   const copperIssues = selectedIssues.filter(x => x.taskType === "STANDALONE_COPPER");
   const foliarIssues = selectedIssues.filter(x => x.taskType !== "STANDALONE_COPPER");
 
+  // If there is already an uncompleted FOLIAR_SPRAY card due within 0-3 days (like your Nov 10th card), default the prompt to that card's date if safe!
   const defaultSlot = foliarIssues.length > 0 ? getEarliestSafeFoliarDate(false) : getEarliestSafeFoliarDate(true);
-  const namesList = selectedIssues.map(x => LANG === "KN" ? x.shortKn : x.shortEn).join(" + ");
+  const nearExistingFoliar = foliarIssues.length > 0 ? tasks
+    .filter(t => (t.status === "PENDING" || t.status === "DELAYED") && t.task_type === "FOLIAR_SPRAY" && diffDaysYMD(todayYMD(), t.current_scheduled_date) >= 0 && diffDaysYMD(todayYMD(), t.current_scheduled_date) <= 3)
+    .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date))[0] : null;
 
-  // Prompt user with the smart default date (auto-set to tomorrow if afternoon) so they can confirm or change the date!
+  const suggestedPromptDate = (nearExistingFoliar && validateBackwardShiftAgainstCompleted(nearExistingFoliar, nearExistingFoliar.current_scheduled_date).ok)
+    ? nearExistingFoliar.current_scheduled_date
+    : defaultSlot.dateStr;
+
+  const namesList = selectedIssues.map(x => LANG === "KN" ? x.shortKn : x.shortEn).join(" + ");
   const promptText = LANG === "KN"
-    ? `'${namesList}' ಸಿಂಪಡಣೆಗೆ ದಿನಾಂಕವನ್ನು ಖಚಿತಪಡಿಸಿ ಅಥವಾ ಬದಲಿಸಿ (YYYY-MM-DD):\n(${defaultSlot.noteKn})`
-    : `Confirm or change spray date for '${namesList}' (YYYY-MM-DD):\n(${defaultSlot.noteEn})`;
-  const chosenDateInput = prompt(promptText, defaultSlot.dateStr);
+    ? `'${namesList}' ಸಿಂಪಡಣೆಗೆ ದಿನಾಂಕವನ್ನು ಖಚಿತಪಡಿಸಿ ಅಥವಾ ಬದಲಿಸಿ (YYYY-MM-DD):\n(${nearExistingFoliar ? `${nearExistingFoliar.current_scheduled_date} ರ ಎಲೆ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್ ಜೊತೆ ಸೇರಿಸಲಾಗುತ್ತದೆ` : defaultSlot.noteKn})`
+    : `Confirm or change spray date for '${namesList}' (YYYY-MM-DD):\n(${nearExistingFoliar ? `Will merge foliar items into your ${nearExistingFoliar.current_scheduled_date} Foliar card` : defaultSlot.noteEn})`;
+  const chosenDateInput = prompt(promptText, suggestedPromptDate);
   if (!chosenDateInput) return;
 
-  const chosenDateStr = /^\d{4}-\d{2}-\d{2}$/.test(chosenDateInput.trim()) ? chosenDateInput.trim() : defaultSlot.dateStr;
+  const chosenDateStr = /^\d{4}-\d{2}-\d{2}$/.test(chosenDateInput.trim()) ? chosenDateInput.trim() : suggestedPromptDate;
   let targetWeekToOpen = curWk;
   const allRotatedNotes = [];
+  let mergedFoliarTaskId = null;
+  let effectiveFoliarDateStr = chosenDateStr;
 
   if (foliarIssues.length > 0) {
     const foliarDateStr = chosenDateStr;
 
-    // Find ANY uncompleted (PENDING or DELAYED) FOLIAR_SPRAY card within -1 to +3 days of foliarDateStr (including a delayed BASELINE card like Nov 3rd sitting on Nov 10th!)
+    // Find ANY uncompleted (PENDING or DELAYED) FOLIAR_SPRAY card within -2 to +3 days of foliarDateStr (including a delayed BASELINE card like Nov 3rd sitting on Nov 10th!)
     const existingFoliarCard = tasks
       .filter(t =>
         (t.status === "PENDING" || t.status === "DELAYED") &&
         t.task_type === "FOLIAR_SPRAY" &&
-        diffDaysYMD(foliarDateStr, t.current_scheduled_date) >= -1 &&
+        diffDaysYMD(foliarDateStr, t.current_scheduled_date) >= -2 &&
         diffDaysYMD(foliarDateStr, t.current_scheduled_date) <= 3
       )
       .sort((a, b) => {
@@ -2126,12 +2141,8 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
       allRotatedNotes.push(...(LANG === "KN" ? rotResult.rotatedNotesKn : rotResult.rotatedNotesEn));
     }
 
-    const titleEn = "Curative Foliar Spray (Pest & Disease Control)";
-    const titleKn = "ತುರ್ತು ಎಲೆ ಸಿಂಪಡಣೆ (ರೋಗ ಮತ್ತು ಕೀಟ ನಿಯಂತ್ರಣ)";
-
     let activeCurativeTask = existingFoliarCard;
     if (existingFoliarCard) {
-      // Deduplicate any accidental duplicate input_ids already on the card while preserving user deletions
       const seenOnCard = new Set();
       existingFoliarCard.resolved_recipe = (existingFoliarCard.resolved_recipe || []).filter(r => {
         if (!r || !r.input_id || seenOnCard.has(r.input_id)) return false;
@@ -2177,6 +2188,9 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
       const dyn = computeDynamicDadAndWeek(foliarDateStr);
       targetWeekToOpen = dyn.week;
       const newId = genUUID();
+      const activeIdsNow = synergisticRecipe.map(r => r.input_id);
+      const titleEn = generateAutoCardTitle("FOLIAR_SPRAY", activeIdsNow, false);
+      const titleKn = generateAutoCardTitle("FOLIAR_SPRAY", activeIdsNow, true);
       const payload = {
         id: newId, env: APP_ENV, originally_scheduled_date: foliarDateStr, current_scheduled_date: foliarDateStr,
         effective_dad: dyn.dad, task_type: "FOLIAR_SPRAY", trigger_source: "SCOUTING_CURATIVE", status: "PENDING",
@@ -2190,38 +2204,73 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
       tasks.push(activeCurativeTask);
     }
 
+    mergedFoliarTaskId = activeCurativeTask.id;
     await applyScheduleShift(activeCurativeTask, foliarDateStr, "TRACK", "CURATIVE_COOLDOWN", true, true);
-    await reconcileUpcomingBaselineFoliarAfterCurative(activeCurativeTask.current_scheduled_date, activeCurativeTask.resolved_recipe, activeCurativeTask.id);
+    effectiveFoliarDateStr = activeCurativeTask.current_scheduled_date;
+    await reconcileUpcomingBaselineFoliarAfterCurative(effectiveFoliarDateStr, activeCurativeTask.resolved_recipe, activeCurativeTask.id);
   }
 
   if (copperIssues.length > 0) {
-    const baseDate = foliarIssues.length > 0 ? addDaysYMD(chosenDateStr, 5) : chosenDateStr;
+    // If there is already a Foliar spray on chosenDateStr (either just merged above, or already scheduled on chosenDateStr), place Copper +5 days after it!
+    const foliarOnChosen = foliarIssues.length > 0
+      ? { current_scheduled_date: effectiveFoliarDateStr, id: mergedFoliarTaskId }
+      : tasks.find(t => (t.status === "PENDING" || t.status === "DELAYED") && t.task_type === "FOLIAR_SPRAY" && Math.abs(diffDaysYMD(chosenDateStr, t.current_scheduled_date)) <= 2);
+
+    const baseDate = foliarOnChosen ? addDaysYMD(foliarOnChosen.current_scheduled_date, 5) : chosenDateStr;
     const dyn = computeDynamicDadAndWeek(baseDate);
     if (!foliarIssues.length) targetWeekToOpen = dyn.week;
     const iss = copperIssues[0];
 
-    // Auto-rotate Copper Hydroxide -> Copper Oxychloride (or Bronopol -> Kasugamycin/Streptocycline) if sprayed within 21 days!
     const copRot = pickRotationSafeRecipe(iss.recipe, baseDate, null);
     if (copRot.rotatedNotesEn.length) {
       allRotatedNotes.push(...(LANG === "KN" ? copRot.rotatedNotesKn : copRot.rotatedNotesEn));
     }
 
-    const newId = genUUID();
-    const payload = {
-      id: newId, env: APP_ENV, originally_scheduled_date: baseDate, current_scheduled_date: baseDate,
-      effective_dad: dyn.dad, task_type: "STANDALONE_COPPER", trigger_source: "SCOUTING_CURATIVE", status: "PENDING",
-      drum_liters: CFG.drumL, drums_count: CFG.drums,
-      resolved_recipe: copRot.recipe.length ? copRot.recipe : iss.recipe,
-      custom_title_en: "Curative Copper Bactericide Spray",
-      custom_title_kn: "ತುರ್ತು ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ",
-      updated_by: activeUser, updated_at: new Date().toISOString()
-    };
-    const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
-    const insertedCopper = { ...(res.data?.[0] || payload), week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn };
-    tasks.push(insertedCopper);
+    const existingCopperCurative = tasks.find(t =>
+      (t.status === "PENDING" || t.status === "DELAYED") &&
+      t.trigger_source === "SCOUTING_CURATIVE" &&
+      t.task_type === "STANDALONE_COPPER" &&
+      diffDaysYMD(todayYMD(), t.current_scheduled_date) >= 0 &&
+      diffDaysYMD(todayYMD(), t.current_scheduled_date) <= 12
+    );
+
+    let insertedCopper = existingCopperCurative;
+    if (existingCopperCurative) {
+      existingCopperCurative.current_scheduled_date = baseDate;
+      existingCopperCurative.effective_dad = dyn.dad;
+      existingCopperCurative.week_number = dyn.week;
+      existingCopperCurative.resolved_recipe = copRot.recipe.length ? copRot.recipe : iss.recipe;
+      existingCopperCurative.updated_by = activeUser;
+      existingCopperCurative.updated_at = new Date().toISOString();
+      await dbMutate({
+        table: "daily_task_queue", type: "update",
+        payload: {
+          current_scheduled_date: baseDate, effective_dad: dyn.dad,
+          resolved_recipe: existingCopperCurative.resolved_recipe,
+          updated_by: activeUser, updated_at: existingCopperCurative.updated_at
+        },
+        matchCol: "id", matchVal: existingCopperCurative.id
+      });
+    } else {
+      const newId = genUUID();
+      const payload = {
+        id: newId, env: APP_ENV, originally_scheduled_date: baseDate, current_scheduled_date: baseDate,
+        effective_dad: dyn.dad, task_type: "STANDALONE_COPPER", trigger_source: "SCOUTING_CURATIVE", status: "PENDING",
+        drum_liters: CFG.drumL, drums_count: CFG.drums,
+        resolved_recipe: copRot.recipe.length ? copRot.recipe : iss.recipe,
+        custom_title_en: "Curative Copper Bactericide Spray",
+        custom_title_kn: "ತುರ್ತು ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ",
+        updated_by: activeUser, updated_at: new Date().toISOString()
+      };
+      const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
+      insertedCopper = { ...(res.data?.[0] || payload), week_number: dyn.week, stage_name: "Curative Scouting Task", target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn };
+      tasks.push(insertedCopper);
+    }
+
     await applyScheduleShift(insertedCopper, baseDate, "TRACK", "CURATIVE_COOLDOWN", true, true);
-    await reconcileUpcomingBaselineFoliarAfterCurative(insertedCopper.current_scheduled_date, insertedCopper.resolved_recipe, insertedCopper.id);
+    await reconcileUpcomingBaselineFoliarAfterCurative(insertedCopper.current_scheduled_date, insertedCopper.resolved_recipe, insertedCopper.id, foliarOnChosen?.id || null);
   }
+
   if (allRotatedNotes.length > 0) {
     alert(LANG === "KN"
       ? `🔄 21 ದಿನಗಳ ಪುನರಾವರ್ತನೆ ತಡೆಯಲು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಪರ್ಯಾಯ ಔಷಧಿ ಬಳಸಲಾಗಿದೆ:\n• ${allRotatedNotes.join("\n• ")}`
@@ -6415,14 +6464,32 @@ async function confirmDelayModal() {
 async function resetCardWithCascade(taskId) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
   delete tk.drums_count; delete tk.drum_liters;
-  tk.resolved_recipe = (tk.resolved_recipe || []).map(r => {
-    const c = { ...r };
-    if (c.orig_dose_per_acre !== undefined) c.dose_per_acre = c.orig_dose_per_acre;
-    delete c.item_status; delete c.actual_total_3ac; delete c.applied_delta_per_acre; delete c.compensated_from_date;
-    return c;
-  });
 
-  // If this was a Drip card that previously boosted a future card (via Skip or Under-dose), restore the future card's dose back to normal!
+  // 1. If this is a BASELINE card, restore its full original recipe from baseline_schedule_template (bringing back any deleted/swapped items like Calcium + Chelated Boron!)
+  const tmpl = tk.template_id ? templates.find(x => x.id === tk.template_id) : null;
+  if (tmpl && Array.isArray(tmpl.recipe_items) && tmpl.recipe_items.length > 0) {
+    const seen = new Set();
+    tk.resolved_recipe = tmpl.recipe_items
+      .filter(r => {
+        if (!r || !r.input_id || seen.has(r.input_id)) return false;
+        seen.add(r.input_id);
+        return true;
+      })
+      .map(r => ({ ...r }));
+    tk.custom_title_en = null;
+    tk.custom_title_kn = null;
+    tk.target_description = tmpl.target_description;
+    tk.target_description_kn = "";
+  } else {
+    tk.resolved_recipe = (tk.resolved_recipe || []).map(r => {
+      const c = { ...r };
+      if (c.orig_dose_per_acre !== undefined) c.dose_per_acre = c.orig_dose_per_acre;
+      delete c.item_status; delete c.actual_total_3ac; delete c.applied_delta_per_acre; delete c.compensated_from_date;
+      return c;
+    });
+  }
+
+  // 2. If this was a Drip card that previously boosted a future card (via Skip or Under-dose), restore the future card's dose back to normal!
   if ((tk.task_type || "").startsWith("DRIP")) {
     for (const r of tk.resolved_recipe) {
       const c = catalog[r.input_id];
@@ -6431,14 +6498,38 @@ async function resetCardWithCascade(taskId) {
     }
   }
 
-  if (tk.originally_scheduled_date && tk.current_scheduled_date !== tk.originally_scheduled_date) {
-    const delta = diffDaysYMD(tk.current_scheduled_date, tk.originally_scheduled_date);
-    const askMsg = LANG === "KN" ? `ಈ ಕೆಲಸವನ್ನು ಮೂಲ ದಿನಾಂಕಕ್ಕೆ (${tk.originally_scheduled_date}) ತರಲಾಗುತ್ತಿದೆ. ಮುಂದಿನ ಎಲ್ಲಾ ಕೆಲಸಗಳನ್ನೂ ${delta} ದಿನ ಹಿಂದೆ ತರಲೇ?` : `Resetting to original date (${tk.originally_scheduled_date}). Also shift all subsequent tasks by ${delta} days?`;
-    await applyScheduleShift(tk, tk.originally_scheduled_date, confirm(askMsg) ? "ALL" : "SINGLE", null);
+  // 3. Reset date to original date (or earliest safe date after completed tasks so it doesn't ask a pointless prompt if original date is blocked by a completed spray)
+  const earliestSafe = getMinimumAllowedDateForTask(tk);
+  const origDate = tk.originally_scheduled_date || tk.current_scheduled_date;
+  const targetResetDate = origDate < earliestSafe ? earliestSafe : origDate;
+
+  if (targetResetDate !== tk.current_scheduled_date) {
+    const delta = diffDaysYMD(tk.current_scheduled_date, targetResetDate);
+    const askMsg = LANG === "KN"
+      ? `ಈ ಕೆಲಸವನ್ನು ${targetResetDate} ಕ್ಕೆ ಮರುಹೊಂದಿಸಲಾಗುತ್ತಿದೆ. ಮುಂದಿನ ಕೆಲಸಗಳನ್ನೂ ${delta} ದಿನ ಹೊಂದಿಸಲೇ?`
+      : `Resetting date to ${targetResetDate}. Also shift subsequent tasks by ${delta} days?`;
+    await applyScheduleShift(tk, targetResetDate, confirm(askMsg) ? "TRACK" : "SINGLE", null);
   } else {
-    tk.status = "PENDING"; tk.updated_by = activeUser; tk.updated_at = new Date().toISOString(); render();
+    tk.status = (tk.current_scheduled_date === origDate) ? "PENDING" : "DELAYED";
+    tk.updated_by = activeUser;
+    tk.updated_at = new Date().toISOString();
+    render();
   }
-  await dbMutate({ table: "daily_task_queue", type: "update", payload: { status: "PENDING", resolved_recipe: tk.resolved_recipe, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
+
+  await dbMutate({
+    table: "daily_task_queue",
+    type: "update",
+    payload: {
+      status: tk.status,
+      resolved_recipe: tk.resolved_recipe,
+      custom_title_en: tk.custom_title_en || null,
+      custom_title_kn: tk.custom_title_kn || null,
+      updated_by: activeUser,
+      updated_at: tk.updated_at
+    },
+    matchCol: "id",
+    matchVal: taskId
+  });
 }
 
 async function doSwap(taskId, idx, newId) {
