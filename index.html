@@ -6840,7 +6840,10 @@ async function resetCardWithCascade(taskId) {
     },
     matchCol: "id",
     matchVal: taskId
-  });async function doSwap(taskId, idx, newId) {
+  });
+}
+
+async function doSwap(taskId, idx, newId) {
   const tk = tasks.find(x => x.id === taskId), sc = catalog[newId];
   if (!tk || !sc) return;
   const phenoCheck = checkPhenologyAndPhiLock(sc, tk.effective_dad);
