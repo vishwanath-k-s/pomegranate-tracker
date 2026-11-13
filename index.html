@@ -1373,27 +1373,31 @@ function getCumulativeNutrientsPerPlant() {
   return del;
 }
 
-// Guild-Specific Threat Matcher: Checks if a specific chemical ID (or its IRAC/FRAC group) actually controls the target threat
+// Guild-Specific Threat Matcher: Separates Sap-Feeding Mealybug/Scale Insects (MEALYBUG) from Arachnid Mites (MITES)
 function doesItemCoverThreat(inputId, code) {
   const c = catalog[inputId];
   if (!c) return false;
   const grp = c.irac_frac_group || "";
+  const saltTxt = `${c.active_ingredient || ""} ${c.name_en || ""}`.toLowerCase();
 
-  const THRIPS_IDS = ["INS_SPINETORAM", "INS_SPINOSAD", "INS_FIPRONIL", "INS_FIPRONIL_80WG", "INS_FLONICAMID", "INS_DINOTEFURAN", "INS_CYANTRANILIPROLE", "INS_EXPONUS", "INS_ACETAMIPRID", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_REEVA5", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_TOLFENPYRAD", "INS_DIAFENTHIURON", "INS_PROFENOFOS", "INS_AZADIRACHTIN"];
-  const BORER_IDS  = ["INS_CHLORANTRANILIPROLE", "INS_EMAMECTIN", "INS_SPINETORAM", "INS_FIPRONIL", "INS_FIPRONIL_80WG", "INS_CYANTRANILIPROLE", "INS_SPINOSAD", "INS_EXPONUS", "INS_REEVA5", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_TOLFENPYRAD", "INS_PROFENOFOS", "INS_AZADIRACHTIN"];
-  const MEALY_IDS  = ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_PYRIPROXYFEN", "INS_DINOTEFURAN", "INS_FLONICAMID", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_ACETAMIPRID", "INS_PROFENOFOS", "INS_FENPYROXIMATE", "INS_ABAMECTIN", "INS_SPIROMESIFEN", "INS_PROPARGITE", "INS_FENAZAQUIN", "INS_HEXYTHIAZOX", "INS_ETOXAZOLE"];
-  const ROT_IDS    = ["FUN_FLUXA_PYRA", "FUN_AZOXY_TEBU", "FUN_AZOXY_DIFENO", "FUN_TRICYCLA_MANCO", "FUN_ZINEB_HEXA", "FUN_CHLORO_METALAXYL", "FUN_COPPER_MANCOZEB", "FUN_PYRACLOSTROBIN", "FUN_TEBUCONAZOLE", "FUN_BOSCALID_PYRA", "FUN_DIMETHOMORPH", "FUN_SULPHUR_80", "FUN_ZIRAM_27", "FUN_THIRAM_75", "FUN_KITAZIN_48", "BIO_ASPERGILLUS_AN27", "FUN_DIFENOCONAZOLE", "FUN_CABRIO_TOP", "FUN_TEBU_TRIFLOXY", "FUN_FLUOPYRAM_TEBU", "FUN_AZOXYSTROBIN", "FUN_CAPTAF", "FUN_MANCOZEB", "FUN_PROPINEB", "FUN_CARBENDAZIM", "FUN_THIOPHANATE", "FUN_PROPICONAZOLE", "FUN_HEXACONAZOLE", "FUN_METIRAM", "FUN_CHLOROTHALONIL", "FUN_MYCLOBUTANIL", "FUN_FOSETYL_AL", "FUN_METALAXYL_MANCO", "FUN_CYMOXANIL_MANCO", "FUN_KRESOXIM", "FUN_MANDIPROPAMID"];
+  const THRIPS_IDS = ["INS_SPINETORAM", "INS_SPINOSAD", "INS_FIPRONIL", "INS_FIPRONIL_80WG", "INS_FIPRONIL_IMIDA", "INS_FLONICAMID", "INS_DINOTEFURAN", "INS_CYANTRANILIPROLE", "INS_EXPONUS", "INS_ISOCYCLOSERAM", "INS_ACETAMIPRID", "INS_ACEPHATE_IMIDA", "INS_BUPROFEZIN_ACEPHATE", "INS_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_REEVA5", "INS_CYPERMETHRIN_25", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_CHLORAN_LAMBDA", "INS_CHLORAN_THIAMETHOXAM", "INS_ASATAF", "INS_CHLORPYRIFOS", "INS_CHLORPYRIPHOS_CYPER", "INS_PROFENOFOS", "INS_PROFENOFOS_CYPER", "INS_DELTAMETHRIN_TRIAZOPHOS", "INS_PYRIPROXYFEN_FENPRO", "INS_PYRIPROXYFEN_DIAFEN", "INS_QUINALPHOS_25", "INS_DIMETHOATE_30", "INS_TOLFENPYRAD", "INS_DIAFENTHIURON", "INS_AZADIRACHTIN"];
+  const BORER_IDS  = ["INS_CHLORANTRANILIPROLE", "INS_CHLORAN_LAMBDA", "INS_CHLORAN_THIAMETHOXAM", "INS_EMAMECTIN", "INS_SPINETORAM", "INS_FIPRONIL", "INS_FIPRONIL_80WG", "INS_FIPRONIL_IMIDA", "INS_CYANTRANILIPROLE", "INS_SPINOSAD", "INS_EXPONUS", "INS_ISOCYCLOSERAM", "INS_REEVA5", "INS_CYPERMETHRIN_25", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_ASATAF", "INS_ACEPHATE_IMIDA", "INS_BUPROFEZIN_ACEPHATE", "INS_CHLORPYRIFOS", "INS_CHLORPYRIPHOS_CYPER", "INS_PROFENOFOS", "INS_PROFENOFOS_CYPER", "INS_DELTAMETHRIN_TRIAZOPHOS", "INS_QUINALPHOS_25", "INS_TOLFENPYRAD", "INS_AZADIRACHTIN"];
+  const MEALY_IDS  = ["INS_SPIROTETRAMAT", "INS_BUPROFEZIN", "INS_BUPROFEZIN_ACEPHATE", "INS_PYRIPROXYFEN", "INS_PYRIPROXYFEN_FENPRO", "INS_PYRIPROXYFEN_DIAFEN", "INS_DINOTEFURAN", "INS_FLONICAMID", "INS_THIAMETHOXAM", "INS_CHLORAN_THIAMETHOXAM", "INS_IMIDACLOPRID", "INS_ACEPHATE_IMIDA", "INS_FIPRONIL_IMIDA", "INS_ACETAMIPRID", "INS_ASATAF", "INS_CHLORPYRIFOS", "INS_CHLORPYRIPHOS_CYPER", "INS_PROFENOFOS", "INS_PROFENOFOS_CYPER", "INS_QUINALPHOS_25", "INS_DIMETHOATE_30", "INS_AZADIRACHTIN"];
+  const MITE_IDS   = ["INS_FENPYROXIMATE", "INS_ABAMECTIN", "INS_SPIROMESIFEN", "INS_PROPARGITE", "INS_FENAZAQUIN", "INS_HEXYTHIAZOX", "INS_ETOXAZOLE", "INS_DIAFENTHIURON", "INS_PYRIPROXYFEN_DIAFEN", "INS_PYRIPROXYFEN_FENPRO", "INS_SPIROTETRAMAT", "FUN_SULPHUR_80", "INS_AZADIRACHTIN"];
+  const ROT_IDS    = ["FUN_FLUXA_PYRA", "FUN_AZOXY_TEBU", "FUN_AZOXY_DIFENO", "FUN_TRICYCLA_MANCO", "FUN_ZINEB_HEXA", "FUN_CARBENDAZIM_MANCO", "FUN_CHLORO_METALAXYL", "FUN_COPPER_MANCOZEB", "FUN_PYRACLOSTROBIN", "FUN_TEBUCONAZOLE", "FUN_BOSCALID_PYRA", "FUN_DIMETHOMORPH", "FUN_SULPHUR_80", "FUN_ZIRAM_27", "FUN_THIRAM_75", "FUN_KITAZIN_48", "BIO_ASPERGILLUS_AN27", "FUN_DIFENOCONAZOLE", "FUN_CABRIO_TOP", "FUN_TEBU_TRIFLOXY", "FUN_FLUOPYRAM_TEBU", "FUN_AZOXYSTROBIN", "FUN_CAPTAF", "FUN_MANCOZEB", "FUN_PROPINEB", "FUN_CARBENDAZIM", "FUN_THIOPHANATE", "FUN_PROPICONAZOLE", "FUN_HEXACONAZOLE", "FUN_METIRAM", "FUN_CHLOROTHALONIL", "FUN_MYCLOBUTANIL", "FUN_FOSETYL_AL", "FUN_METALAXYL_MANCO", "FUN_CYMOXANIL_MANCO", "FUN_KRESOXIM", "FUN_MANDIPROPAMID"];
 
-  const THRIPS_GROUPS = ["IRAC-2B", "IRAC-4A", "IRAC-5", "IRAC-6", "IRAC-12A", "IRAC-15", "IRAC-21A", "IRAC-28", "IRAC-29", "IRAC-30"];
-  const BORER_GROUPS  = ["IRAC-1B", "IRAC-2B", "IRAC-3A", "IRAC-5", "IRAC-6", "IRAC-15", "IRAC-28", "IRAC-30"];
-  const MEALY_GROUPS  = ["IRAC-4A", "IRAC-7C", "IRAC-10A", "IRAC-10B", "IRAC-16", "IRAC-20B", "IRAC-21A", "IRAC-23", "IRAC-29"];
+  const THRIPS_GROUPS = ["IRAC-1B", "IRAC-2B", "IRAC-3A", "IRAC-4A", "IRAC-5", "IRAC-6", "IRAC-12A", "IRAC-15", "IRAC-21A", "IRAC-28", "IRAC-29", "IRAC-30"];
+  const BORER_GROUPS  = ["IRAC-1B", "IRAC-2B", "IRAC-3A", "IRAC-5", "IRAC-6", "IRAC-15", "IRAC-21A", "IRAC-28", "IRAC-30"];
+  const MEALY_GROUPS  = ["IRAC-1B", "IRAC-4A", "IRAC-7C", "IRAC-16", "IRAC-23", "IRAC-29"];
+  const MITE_GROUPS   = ["IRAC-6", "IRAC-10A", "IRAC-10B", "IRAC-12A", "IRAC-12C", "IRAC-20B", "IRAC-21A", "IRAC-23"];
 
-  if (code === "BLIGHT_SPOT") return Boolean(c.is_copper_compound || c.category === "BACTERICIDE" || ["BAC_BRONOPOL", "BAC_KASUGAMYCIN", "BAC_KASUGA_COC", "BAC_COPPER_SULPHATE_SC", "BAC_BORDEAUX_MIX", "FUN_COPPER_MANCOZEB", "BIO_SALICYLIC_ACID", "BAC_STREPTOMYCIN", "BAC_H2O2", "BIO_PSEUDOMONAS"].includes(inputId));
-  if (code === "THRIPS_SCAR") return THRIPS_IDS.includes(inputId) || THRIPS_GROUPS.some(g => grp.includes(g)) || (inputId.startsWith("CUSTOM_") && c.category === "INSECTICIDE");
-  if (code === "FRUIT_BORER") return BORER_IDS.includes(inputId)  || BORER_GROUPS.some(g => grp.includes(g))  || (inputId.startsWith("CUSTOM_") && c.category === "INSECTICIDE");
-  if (code === "MEALYBUG")    return MEALY_IDS.includes(inputId)  || MEALY_GROUPS.some(g => grp.includes(g))  || (inputId.startsWith("CUSTOM_") && c.category === "INSECTICIDE");
-  if (code === "FRUIT_ROT")   return ROT_IDS.includes(inputId)    || c.category === "FUNGICIDE";
-  if (code === "CRACKING")    return ["MIC_CA_B_LIQUID", "MIC_YAB_CALCIB", "BIO_ORTHOSILICIC", "MIC_BORON_20", "MIC_CHELATED_CA", "WSF_CALCIUM_NITRATE", "PGR_GA3"].includes(inputId) || Number(c.ca_pct) > 0 || Number(c.b_pct) > 0 || /calcium|boron|calci|orthosilicic|silicon/i.test(c.active_ingredient || "");
+  if (code === "BLIGHT_SPOT") return Boolean(c.is_copper_compound || c.category === "BACTERICIDE" || ["BAC_BRONOPOL", "BAC_KASUGAMYCIN", "BAC_KASUGA_COC", "BAC_COPPER_SULPHATE_SC", "BAC_BORDEAUX_MIX", "FUN_COPPER_MANCOZEB", "BIO_SALICYLIC_ACID", "BAC_NANO_SILVER_H2O2", "BAC_STREPTOMYCIN", "BAC_H2O2", "BIO_PSEUDOMONAS"].includes(inputId) || /copper|bronopol|kasugamycin|streptomycin|validamycin|bordeaux|peroxide|salicylic/i.test(saltTxt));
+  if (code === "THRIPS_SCAR") return THRIPS_IDS.includes(inputId) || THRIPS_GROUPS.some(g => grp.includes(g)) || (inputId.startsWith("CUSTOM_") && /spinetoram|spinosad|fipronil|flonicamid|dinotefuran|cyantraniliprole|broflanilide|isocycloseram|acetamiprid|acephate|thiamethoxam|imidacloprid|lambda|cypermethrin|chlorpyri|profenofos|deltamethrin|tolfenpyrad|diafenthiuron|hamla|acemain/i.test(saltTxt));
+  if (code === "FRUIT_BORER") return BORER_IDS.includes(inputId)  || BORER_GROUPS.some(g => grp.includes(g))  || (inputId.startsWith("CUSTOM_") && /chlorantraniliprole|emamectin|spinetoram|spinosad|fipronil|cyantraniliprole|broflanilide|isocycloseram|lambda|cypermethrin|acephate|chlorpyri|profenofos|deltamethrin|quinalphos|tolfenpyrad|hamla|acemain/i.test(saltTxt));
+  if (code === "MEALYBUG")    return MEALY_IDS.includes(inputId)  || MEALY_GROUPS.some(g => grp.includes(g))  || (inputId.startsWith("CUSTOM_") && /spirotetramat|buprofezin|pyriproxyfen|dinotefuran|flonicamid|thiamethoxam|imidacloprid|acetamiprid|acephate|chlorpyri|profenofos|quinalphos|dimethoate|hamla|acemain/i.test(saltTxt));
+  if (code === "MITES")       return MITE_IDS.includes(inputId)   || MITE_GROUPS.some(g => grp.includes(g))   || (inputId.startsWith("CUSTOM_") && /fenpyroximate|abamectin|spiromesifen|propargite|fenazaquin|hexythiazox|etoxazole|diafenthiuron|bifenazate|cyenopyrafen|etokazole|sulphur/i.test(saltTxt));
+  if (code === "FRUIT_ROT")   return ROT_IDS.includes(inputId)    || c.category === "FUNGICIDE" || /azoxystrobin|tebuconazole|difenoconazole|mancozeb|captan|propineb|carbendazim|thiophanate|fluxapyroxad|pyraclostrobin|trifloxystrobin|fluopyram|chlorothalonil|ziram|thiram|tricyclazole|zineb|hexaconazole/i.test(saltTxt);
+  if (code === "CRACKING")    return ["MIC_CA_B_LIQUID", "MIC_YAB_CALCIB", "BIO_ORTHOSILICIC", "MIC_BORON_20", "MIC_CHELATED_CA", "WSF_CALCIUM_NITRATE", "PGR_GA3"].includes(inputId) || Number(c.ca_pct) > 0 || Number(c.b_pct) > 0 || /calcium|boron|calci|orthosilicic|silicon/i.test(saltTxt);
   return false;
 }
 
@@ -1409,16 +1413,20 @@ function getQueuedTaskCoveringIssue(code) {
 
   for (const tk of upcomingSprays) {
     const daysAway = diffDaysYMD(tStr, tk.current_scheduled_date);
+    const tmpl = tk.template_id ? templates.find(x => x.id === tk.template_id) : null;
+    const origIds = (tmpl && Array.isArray(tmpl.recipe_items)) ? tmpl.recipe_items.map(r => r.input_id) : [];
+    const activeIds = (tk.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").map(r => r.input_id);
+    const isBaselineRecipeEdited = tk.trigger_source === "BASELINE" && (origIds.length !== activeIds.length || activeIds.some(id => !origIds.includes(id)));
+
     const isCurativeOrModified =
       tk.trigger_source === "SCOUTING_CURATIVE" ||
       tk.trigger_source === "RAIN_EMERGENCY" ||
-      Boolean(tk.custom_title_en);
+      tk.trigger_source === "MANUAL_ENTRY" ||
+      Boolean(tk.custom_title_en) ||
+      isBaselineRecipeEdited;
 
-    // Curative or Smart-Combined cards count up to 12 days out (covering +5d/+10d Copper Blight cooldown shifts);
-    // untouched Baseline cards only count if they are due within the next 0–4 days.
-    if (!isCurativeOrModified && daysAway > 4) continue;
+    if (!isCurativeOrModified && daysAway > 5) continue;
 
-    const activeIds = (tk.resolved_recipe || []).filter(r => r.item_status !== "SKIPPED").map(r => r.input_id);
     if (activeIds.some(id => doesItemCoverThreat(id, code))) {
       return tk;
     }
@@ -1447,14 +1455,14 @@ function getShieldsActiveOnDate(refDateStr) {
   const thripsDays = minDaysSince(9,  r => doesItemCoverThreat(r.input_id, "THRIPS_SCAR"));
   const borerDays  = minDaysSince(9,  r => doesItemCoverThreat(r.input_id, "FRUIT_BORER"));
   const mealyDays  = minDaysSince(12, r => doesItemCoverThreat(r.input_id, "MEALYBUG"));
+  const miteDays   = minDaysSince(12, r => doesItemCoverThreat(r.input_id, "MITES"));
   const caDays     = minDaysSince(9,  r => doesItemCoverThreat(r.input_id, "CRACKING") && r.input_id !== "WSF_CALCIUM_NITRATE");
   const pyrethroidDays = minDaysSince(25, r => {
     const c = catalog[r.input_id]; if (!c) return false;
     const g = c.irac_frac_group || "";
-    return g.includes("3A") || g.includes("1B") || g.includes("2B") || ["INS_REEVA5", "INS_ASATAF", "INS_THIA_LAMBDA", "INS_BETA_IMIDA"].includes(r.input_id);
+    return g.includes("3A") || g.includes("1B") || ["INS_REEVA5", "INS_ASATAF", "INS_THIA_LAMBDA", "INS_BETA_IMIDA", "INS_CHLORPYRIPHOS_CYPER", "INS_PROFENOFOS_CYPER"].includes(r.input_id);
   });
 
-  // Keep `insDays` / `insecticide` mapped to `borerDays` (or `thripsDays`) for full compatibility
   const insDays = borerDays !== null ? borerDays : thripsDays;
 
   return {
@@ -1464,13 +1472,12 @@ function getShieldsActiveOnDate(refDateStr) {
     thripsShield:  thripsDays !== null, thripsDays,
     borerShield:   borerDays !== null,  borerDays,
     mealy:         mealyDays !== null,  mealyDays,
+    mites:         miteDays !== null,   miteDays,
     calciumFoliar: caDays !== null,     caDays,
     pyrethroid25d: pyrethroidDays !== null
   };
 }
 
-// Time-Decaying Multiplicative Knockdown Curve (ICAR-NRCP Field Epidemiology):
-// Days 0–3: 70% knockdown (x0.30 -> LOW) | Days 4–6: 50% shield (x0.50 -> MOD) | Days 7–9: 25% tapering (x0.75)
 function applyTimeDecayingShield(rawScore, daysSinceSpray) {
   if (daysSinceSpray === null || daysSinceSpray === undefined || daysSinceSpray < 0 || daysSinceSpray > 9) return rawScore;
   if (daysSinceSpray <= 3) return Math.round(rawScore * 0.30);
@@ -1486,7 +1493,6 @@ function formatShieldTag(daysSinceSpray, isKn) {
     : `• 🛡️ Spray shield (${daysSinceSpray}d ago: ${pct} knockdown)`;
 }
 
-// Evaluates the 72-Hour Microclimate Epidemiological Window (RH > 80% & Temp 25°C–32°C for 3 consecutive days, even without rain)
 function evaluate72hEpidemiologicalWindow(daySnap) {
   const rh72 = Number(daySnap.rh72Avg || 0);
   const tMax = Number(daySnap.tMax || 30);
@@ -1506,7 +1512,6 @@ function evaluate72hEpidemiologicalWindow(daySnap) {
   };
 }
 
-// Sanitizes raw precipitation: filters <2.5mm satellite drizzle noise unless confirmed by a Farm Rain Log
 function getEffectiveBioRainMm(rawMm, isFarmVerified = false) {
   const val = Number(rawMm) || 0;
   if (isFarmVerified) return val;
@@ -1522,12 +1527,11 @@ function computeInstantRisksForDay(daySnap, dayDad, caDeficit, shieldsOnDay) {
   const effBorerDays  = shieldsOnDay.borerDays  !== undefined ? shieldsOnDay.borerDays  : shieldsOnDay.insDays;
   const hasBorerShield = shieldsOnDay.borerShield !== undefined ? shieldsOnDay.borerShield : Boolean(shieldsOnDay.insecticide);
 
-  // Filter out <2.5mm phantom satellite drizzle; discount unverified satellite rain if 72h RH is dry (<75%)
   const cleanRain24 = getEffectiveBioRainMm(rain24, isFarmRain);
   const cleanRain72 = getEffectiveBioRainMm(rain72Sum, isFarmRain || rain72Sum >= 10);
   const satConfidenceMult = (isFarmRain || rh72Avg >= 75 || cleanRain72 >= 15) ? 1.0 : 0.6;
 
-  // 1. BACTERIAL BLIGHT (Graduated rain splash curve; no +18% cliff on 2-3mm model drizzle)
+  // 1. BACTERIAL BLIGHT
   let blight = rh72Avg >= 80 ? 45 : rh72Avg >= 70 ? 30 : rh72Avg >= 60 ? 18 : 8;
   blight += (tMax >= 25 && tMax <= 33 && tMin >= 18) ? 25 : (tMax >= 25 && tMax <= 32.5 ? 20 : 12);
   const rawBlightRainPts = cleanRain72 >= 20 ? 30 : cleanRain72 >= 10 ? 22 : cleanRain72 >= 5 ? 12 : cleanRain72 >= 3 ? 5 : (prob4 >= 75 && rh72Avg >= 70 ? 6 : 0);
@@ -1544,7 +1548,7 @@ function computeInstantRisksForDay(daySnap, dayDad, caDeficit, shieldsOnDay) {
   if (dayDad >= 90) rot += 10;
   rot = applyTimeDecayingShield(rot, shieldsOnDay.funDays);
 
-  // 3. THRIPS RIND SCARRING (Trace <3mm satellite rain does NOT wash off thrips)
+  // 3. THRIPS RIND SCARRING
   let thrips = rh72Avg <= 50 ? 42 : rh72Avg <= 62 ? 30 : rh72Avg <= 72 ? 18 : 8;
   thrips += tMax >= 31 ? 25 : tMax >= 28 ? 16 : 8;
   thrips += cleanRain72 < 3 ? 15 : cleanRain72 >= 10 ? -15 : 0;
@@ -1558,14 +1562,20 @@ function computeInstantRisksForDay(daySnap, dayDad, caDeficit, shieldsOnDay) {
   if (!hasBorerShield) borer += 18;
   borer = applyTimeDecayingShield(borer, effBorerDays);
 
-  // 5. MEALYBUG & MITES
-  let mealy = tMax >= 31 ? 25 : tMax >= 28 ? 16 : 8;
-  mealy += tMin >= 18.5 ? 15 : 6;
-  mealy += cleanRain72 < 5 ? 15 : 0;
-  if (shieldsOnDay.pyrethroid25d) mealy += 25;
+  // 5. MEALYBUG & SCALE INSECTS (Warm humid/moderate canopy + ant activity in fruit calyx)
+  let mealy = tMax >= 30 ? 26 : tMax >= 27 ? 18 : 10;
+  mealy += (rh72Avg >= 50 && rh72Avg <= 78) ? 16 : 8;
+  mealy += cleanRain72 < 8 ? 14 : 0;
   mealy = applyTimeDecayingShield(mealy, shieldsOnDay.mealyDays);
 
-  // 6. FRUIT CRACKING
+  // 6. RED SPIDER & FLAT MITES (Hot, dry, dusty weather + +25% resurgence after OP / Pyrethroid sprays)
+  let mites = rh72Avg <= 52 ? 32 : rh72Avg <= 64 ? 22 : 10;
+  mites += tMax >= 31.5 ? 25 : tMax >= 29 ? 16 : 8;
+  mites += cleanRain72 < 3 ? 15 : cleanRain72 >= 10 ? -15 : 0;
+  if (shieldsOnDay.pyrethroid25d) mites += 25;
+  mites = applyTimeDecayingShield(mites, shieldsOnDay.miteDays);
+
+  // 7. FRUIT CRACKING
   let crack = tempSwing >= 13.0 ? 30 : tempSwing >= 11.0 ? 20 : 10;
   crack += tMax >= 33 ? 25 : tMax >= 30.5 ? 15 : 8;
   crack += cleanRain24 >= 12 ? 25 : cleanRain24 >= 6 ? 12 : 0;
@@ -1579,6 +1589,7 @@ function computeInstantRisksForDay(daySnap, dayDad, caDeficit, shieldsOnDay) {
     THRIPS_SCAR: clamp(thrips),
     FRUIT_BORER: clamp(borer),
     MEALYBUG:    clamp(mealy),
+    MITES:       clamp(mites),
     CRACKING:    clamp(crack)
   };
 }
@@ -1606,7 +1617,7 @@ function computeAllSixRisks() {
   const shieldsToday = getShieldsActiveOnDate(tStr);
   const inst = computeInstantRisksForDay(wState, todayDad, caDeficit, shieldsToday);
 
-  const DECAY_PER_DAY = { BLIGHT_SPOT: 6, FRUIT_ROT: 7, THRIPS_SCAR: 8, FRUIT_BORER: 8, MEALYBUG: 7, CRACKING: 10 };
+  const DECAY_PER_DAY = { BLIGHT_SPOT: 6, FRUIT_ROT: 7, THRIPS_SCAR: 8, FRUIT_BORER: 8, MEALYBUG: 7, MITES: 7, CRACKING: 10 };
   const carryoverInfo = {};
   const pastDaysArr = Array.isArray(wState.history6d) ? wState.history6d : [];
 
@@ -1619,7 +1630,7 @@ function computeAllSixRisks() {
       const daysAgo = diffDaysYMD(pastDay.dateStr, tStr);
       if (daysAgo <= 0 || daysAgo > 6) return;
       if (wasThreatTreatedSince(code, pastDay.dateStr)) return;
-      if (code === "THRIPS_SCAR" && rain24 >= 15) return;
+      if ((code === "THRIPS_SCAR" || code === "MITES") && rain24 >= 15) return;
 
       const shieldsOnPastDay = getShieldsActiveOnDate(pastDay.dateStr);
       const pastRisks = computeInstantRisksForDay(pastDay, todayDad - daysAgo, caDeficit, shieldsOnPastDay);
@@ -1657,9 +1668,10 @@ function computeAllSixRisks() {
   return {
     BLIGHT_SPOT: withCarryWhy("BLIGHT_SPOT", `72h RH: ${rh72Avg}% • Rain: ${rain72Sum}mm ${epiToday.tagEn} ${formatShieldTag(shieldsToday.copDays, false)}`.trim(), `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಮಳೆ: ${rain72Sum}mm ${epiToday.tagKn} ${formatShieldTag(shieldsToday.copDays, true)}`.trim()),
     FRUIT_ROT:   withCarryWhy("FRUIT_ROT",   `72h RH: ${rh72Avg}% • Temp: ${tMax}°C ${epiToday.tagEn} ${formatShieldTag(shieldsToday.funDays, false)}`.trim(), `72ಗಂ ತೇವಾಂಶ: ${rh72Avg}% • ಉಷ್ಣಾಂಶ: ${tMax}°C ${epiToday.tagKn} ${formatShieldTag(shieldsToday.funDays, true)}`.trim()),
-    THRIPS_SCAR: withCarryWhy("THRIPS_SCAR", `${rh72Avg <= 60 ? "Dry air" : "Mod RH"} (${rh72Avg}%) ${formatShieldTag(shieldsToday.insDays, false)}`, `ತೇವಾಂಶ: ${rh72Avg}% ${formatShieldTag(shieldsToday.insDays, true)}`),
-    FRUIT_BORER: withCarryWhy("FRUIT_ROT" === "X" ? "" : "FRUIT_BORER", `Sizing (${todayDad} DAD) ${shieldsToday.insecticide ? formatShieldTag(shieldsToday.insDays, false) : "• >9d since last insecticide (+18%)"}`, `ಕಾಯಿ ಬೆಳವಣಿಗೆ (${todayDad} DAD) ${shieldsToday.insecticide ? formatShieldTag(shieldsToday.insDays, true) : "• >9 ದಿನದಿಂದ ಕೀಟನಾಶಕ ಸಿಂಪಡಿಸಿಲ್ಲ (+18%)"}`),
-    MEALYBUG:    withCarryWhy("MEALYBUG",    `Max ${tMax}°C / Night ${tMin}°C ${shieldsToday.mealy ? formatShieldTag(shieldsToday.mealyDays, false) : (shieldsToday.pyrethroid25d ? "• ⚠️ +25% Reeva-5/Asataf resurgence watch" : "")}`, `ಗರಿಷ್ಠ ${tMax}°C ${shieldsToday.mealy ? formatShieldTag(shieldsToday.mealyDays, true) : (shieldsToday.pyrethroid25d ? "• ⚠️ ರೀವಾ-5/ಅಸಟಾಫ್ ನಂತರ ತಿಗಣೆ ಎಚ್ಚರಿಕೆ (+25%)" : "")}`),
+    THRIPS_SCAR: withCarryWhy("THRIPS_SCAR", `${rh72Avg <= 60 ? "Dry air" : "Mod RH"} (${rh72Avg}%) ${formatShieldTag(shieldsToday.thripsDays, false)}`, `ತೇವಾಂಶ: ${rh72Avg}% ${formatShieldTag(shieldsToday.thripsDays, true)}`),
+    FRUIT_BORER: withCarryWhy("FRUIT_BORER", `Sizing (${todayDad} DAD) ${shieldsToday.borerShield ? formatShieldTag(shieldsToday.borerDays, false) : "• >9d since last borer spray (+18%)"}`, `ಕಾಯಿ ಬೆಳವಣಿಗೆ (${todayDad} DAD) ${shieldsToday.borerShield ? formatShieldTag(shieldsToday.borerDays, true) : "• >9 ದಿನದಿಂದ ಕೊರಕ ಸಿಂಪಡಿಸಿಲ್ಲ (+18%)"}`),
+    MEALYBUG:    withCarryWhy("MEALYBUG",    `Max ${tMax}°C • RH ${rh72Avg}% (Calyx & stem sap-suckers) ${formatShieldTag(shieldsToday.mealyDays, false)}`.trim(), `ಗರಿಷ್ಠ ${tMax}°C • ತೇವಾಂಶ ${rh72Avg}% (ಹಿಟ್ಟು ತಿಗಣೆ ಮತ್ತು ಶಲ್ಕ ಕೀಟ) ${formatShieldTag(shieldsToday.mealyDays, true)}`.trim()),
+    MITES:       withCarryWhy("MITES",       `Max ${tMax}°C • RH ${rh72Avg}% ${shieldsToday.mites ? formatShieldTag(shieldsToday.miteDays, false) : (shieldsToday.pyrethroid25d ? "• ⚠️ +25% OP/Pyrethroid mite resurgence watch" : "")}`.trim(), `ಗರಿಷ್ಠ ${tMax}°C • ತೇವಾಂಶ ${rh72Avg}% ${shieldsToday.mites ? formatShieldTag(shieldsToday.miteDays, true) : (shieldsToday.pyrethroid25d ? "• ⚠️ ಆಸಿಫೇಟ್/ಪೈರೆಥ್ರಾಯ್ಡ್ ನಂತರ ಕೆಂಪು ನುಸಿ ಎಚ್ಚರಿಕೆ (+25%)" : "")}`.trim()),
     CRACKING:    withCarryWhy("CRACKING",    `Swing: ${tempSwing}°C ${shieldsToday.calciumFoliar ? formatShieldTag(shieldsToday.caDays, false) : (caDeficit ? "• ⚠️ Low Rind Calcium (+22%)" : "• ✅ Good Ca reserve")}`, `ವ್ಯತ್ಯಾಸ: ${tempSwing}°C ${shieldsToday.calciumFoliar ? formatShieldTag(shieldsToday.caDays, true) : (caDeficit ? "• ⚠️ ಕ್ಯಾಲ್ಸಿಯಂ ಕೊರತೆ (+22%)" : "")}`)
   };
 }
@@ -1868,11 +1880,21 @@ function buildSynergisticFoliarRecipe(foliarIssues, hasExistingInsecticide = fal
     outRecipe.push({ input_id: "INS_CHLORANTRANILIPROLE", dose_per_liter: 0.3 });
   }
 
-  if (codes.has("MEALYBUG")) {
+  if (codes.has("MEALYBUG") && codes.has("MITES")) {
+    // Spirotetramat (IRAC-23) + Fenpyroximate (IRAC-21A) or Spiromesifen (IRAC-23) covers both Mealybug & Mites
+    outRecipe.push({ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 });
+    if (outRecipe.length < 2 && !hasExistingInsecticide) {
+      outRecipe.push({ input_id: "INS_FENPYROXIMATE", dose_per_liter: 1.0 });
+    }
+  } else if (codes.has("MEALYBUG")) {
     if (outRecipe.length > 0 || hasExistingInsecticide) {
       outRecipe.push({ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 });
     } else {
       outRecipe.push({ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 }, { input_id: "INS_BUPROFEZIN", dose_per_liter: 1.5 });
+    }
+  } else if (codes.has("MITES")) {
+    if (outRecipe.length < 2) {
+      outRecipe.push({ input_id: "INS_SPIROMESIFEN", dose_per_liter: 0.8 });
     }
   }
 
@@ -2554,7 +2576,8 @@ const SCOUT_ISSUES = [
   { code: "BLIGHT_SPOT", shortEn: "Blight", shortKn: "ಅಂಗಮಾರಿ", taskType: "STANDALONE_COPPER", enTitle: "🦠 Bacterial Blight Oily Spot", knTitle: "🦠 ಬ್ಯಾಕ್ಟೀರಿಯಾ ಅಂಗಮಾರಿ ಮಚ್ಚೆ", enDesc: "Curative Blight Spray: Copper Hydroxide + Bronopol", knDesc: "ತುರ್ತು ಅಂಗಮಾರಿ ಸಿಂಪಡಣೆ: ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ + ಬ್ರೊನೊಪಾಲ್", recipe: [{ input_id: "BAC_COPPER_HYDROXIDE", dose_per_liter: 1.5 }, { input_id: "BAC_BRONOPOL", dose_per_liter: 0.5 }] },
   { code: "THRIPS_SCAR", shortEn: "Thrips", shortKn: "ಥ್ರಿಪ್ಸ್", taskType: "FOLIAR_SPRAY", enTitle: "🦗 Thrips Rind Scarring", knTitle: "🦗 ಥ್ರಿಪ್ಸ್ ಕಜ್ಜಿ / ಗೀರು", enDesc: "Curative Thrips Knockdown: Spinetoram 11.7% SC", knDesc: "ತುರ್ತು ಥ್ರಿಪ್ಸ್ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ: ಸ್ಪೈನೆಟೊರಾಮ್", recipe: [{ input_id: "INS_SPINETORAM", dose_per_liter: 0.8 }] },
   { code: "FRUIT_BORER", shortEn: "Borer", shortKn: "ಕೊರಕ ಹುಳು", taskType: "FOLIAR_SPRAY", enTitle: "🐛 Fruit Borer Hole", knTitle: "🐛 ಹಣ್ಣು ಕೊರೆಯುವ ಹುಳು", enDesc: "Curative Borer Knockdown: Chlorantraniliprole", knDesc: "ತುರ್ತು ಹುಳು ನಿಯಂತ್ರಣ: ಕ್ಲೋರಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ ಸಿಂಪಡಣೆ", recipe: [{ input_id: "INS_CHLORANTRANILIPROLE", dose_per_liter: 0.3 }] },
-  { code: "MEALYBUG", shortEn: "Mealy/Mite", shortKn: "ತಿಗಣೆ/ನುಸಿ", taskType: "FOLIAR_SPRAY", enTitle: "🐜 Mealybug / Scale & Mites", knTitle: "🐜 ಹಿಟ್ಟು ತಿಗಣೆ ಮತ್ತು ಕೆಂಪು ನುಸಿ", enDesc: "Curative Mealybug Spray: Spirotetramat + Buprofezin", knDesc: "ತುರ್ತು ಹಿಟ್ಟು ತಿಗಣೆ ಸಿಂಪಡಣೆ: ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ + ಬುಪ್ರೊಫೆಜಿನ್", recipe: [{ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 }, { input_id: "INS_BUPROFEZIN", dose_per_liter: 1.5 }] },
+  { code: "MEALYBUG", shortEn: "Mealy/Scale", shortKn: "ಹಿಟ್ಟು ತಿಗಣೆ", taskType: "FOLIAR_SPRAY", enTitle: "🐜 Mealybug & Scale Insects", knTitle: "🐜 ಹಿಟ್ಟು ತಿಗಣೆ ಮತ್ತು ಶಲ್ಕ ಕೀಟ", enDesc: "Curative Mealybug Spray: Spirotetramat + Buprofezin", knDesc: "ತುರ್ತು ಹಿಟ್ಟು ತಿಗಣೆ ಸಿಂಪಡಣೆ: ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ + ಬುಪ್ರೊಫೆಜಿನ್", recipe: [{ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 }, { input_id: "INS_BUPROFEZIN", dose_per_liter: 1.5 }] },
+  { code: "MITES", shortEn: "Red Mites", shortKn: "ಕೆಂಪು ನುಸಿ", taskType: "FOLIAR_SPRAY", enTitle: "🕷️ Red Spider & Flat Mites", knTitle: "🕷️ ಕೆಂಪು ನುಸಿ ಮತ್ತು ಚಪ್ಪಟೆ ನುಸಿ", enDesc: "Curative Miticide Spray: Spiromesifen 22.9% SC (Oberon)", knDesc: "ತುರ್ತು ನುಸಿ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ: ಸ್ಪೈರೋಮೆಸಿಫೆನ್ 22.9% SC", recipe: [{ input_id: "INS_SPIROMESIFEN", dose_per_liter: 0.8 }] },
   { code: "FRUIT_ROT", shortEn: "Fruit Rot", shortKn: "ಕೊಳೆ ರೋಗ", taskType: "FOLIAR_SPRAY", enTitle: "🍄 Fungal Fruit Rot", knTitle: "🍄 ಹಣ್ಣು ಕೊಳೆ ರೋಗ", enDesc: "Curative Rot Spray: Fluxapyroxad + Pyraclostrobin", knDesc: "ತುರ್ತು ಹಣ್ಣು ಕೊಳೆ ರೋಗ ಸಿಂಪಡಣೆ: ಮೆರಿವಾನ್ / ಪ್ರಿಯಾಕ್ಸರ್", recipe: [{ input_id: "FUN_FLUXA_PYRA", dose_per_liter: 0.6 }] },
   { code: "CRACKING", shortEn: "Cracking", shortKn: "ಸೀಳುವಿಕೆ", taskType: "FOLIAR_SPRAY", enTitle: "⚡ Sunburn / Fruit Cracking", knTitle: "⚡ ಬಿಸಿಲು ಕಲೆ / ಹಣ್ಣು ಸೀಳುವಿಕೆ", enDesc: "Anti-Cracking Shield: Chelated Ca-B + Orthosilicic Acid", knDesc: "ಹಣ್ಣು ಸೀಳುವಿಕೆ ತಡೆಗೆ: ಕ್ಯಾಲ್ಸಿಯಂ-ಬೋರಾನ್ + ಸಿಲಿಕಾನ್ ಸಿಂಪಡಣೆ", recipe: [{ input_id: "MIC_CA_B_LIQUID", dose_per_liter: 1.5 }, { input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 }] }
 ];
@@ -3146,6 +3169,10 @@ function onSaltOrPctChange(slotIdx = 1) {
         hintBox.classList.add("hidden");
       }
     } else if (cleanS1 && cleanS2) {
+      const m1 = findMatchingCatalogItemByBaseSalt(cleanS1) || findMatchingCatalogItemByBaseSalt(cleanS2);
+      if (m1 && document.getElementById("ncCat")) {
+        document.getElementById("ncCat").value = m1.category || "INSECTICIDE";
+      }
       hintBox.classList.remove("hidden");
       hintBox.innerHTML = `🧬 <b>Multi-Component Co-Formulation Active:</b> Each component's concentration (%) is tracked separately and synced into the Nutrient Ledger &amp; 3-Gate Tank-Mix Validator below.`;
     } else {
