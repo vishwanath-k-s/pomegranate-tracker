@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="text-scale" content="scale" />
   <title>Hosahalli Pomegranate Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -10,6 +11,60 @@
 <body class="bg-slate-100 text-slate-800 pb-24 font-sans">
 
   <style>
+  :root {
+    --brand-accent: #047857;
+    --scrollbar-thumb: #94a3b8;
+    --scrollbar-track: #f1f5f9;
+  }
+  body {
+    accent-color: var(--brand-accent);
+  }
+  /* Balanced headings & orphan-free bilingual paragraphs (improve-text-layout-and-legibility) */
+  h1, h2, h3 { text-wrap: balance; }
+  p, li { text-wrap: pretty; }
+
+  /* Layout containment & off-screen rendering deferral (interactions-in-complex-layouts / defer-rendering-heavy-content) */
+  #panel_TASKS > div,
+  #multiRiskGrid > div {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 320px auto 340px;
+  }
+  #sprayCounterCard,
+  #dripWaterCard {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 320px auto 420px;
+  }
+
+  /* Auto-fitting numeric inputs with safe min/max bounds (form-fields-automatically-fit-contents) */
+  #panel_TASKS input[type="number"],
+  #shopBox input[type="number"] {
+    field-sizing: content;
+    min-inline-size: 3.2ch;
+    max-inline-size: 9ch;
+  }
+
+  /* Prevent underlying page scroll chaining on modal backdrops & sheets (prevent-page-scroll-under-modal-dialog) */
+  #rainModal, #newChemModal, #delayModal, #swapModal, #userModal {
+    overflow: hidden;
+    overscroll-behavior: contain;
+    backdrop-filter: blur(2px);
+  }
+  #rainModal > div, #newChemModal > div, #delayModal > div, #swapModal > div, #userModal > div,
+  #auditLogBox {
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  /* Sticky header for 30-Week Master Schedule table (responsive-table) */
+  #allWeeksBody ~ thead th,
+  table:has(#allWeeksBody) thead th {
+    position: sticky;
+    top: 0;
+    background-color: #ffffff;
+    z-index: 10;
+  }
+
   @media (max-width: 639px) {
     #panel_TASKS input[type="number"] { min-width: 3.2rem; }
     .hub-btn-text { font-size: 10px; line-height: 1.15; }
@@ -5119,13 +5174,47 @@ const HUB_CONFIG = {
   }
 };
 
+// Runs a DOM state update inside document.startViewTransition when supported and reduced-motion is not enabled
+function runWithViewTransition(updateFn) {
+  const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (typeof document.startViewTransition === "function" && !prefersReduced) {
+    document.startViewTransition(() => updateFn());
+  } else {
+    updateFn();
+  }
+}
+
 function showHub(hubKey, subKey) {
   if (!HUB_CONFIG[hubKey]) hubKey = "TASKS_HUB";
   ACTIVE_HUB = hubKey;
   const validSubs = HUB_CONFIG[hubKey].subs.map(s => s.key);
   ACTIVE_SUB = (subKey && validSubs.includes(subKey)) ? subKey : validSubs[0];
-  applyHubAndSubPillRouting();
+  runWithViewTransition(() => applyHubAndSubPillRouting());
 }
+
+function toggleDesktopSplitView() {
+  DESKTOP_SPLIT_VIEW = !DESKTOP_SPLIT_VIEW;
+  runWithViewTransition(() => applyHubAndSubPillRouting());
+}
+
+// Enable Light-Dismiss (clicking backdrop outside modal sheet) & Escape key dismissal on all 5 modals
+window.addEventListener("DOMContentLoaded", () => {
+  const modalIds = ["rainModal", "newChemModal", "delayModal", "swapModal", "userModal"];
+  modalIds.forEach(mId => {
+    const mEl = document.getElementById(mId);
+    if (!mEl) return;
+    mEl.addEventListener("pointerdown", (e) => {
+      if (e.target === mEl) mEl.classList.add("hidden");
+    });
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    modalIds.forEach(mId => {
+      const mEl = document.getElementById(mId);
+      if (mEl && !mEl.classList.contains("hidden")) mEl.classList.add("hidden");
+    });
+  });
+});
 
 function toggleDesktopSplitView() {
   DESKTOP_SPLIT_VIEW = !DESKTOP_SPLIT_VIEW;
