@@ -158,9 +158,9 @@
         <!-- Language Toggle -->
         <button type="button" onclick="toggleLanguage()" id="langBtn" class="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs px-2.5 py-1 rounded-lg shadow-2xs transition">ಕನ್ನಡ</button>
 
-        <!-- Info / Cron / Dev Drawer Button -->
-        <button type="button" onclick="document.getElementById('headerInfoDrawer').classList.toggle('hidden')" aria-label="Orchard Info & System Status" title="Orchard Info, Cron & Dev Tools" class="p-1.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 border border-emerald-700 text-emerald-200 hover:text-white transition">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <!-- Settings / Farm Info / Cron / Dev Drawer Button (Standard Gear SVG) -->
+        <button type="button" onclick="document.getElementById('headerInfoDrawer').classList.toggle('hidden')" aria-label="Settings, Orchard Info & System Status" title="Settings, Orchard Info & Dev Tools" class="p-1.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 border border-emerald-700 text-emerald-200 hover:text-white transition">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
       </div>
     </div>
@@ -4174,13 +4174,14 @@ function renderAnalyticsTab() {
 
     let statusBadge = "";
     let barColor = n.color;
+    const pctOfTargetLabel = LANG === "KN" ? `ಗುರಿಯ ${rawPct}%` : `${rawPct}% of target`;
     if (rawPct < 80) {
-      statusBadge = `<span class="px-2 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-extrabold">${LANG === "KN" ? "ಕೊರತೆ" : "Deficit"} • ${rawPct}%</span>`;
+      statusBadge = `<span class="px-2 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-950 text-[10px] font-extrabold">${pctOfTargetLabel} (${LANG === "KN" ? "ಕೊರತೆ" : "Deficit"})</span>`;
       barColor = "bg-amber-500";
     } else if (rawPct <= 115) {
-      statusBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-[10px] font-extrabold">${LANG === "KN" ? "ಸರಿಯಾಗಿದೆ" : "On Track"} • ${rawPct}%</span>`;
+      statusBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-950 text-[10px] font-extrabold">${pctOfTargetLabel} (${LANG === "KN" ? "ಸರಿಯಾಗಿದೆ" : "On Track"})</span>`;
     } else {
-      statusBadge = `<span class="px-2 py-0.5 rounded-full bg-red-100 border border-red-300 text-red-900 text-[10px] font-extrabold">${LANG === "KN" ? "ಹೆಚ್ಚುವರಿ" : "Surplus"} • ${rawPct}%</span>`;
+      statusBadge = `<span class="px-2 py-0.5 rounded-full bg-red-100 border border-red-300 text-red-950 text-[10px] font-extrabold">${pctOfTargetLabel} (${LANG === "KN" ? "ಹೆಚ್ಚುವರಿ" : "Surplus"})</span>`;
       barColor = "bg-red-600";
     }
 
@@ -5489,40 +5490,40 @@ const HUB_SVGS = {
 
 const HUB_CONFIG = {
   TASKS_HUB: {
-    icon: HUB_SVGS.TASKS_HUB, en: "Tasks & Plan", kn: "ಕೆಲಸ & ವೇಳಾಪಟ್ಟಿ",
+    icon: HUB_SVGS.TASKS_HUB, en: "Tasks & Plan", kn: "ಕೆಲಸ & ಪಟ್ಟಿ",
     subs: [
-      { key: "WEEKLY_TASKS", icon: "🗓️", en: "This Week's Tasks", kn: "ಈ ವಾರದ ಕೆಲಸಗಳು" },
-      { key: "LOG_MANUAL",   icon: "➕", en: "Log Manual Work",   kn: "ಮಾಡಿದ ಕೆಲಸ ದಾಖಲಿಸಿ" },
-      { key: "MASTER_PLAN",  icon: "📅", en: "All 30 Weeks Plan", kn: "ಪೂರ್ಣ 30 ವಾರಗಳ ಪಟ್ಟಿ" }
+      { key: "WEEKLY_TASKS", en: "This Week's Tasks", kn: "ಈ ವಾರದ ಕೆಲಸಗಳು" },
+      { key: "LOG_MANUAL",   en: "Log Manual Work",   kn: "ಮಾಡಿದ ಕೆಲಸ ದಾಖಲಿಸಿ" },
+      { key: "MASTER_PLAN",  en: "All 30 Weeks Plan", kn: "ಪೂರ್ಣ 30 ವಾರಗಳ ಪಟ್ಟಿ" }
     ]
   },
   PEST_HUB: {
-    icon: HUB_SVGS.PEST_HUB, en: "Pest & Disease", kn: "ರೋಗ & ಕೀಟ ರಕ್ಷಣೆ",
+    icon: HUB_SVGS.PEST_HUB, en: "Pest & Disease", kn: "ರೋಗ & ಕೀಟ",
     subs: [
-      { key: "RISK_RADAR",    icon: "🚨", en: "6-Threat Risk Radar & Queue", kn: "6-ರೋಗ ಅಪಾಯ ರೇಡಾರ್" },
-      { key: "SPRAY_COUNTER", icon: "🧪", en: "Seasonal Spray Counter",      kn: "ಔಷಧಿ ಬಳಕೆ ಮಿತಿ ಲೆಕ್ಕ" }
+      { key: "RISK_RADAR",    en: "6-Threat Risk Radar",    kn: "6-ರೋಗ ಅಪಾಯ ರೇಡಾರ್" },
+      { key: "SPRAY_COUNTER", en: "Seasonal Spray Counter", kn: "ಔಷಧಿ ಬಳಕೆ ಮಿತಿ ಲೆಕ್ಕ" }
     ]
   },
   CROP_HUB: {
-    icon: HUB_SVGS.CROP_HUB, en: "GDD, NPK & Water", kn: "GDD, ಪೋಷಕಾಂಶ & ನೀರು",
+    icon: HUB_SVGS.CROP_HUB, en: "GDD & Water", kn: "GDD & ನೀರು",
     subs: [
-      { key: "GDD_STAGES", icon: "☀️", en: "Thermal GDD & Stages", kn: "ಉಷ್ಣಾಂಶ (GDD) ಹಂತಗಳು" },
-      { key: "NPK_LEDGER", icon: "⚖️", en: "NPK-Ca-Mg Ledger",     kn: "ಪೋಷಕಾಂಶಗಳ ಲೆಕ್ಕ (NPK)" },
-      { key: "DRIP_WATER", icon: "💧", en: "Drip Water Schedule",  kn: "ಡ್ರಿಪ್ ನೀರಿನ ವೇಳಾಪಟ್ಟಿ" }
+      { key: "GDD_STAGES", en: "Thermal GDD & Stages", kn: "ಉಷ್ಣಾಂಶ (GDD) ಹಂತಗಳು" },
+      { key: "NPK_LEDGER", en: "NPK-Ca-Mg Ledger",     kn: "ಪೋಷಕಾಂಶಗಳ ಲೆಕ್ಕ (NPK)" },
+      { key: "DRIP_WATER", en: "Drip Water Schedule",  kn: "ಡ್ರಿಪ್ ನೀರಿನ ವೇಳಾಪಟ್ಟಿ" }
     ]
   },
   STORE_HUB: {
     icon: HUB_SVGS.STORE_HUB, en: "Store & ₹", kn: "ಅಂಗಡಿ & ಖರ್ಚು",
     subs: [
-      { key: "SHOP_LIST",     icon: "🛒", en: "Weekly Shopping List",     kn: "ಖರೀದಿ ಪಟ್ಟಿ & ಶೆಡ್ ಉಳಿಕೆ" },
-      { key: "BRAND_CHECKER", icon: "🔍", en: "Brand & Tank-Mix Checker", kn: "ಕಂಪನಿ ಹೆಸರು & ಮಿಶ್ರಣ ಪರೀಕ್ಷಕ" },
-      { key: "SPEND_TRACKER", icon: "💰", en: "Orchard Spend (₹)",        kn: "ಒಟ್ಟು ತೋಟದ ಖರ್ಚು (₹)" }
+      { key: "SHOP_LIST",     en: "Weekly Shopping List",     kn: "ಖರೀದಿ ಪಟ್ಟಿ & ಶೆಡ್ ಉಳಿಕೆ" },
+      { key: "BRAND_CHECKER", en: "Brand & Tank-Mix Checker", kn: "ಕಂಪನಿ ಹೆಸರು & ಮಿಶ್ರಣ ಪರೀಕ್ಷಕ" },
+      { key: "SPEND_TRACKER", en: "Orchard Spend (₹)",        kn: "ಒಟ್ಟು ತೋಟದ ಖರ್ಚು (₹)" }
     ]
   },
   AUDIT_HUB: {
     icon: HUB_SVGS.AUDIT_HUB, en: "Activity Log", kn: "ದಾಖಲೆ ಪಟ್ಟಿ",
     subs: [
-      { key: "AUDIT_LOG", icon: "🕒", en: "User Activity & Audit Log", kn: "ಬದಲಾವಣೆಗಳ ದಾಖಲೆ ಪಟ್ಟಿ" }
+      { key: "AUDIT_LOG", en: "User Activity & Audit Log", kn: "ಬದಲಾವಣೆಗಳ ದಾಖಲೆ ಪಟ್ಟಿ" }
     ]
   }
 };
@@ -5558,13 +5559,12 @@ function toggleMobileFab(forceState) {
   if (document.getElementById("ui_fabLogLabel"))  document.getElementById("ui_fabLogLabel").textContent  = LANG === "KN" ? "ಹೊಸ ಕಾರ್ಡ್ ಸೇರಿಸಿ" : "Add Task Card";
 }
 
-// Inject high-priority CSS rules for Auto-Fitting Inputs, Sticky 30-Week Table Header, Mobile Bottom Nav Bar & Sunlight Contrast
 function ensureModernWebGuidanceStyles() {
   if (document.getElementById("mwg-enforced-styles")) return;
   const st = document.createElement("style");
   st.id = "mwg-enforced-styles";
   st.textContent = `
-    /* 1. Force Auto-Fitting Numeric Inputs (overrides Tailwind .w-9 / .w-12 / .w-14 / .w-16) */
+    /* 1. Force Auto-Fitting Numeric Inputs */
     #panel_TASKS input[type="number"],
     #shopBox input[type="number"],
     #panel_MANUAL input[type="number"] {
@@ -5588,7 +5588,10 @@ function ensureModernWebGuidanceStyles() {
       box-shadow: inset 0 -1px 0 #cbd5e1;
       z-index: 15 !important;
     }
-    /* 3. Connected Underlined Tab Bar on Desktop & Fixed Thumb-Friendly Bottom Nav Bar on Mobile */
+    /* 3. Hide horizontal scrollbar on single-row sub-pill strip while keeping touch swipe smooth */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    /* 4. Connected Underlined Tab Bar on Desktop & Fixed Thumb-Friendly Bottom Nav Bar on Mobile */
     .mwg-tab-btn {
       position: relative;
       flex: 1 0 auto;
@@ -5602,7 +5605,7 @@ function ensureModernWebGuidanceStyles() {
     }
     @media (max-width: 639px) {
       body {
-        padding-bottom: 5.5rem !important;
+        padding-bottom: 5rem !important;
       }
       #hubNavBar {
         position: fixed !important;
@@ -5616,17 +5619,19 @@ function ensureModernWebGuidanceStyles() {
         background-color: rgba(255, 255, 255, 0.98) !important;
         backdrop-filter: blur(8px);
         box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.08) !important;
-        padding: 0.15rem 0.25rem max(0.35rem, env(safe-area-inset-bottom, 0px)) !important;
+        padding: 0.15rem 0.2rem max(0.3rem, env(safe-area-inset-bottom, 0px)) !important;
         display: grid !important;
         grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
       }
       #hubNavBar .mwg-tab-btn {
         flex-direction: column !important;
         gap: 0.15rem !important;
-        padding: 0.4rem 0.15rem !important;
+        padding: 0.35rem 0.1rem !important;
         font-size: 10px !important;
-        line-height: 1.1 !important;
-        white-space: normal !important;
+        line-height: 1.15 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
         text-align: center !important;
       }
       #hubNavBar .mwg-tab-btn[aria-selected="true"]::after {
@@ -5640,22 +5645,16 @@ function ensureModernWebGuidanceStyles() {
         border-radius: 0.75rem !important;
         border-top: 1px solid #e2e8f0 !important;
       }
-      /* Hide top header when scrolling down on mobile to maximize viewport content */
       #mainHeader.is-hidden:not(:focus-within) {
         transform: translateY(-100%);
       }
     }
-    /* 4. Outdoor Sunlight Glare Contrast Boost: Darken light-grey subtitles & stat-block labels on white cards */
-    main .text-slate-400 {
-      color: #475569 !important;
-    }
-    main .text-slate-500 {
-      color: #334155 !important;
-    }
+    /* 5. Outdoor Sunlight Glare Contrast Boost */
+    main .text-slate-400 { color: #475569 !important; }
+    main .text-slate-500 { color: #334155 !important; }
   `;
   document.head.appendChild(st);
 
-  // Auto-hide top bar on downward scroll on mobile screens (content-first-noise-reduction)
   if (!window._mwgScrollListenerBound) {
     window._mwgScrollListenerBound = true;
     let lastY = window.scrollY;
@@ -5674,7 +5673,6 @@ function ensureModernWebGuidanceStyles() {
   }
 }
 
-// Runs a DOM state update inside document.startViewTransition when supported and reduced-motion is not enabled
 function runWithViewTransition(updateFn) {
   const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   if (typeof document.startViewTransition === "function" && !prefersReduced) {
@@ -5697,7 +5695,6 @@ function toggleDesktopSplitView() {
   runWithViewTransition(() => applyHubAndSubPillRouting());
 }
 
-// Enable Light-Dismiss (clicking backdrop outside modal sheet / card menu) & Escape key dismissal
 window.addEventListener("DOMContentLoaded", () => {
   ensureModernWebGuidanceStyles();
   const modalIds = ["rainModal", "newChemModal", "delayModal", "swapModal", "userModal"];
@@ -5712,10 +5709,14 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!e.target.closest(".card-overflow-menu") && !e.target.closest("[aria-haspopup='menu']")) {
       closeAllCardActionMenus();
     }
+    if (!e.target.closest("#mobileFabContainer")) {
+      toggleMobileFab(false);
+    }
   });
   window.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     closeAllCardActionMenus();
+    toggleMobileFab(false);
     modalIds.forEach(mId => {
       const mEl = document.getElementById(mId);
       if (mEl && !mEl.classList.contains("hidden")) mEl.classList.add("hidden");
@@ -5729,7 +5730,7 @@ function applyHubAndSubPillRouting() {
   const subBar = document.getElementById("subPillBar");
   if (!hubBar || !subBar) return;
 
-  // 1. Render 5 Connected, Grounded Underlined Tabs (Single Row Scroller on Mobile, Full-Width Connected Bar on PC)
+  // 1. Render 5 Connected Tabs
   hubBar.className = "flex items-stretch overflow-x-auto bg-white border border-slate-200 border-b-2 border-b-slate-200 rounded-t-2xl px-1 sm:px-2 shadow-2xs";
   hubBar.setAttribute("focusgroup", "tablist nomemory");
   hubBar.setAttribute("role", "tablist");
@@ -5740,38 +5741,45 @@ function applyHubAndSubPillRouting() {
     const btnCls = isAct
       ? "text-emerald-800 bg-emerald-50/40 font-extrabold"
       : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-semibold";
-    return `<button type="button" role="tab" aria-selected="${isAct}" ${isAct ? "focusgroupstart" : ""} onclick="showHub('${hKey}')" class="mwg-tab-btn py-2.5 sm:py-3 px-2.5 sm:px-4 transition flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap text-xs sm:text-sm ${btnCls}">
+    return `<button type="button" role="tab" aria-selected="${isAct}" ${isAct ? "focusgroupstart" : ""} onclick="showHub('${hKey}')" class="mwg-tab-btn py-2.5 sm:py-3 px-2 sm:px-4 transition flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap text-xs sm:text-sm ${btnCls}">
       ${cfg.icon}
-      <span class="hub-btn-text">${LANG === "KN" ? cfg.kn : cfg.en}</span>
+      <span class="hub-btn-text truncate">${LANG === "KN" ? cfg.kn : cfg.en}</span>
     </button>`;
   }).join("");
 
-  // 2. Render Auto-Visible Sub-Pills for Active Hub
+  // 2. Render Single-Row Horizontal Scrollable Sub-Pill Strip (Never stacks into 3 vertical rows)
   const curHubCfg = HUB_CONFIG[ACTIVE_HUB];
   if (curHubCfg.subs.length <= 1) {
     subBar.classList.add("hidden");
   } else {
     subBar.classList.remove("hidden");
-    subBar.className = "flex flex-wrap items-center justify-between gap-2 bg-slate-50/90 border-x border-b border-slate-200 rounded-b-xl px-3 py-2 shadow-2xs -mt-3";
+    subBar.className = "flex items-center justify-between gap-2 bg-slate-100/90 border-x border-b border-slate-200 rounded-b-xl px-2 py-1.5 shadow-2xs -mt-3 overflow-x-auto no-scrollbar";
     const pillsHtml = curHubCfg.subs.map(s => {
       const isSubAct = !DESKTOP_SPLIT_VIEW && s.key === ACTIVE_SUB;
       const pillCls = isSubAct
         ? "bg-emerald-800 text-white font-extrabold shadow-2xs"
-        : "bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/90 font-semibold";
-      return `<button type="button" onclick="DESKTOP_SPLIT_VIEW=false;showHub('${ACTIVE_HUB}','${s.key}')" class="px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 ${pillCls}">
+        : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 font-semibold";
+      return `<button type="button" onclick="DESKTOP_SPLIT_VIEW=false;showHub('${ACTIVE_HUB}','${s.key}')" class="px-3 py-1.5 rounded-lg text-xs transition whitespace-nowrap shrink-0 ${pillCls}">
         <span>${LANG === "KN" ? s.kn : s.en}</span>
       </button>`;
     }).join("");
 
-    const splitBtnHtml = `<button type="button" onclick="toggleDesktopSplitView()" class="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${DESKTOP_SPLIT_VIEW ? 'bg-emerald-900 text-white border-emerald-900' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'}">
+    const splitBtnHtml = `<button type="button" onclick="toggleDesktopSplitView()" class="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border shrink-0 transition ${DESKTOP_SPLIT_VIEW ? 'bg-emerald-900 text-white border-emerald-900' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'}">
       <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg>
       <span>${DESKTOP_SPLIT_VIEW ? (LANG === "KN" ? "ಒಂದೊಂದಾಗಿ ನೋಡಿ" : "Single View") : (LANG === "KN" ? "ಎಲ್ಲವನ್ನೂ ಒಟ್ಟಿಗೆ ನೋಡಿ" : "Show All in Hub")}</span>
     </button>`;
 
-    subBar.innerHTML = `<div class="flex flex-wrap items-center gap-1.5">${pillsHtml}</div>${splitBtnHtml}`;
+    subBar.innerHTML = `<div class="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar w-full">${pillsHtml}</div>${splitBtnHtml}`;
   }
 
-  // 3. Show Week Selector Bar ONLY when viewing Weekly Tasks or Weekly Shopping List
+  // 3. Show Full Alert Banner ONLY on Weekly Tasks and Pest & Disease Hub (Recovers ~140px on GDD, NPK, Drip, Store & Audit screens)
+  const alertsEl = document.getElementById("alertsBox");
+  const mergeEl  = document.getElementById("sameDayMergeBanner");
+  const showFullAlerts = (ACTIVE_HUB === "TASKS_HUB" && (ACTIVE_SUB === "WEEKLY_TASKS" || DESKTOP_SPLIT_VIEW)) || ACTIVE_HUB === "PEST_HUB";
+  if (alertsEl) alertsEl.classList.toggle("hidden", !showFullAlerts);
+  if (mergeEl)  mergeEl.classList.toggle("hidden", !(ACTIVE_HUB === "TASKS_HUB" && (ACTIVE_SUB === "WEEKLY_TASKS" || DESKTOP_SPLIT_VIEW)));
+
+  // 4. Show Week Selector Bar ONLY when viewing Weekly Tasks or Weekly Shopping List
   const wkNav = document.getElementById("weekNavCard");
   if (wkNav) {
     const needsWeekBar = (ACTIVE_HUB === "TASKS_HUB" && (ACTIVE_SUB === "WEEKLY_TASKS" || DESKTOP_SPLIT_VIEW)) ||
@@ -5779,7 +5787,7 @@ function applyHubAndSubPillRouting() {
     wkNav.classList.toggle("hidden", !needsWeekBar);
   }
 
-  // 4. Locate all content cards & panels by their inner IDs and toggle visibility cleanly
+  // 5. Locate all content cards & panels by their inner IDs and toggle visibility cleanly
   const cardMap = {
     WEEKLY_TASKS:  document.getElementById("panel_TASKS"),
     LOG_MANUAL:    document.getElementById("panel_MANUAL"),
@@ -5795,11 +5803,9 @@ function applyHubAndSubPillRouting() {
     AUDIT_LOG:     document.getElementById("auditLogBox")?.closest(".bg-white")
   };
 
-  // Always hide the duplicate Scout card (#scoutGrid) since #multiRiskGrid is the unified Risk & Scout Radar
   const dupScoutCard = document.getElementById("scoutGrid")?.closest(".bg-white");
   if (dupScoutCard) dupScoutCard.classList.add("hidden");
 
-  // Unhide parent containers (#panel_ANALYTICS, #panel_SHOP, #panel_SCOUT) when any of their child cards are active
   const activeSubKeys = new Set(DESKTOP_SPLIT_VIEW ? curHubCfg.subs.map(s => s.key) : [ACTIVE_SUB]);
   Object.entries(cardMap).forEach(([k, el]) => {
     if (!el) return;
@@ -5854,41 +5860,65 @@ function renderSeasonSprayAndDripGuides() {
     });
   });
 
-  const sortedSprays = Object.values(sprayCounts).sort((a, b) => b.count - a.count);
+  // Sort automatically by usage ratio (count / maxAllowed) descending so Limit Reached (2/2) or Warning (1/2) appears at the very top!
+  const sortedSprays = Object.values(sprayCounts).map(entry => {
+    const c = entry.cat;
+    const isMultiSite = ["FRAC-M01", "FRAC-M03", "FRAC-M04"].includes(c.irac_frac_group || "") || c.is_copper_compound;
+    const maxAllowed = isMultiSite ? 6 : (MAX_SEASON_SPRAYS[c.category] || 3);
+    const ratio = entry.count / maxAllowed;
+    return { ...entry, maxAllowed, ratio };
+  }).sort((a, b) => b.ratio - a.ratio || b.count - a.count);
+
   const sprayGridHtml = sortedSprays.length ? `
     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 border border-slate-200 rounded-xl overflow-hidden">
       <div class="bg-slate-100 px-3 py-2 text-[11px] font-extrabold text-slate-700 flex justify-between border-b border-slate-200">
         <span>${LANG === "KN" ? "ಲವಣಾಂಶ, ಕಂಪನಿ & ಕೊನೆಯ ದಿನಾಂಕ" : "Active Salt, Brand & Last Date"}</span>
-        <span>${LANG === "KN" ? "ಬಳಕೆ / ಗರಿಷ್ಠ ಮಿತಿ" : "Used / Max Cap"}</span>
+        <span>${LANG === "KN" ? "ಬಳಕೆ / ಗರಿಷ್ಠ ಮಿತಿ" : "Status (Used / Max)"}</span>
       </div>
       <div class="hidden md:flex bg-slate-100 px-3 py-2 text-[11px] font-extrabold text-slate-700 justify-between border-b border-l border-slate-200">
         <span>${LANG === "KN" ? "ಲವಣಾಂಶ, ಕಂಪನಿ & ಕೊನೆಯ ದಿನಾಂಕ" : "Active Salt, Brand & Last Date"}</span>
-        <span>${LANG === "KN" ? "ಬಳಕೆ / ಗರಿಷ್ಠ ಮಿತಿ" : "Used / Max Cap"}</span>
+        <span>${LANG === "KN" ? "ಬಳಕೆ / ಗರಿಷ್ಠ ಮಿತಿ" : "Status (Used / Max)"}</span>
       </div>
       ${sortedSprays.map((entry, idx) => {
         const c = entry.cat;
-        const isMultiSite = ["FRAC-M01", "FRAC-M03", "FRAC-M04"].includes(c.irac_frac_group || "") || c.is_copper_compound;
-        const maxAllowed = isMultiSite ? 6 : (MAX_SEASON_SPRAYS[c.category] || 3);
+        const maxAllowed = entry.maxAllowed;
         const overCap = entry.count >= maxAllowed;
-        const badgeCls = overCap ? "bg-red-100 text-red-900 border-red-300" : "bg-emerald-100 text-emerald-900 border-emerald-300";
+        const nearCap = !overCap && entry.ratio >= 0.5;
+        const pctBar = Math.min(100, Math.round(entry.ratio * 100));
+        const badgeCls = overCap
+          ? "bg-red-100 text-red-950 border-red-300"
+          : nearCap
+            ? "bg-amber-100 text-amber-950 border-amber-300"
+            : "bg-emerald-100 text-emerald-950 border-emerald-300";
+        const barCls = overCap ? "bg-red-600" : nearCap ? "bg-amber-500" : "bg-emerald-600";
+        const statusWord = overCap
+          ? (LANG === "KN" ? "ಮಿತಿ ತಲುಪಿದೆ" : "Limit Reached")
+          : nearCap
+            ? (LANG === "KN" ? "ಎಚ್ಚರಿಕೆ" : "Warning")
+            : (LANG === "KN" ? "ಸುರಕ್ಷಿತ" : "Safe");
         const rightColBorder = (idx % 2 === 1) ? "md:border-l border-slate-200" : "";
-        return `<div class="px-3 py-2.5 flex items-center justify-between gap-2 text-xs border-b border-slate-100 bg-white ${rightColBorder}">
-          <div class="min-w-0">
-            <div class="font-extrabold text-slate-900 flex items-center gap-1.5 flex-wrap">
-              <span>${getSaltOnlyTitle(c)}</span>
-              ${getUniformGroupBadge(c)}
+        return `<div class="px-3 py-2.5 flex flex-col justify-between gap-1.5 text-xs border-b border-slate-100 bg-white ${rightColBorder}">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="font-extrabold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                <span>${getSaltOnlyTitle(c)}</span>
+                ${getUniformGroupBadge(c)}
+              </div>
+              <div class="text-[11px] text-slate-600 break-words"><b>${LANG === "KN" ? "ಕಂಪನಿ:" : "Brands:"}</b> ${getBrandOnlySubtitle(c)}</div>
+              <div class="text-[10px] text-slate-500">${LANG === "KN" ? "ಕೊನೆಯ ಸಿಂಪಡಣೆ:" : "Last sprayed:"} <b class="text-slate-700">${entry.lastDate}</b></div>
             </div>
-            <div class="text-[11px] text-slate-500 truncate"><b>${LANG === "KN" ? "ಕಂಪನಿ:" : "Brands:"}</b> ${getBrandOnlySubtitle(c)}</div>
-            <div class="text-[10px] text-slate-400">${LANG === "KN" ? "ಕೊನೆಯ ಸಿಂಪಡಣೆ:" : "Last sprayed:"} <b class="text-slate-600">${entry.lastDate}</b></div>
+            <span class="px-2.5 py-0.5 rounded-full border font-extrabold text-[10px] shrink-0 whitespace-nowrap ${badgeCls}">
+              ${statusWord} (${entry.count}/${maxAllowed})
+            </span>
           </div>
-          <span class="px-2.5 py-1 rounded-full border font-extrabold text-[11px] shrink-0 ${badgeCls}">
-            ${entry.count} / ${maxAllowed} ${overCap ? "• Rotate" : "• Safe"}
-          </span>
+          <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+            <div class="${barCls} h-1.5 rounded-full transition-all" style="width:${pctBar}%"></div>
+          </div>
         </div>`;
       }).join("")}
-    </div>` : `<div class="text-xs text-slate-500 py-3">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಎಲೆ ಸಿಂಪಡಣೆ ದಾಖಲಾಗಿಲ್ಲ." : "No completed foliar sprays recorded yet."}</div>`;
+    </div>` : `<div class="text-xs text-slate-600 py-3">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಎಲೆ ಸಿಂಪಡಣೆ ದಾಖಲಾಗಿಲ್ಲ." : "No completed foliar sprays recorded yet."}</div>`;
 
-  // 2. FAO-56 + 72h SOIL MOISTURE MEMORY DRIP IRRIGATION ENGINE (Agricultural Teal Stat-Block Layout)
+  // 2. FAO-56 + 72h SOIL MOISTURE MEMORY DRIP IRRIGATION ENGINE
   const gModel = getGddStageModel();
   const emitterLphPerPlant = Number(localStorage.getItem("h_drip_lph") || 16);
   const tStr = todayYMD();
@@ -5967,27 +5997,30 @@ function renderSeasonSprayAndDripGuides() {
         ? (LANG === "KN" ? "ಕಳೆದ 72 ಗಂಟೆಗಳ ಮಳೆಯ ತೇವಾಂಶ ಮಣ್ಣಿನಲ್ಲಿದೆ — ಇಂದು ಡ್ರಿಪ್ ನೀರು ಬೇಡ (48h Rain Pause)" : "72h Root-Zone Moisture Sufficient — Pause Drip Irrigation Today")
         : (LANG === "KN" ? `ಬೆಳಿಗ್ಗೆ ಒಂದೇ ಬಾರಿ ${todayRunMins} ನಿಮಿಷ ಡ್ರಿಪ್ ಚಾಲನೆ ಮಾಡಿ` : `Single Morning Session: Run drip for ${todayRunMins} mins`));
 
+  // Highlight Active Drip Stage with bold emerald left border + subtle mint tint matching GDD active stage card
   const dripRowsHtml = DRIP_STAGES.map((ds, i) => {
     const isCurrent = i === curStageIdx;
     const stageLiters = ds.baseLiters;
     const totalOrchardKL = ((stageLiters * CFG.plants) / 1000).toFixed(1);
     const runMins = Math.round((stageLiters / emitterLphPerPlant) * 60);
-    const rowCls = isCurrent ? "bg-teal-50/70 border-2 border-teal-700 font-bold shadow-2xs" : "bg-slate-50/70 border border-slate-200";
+    const rowCls = isCurrent
+      ? "bg-emerald-50/80 border-2 border-emerald-600 border-l-4 border-l-emerald-800 shadow-xs"
+      : "bg-slate-50/70 border border-slate-200 opacity-85";
     const activeBadge = isCurrent
-      ? `<div class="mt-1.5 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-teal-900 text-white text-[10px] font-extrabold">
-           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+      ? `<div class="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-800 text-white text-[10px] font-extrabold shadow-2xs">
+           <span class="w-1.5 h-1.5 rounded-full bg-amber-300"></span>
            <span>${LANG === "KN" ? `ಸಕ್ರಿಯ ಹಂತ • ಇಂದಿನ ಹವಾಮಾನ ಗುರಿ: ${netTodayLiters} L (${todayRunMins} ನಿಮಿಷ)` : `Active Stage • Today's Weather Target: ${netTodayLiters} L (${todayRunMins} mins)`}</span>
          </div>`
       : "";
     return `<div class="p-3 rounded-xl ${rowCls} text-xs flex flex-wrap items-center justify-between gap-2">
       <div>
-        <div class="font-extrabold text-slate-900">${LANG === "KN" ? ds.stageKn : ds.stageEn} <span class="text-[10px] font-mono text-slate-500">(${ds.gddRange} • Kc=${ds.kc})</span></div>
-        <div class="text-[11px] text-slate-600 mt-0.5">${LANG === "KN" ? ds.freqKn : ds.freqEn} • ${LANG === "KN" ? "ಹಂತದ ಸರಾಸರಿ (3 ಎಕರೆ):" : "Stage Baseline (3 Ac):"} <b>${totalOrchardKL} kL/day</b> (${(stageLiters * CFG.plants).toLocaleString()} L)</div>
+        <div class="font-extrabold ${isCurrent ? 'text-emerald-950' : 'text-slate-900'}">${LANG === "KN" ? ds.stageKn : ds.stageEn} <span class="text-[10px] font-mono text-slate-600">(${ds.gddRange} • Kc=${ds.kc})</span></div>
+        <div class="text-[11px] text-slate-700 mt-0.5">${LANG === "KN" ? ds.freqKn : ds.freqEn} • ${LANG === "KN" ? "ಹಂತದ ಸರಾಸರಿ (3 ಎಕರೆ):" : "Stage Baseline (3 Ac):"} <b>${totalOrchardKL} kL/day</b> (${(stageLiters * CFG.plants).toLocaleString()} L)</div>
         ${activeBadge}
       </div>
       <div class="text-right">
-        <div class="text-sm font-extrabold text-teal-950">${stageLiters} L / ${LANG === "KN" ? "ಗಿಡ/ದಿನ" : "plant/day"}</div>
-        <div class="text-[11px] text-slate-600"><b>~${runMins} mins</b> (@ ${emitterLphPerPlant} LPH/plant)</div>
+        <div class="text-sm font-extrabold ${isCurrent ? 'text-emerald-900' : 'text-teal-950'}">${stageLiters} L / ${LANG === "KN" ? "ಗಿಡ/ದಿನ" : "plant/day"}</div>
+        <div class="text-[11px] text-slate-700"><b>~${runMins} mins</b> (@ ${emitterLphPerPlant} LPH)</div>
       </div>
     </div>`;
   }).join("");
@@ -5998,9 +6031,9 @@ function renderSeasonSprayAndDripGuides() {
         <div>
           <div class="flex items-center gap-1.5">
             <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg>
-            <div class="font-extrabold text-sm sm:text-base text-slate-900">${LANG === "KN" ? "ಈ ಹಂಗಾಮಿನಲ್ಲಿ ಬಳಸಿದ ಔಷಧಿಗಳ ಲೆಕ್ಕ ಮತ್ತು ಗರಿಷ್ಠ ಮಿತಿ (4-ಕಾಲಮ್ ಪಟ್ಟಿ)" : "Seasonal Chemical Spray Counter & Max Allowed Cap (ICAR-NRCP / IRAC-FRAC)"}</div>
+            <div class="font-extrabold text-sm sm:text-base text-slate-900">${LANG === "KN" ? "ಈ ಹಂಗಾಮಿನಲ್ಲಿ ಬಳಸಿದ ಔಷಧಿಗಳ ಲೆಕ್ಕ ಮತ್ತು ಗರಿಷ್ಠ ಮಿತಿ (ಮಿತಿಯ ಕ್ರಮದಲ್ಲಿ)" : "Seasonal Chemical Spray Counter & Max Allowed Cap (Sorted by Limit)"}</div>
           </div>
-          <div class="text-xs text-slate-500 mt-0.5">${LANG === "KN" ? "ಒಂದೇ ಔಷಧಿಯನ್ನು ಮಿತಿಗಿಂತ ಹೆಚ್ಚು ಬಾರಿ ಸಿಂಪಡಿಸಿದರೆ ಕೀಟ/ರೋಗಗಳಿಗೆ ನಿರೋಧಕ ಶಕ್ತಿ ಬರುತ್ತದೆ:" : "Tracks completed foliar sprays since 15 Aug 2026 vs. maximum seasonal anti-resistance limit:"}</div>
+          <div class="text-xs text-slate-600 mt-0.5">${LANG === "KN" ? "ಗರಿಷ್ಠ ಮಿತಿಗೆ ಹತ್ತಿರವಿರುವ ಔಷಧಿಗಳನ್ನು ಮೇಲ್ಭಾಗದಲ್ಲಿ ತೋರಿಸಲಾಗಿದೆ:" : "Automatically sorted so chemical groups near or at their seasonal resistance limit appear at the top:"}</div>
         </div>
       </div>
       ${sprayGridHtml}
@@ -6013,15 +6046,15 @@ function renderSeasonSprayAndDripGuides() {
             <svg class="w-4 h-4 text-teal-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>
             <div class="font-extrabold text-sm sm:text-base text-slate-900">${LANG === "KN" ? "ಹಂತವಾರು ಮತ್ತು ಇಂದಿನ ಡ್ರಿಪ್ ನೀರಿನ ವೇಳಾಪಟ್ಟಿ (1,500 ಗಿಡಗಳು • 10×8 ಅಡಿ)" : "FAO-56 & ICAR-NRCP Drip Irrigation Schedule (1,500 Super Bhagwa Plants)"}</div>
           </div>
-          <div class="text-[11px] text-slate-500 mt-0.5"><b>${LANG === "KN" ? "ಮೂಲ:" : "Source:"}</b> ICAR-NRCP Solapur Micro-Irrigation Bulletin &amp; FAO-56 Hargreaves (ET₀ × Kc × 4.79m² eff. canopy)</div>
+          <div class="text-[11px] text-slate-600 mt-0.5"><b>${LANG === "KN" ? "ಮೂಲ:" : "Source:"}</b> ICAR-NRCP Solapur Micro-Irrigation Bulletin &amp; FAO-56 Hargreaves (ET₀ × Kc × 4.79m² eff. canopy)</div>
         </div>
         <div class="inline-flex items-center gap-1.5 text-xs bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1">
-          <span class="font-semibold text-slate-700">${LANG === "KN" ? "ಡ್ರಿಪರ್ ವೇಗ (LPH/ಗಿಡ):" : "Dripper Flow (LPH/plant):"}</span>
-          <input type="number" step="1" min="2" max="64" value="${emitterLphPerPlant}" onchange="localStorage.setItem('h_drip_lph',this.value);renderSeasonSprayAndDripGuides();" style="field-sizing:content;width:auto;min-inline-size:3ch;max-inline-size:6ch" class="bg-white border border-slate-300 rounded px-1.5 py-0.5 text-center font-extrabold text-slate-900" />
+          <span class="font-bold text-slate-700">${LANG === "KN" ? "ಡ್ರಿಪರ್ ವೇಗ:" : "Emitter Rate:"}</span>
+          <input type="number" step="1" min="2" max="64" value="${emitterLphPerPlant}" onchange="localStorage.setItem('h_drip_lph',this.value);renderSeasonSprayAndDripGuides();" style="field-sizing:content;width:auto;min-inline-size:2.8ch;max-inline-size:5ch" class="bg-white border border-slate-300 rounded px-1.5 py-0.5 text-center font-extrabold text-slate-900" />
+          <span class="font-extrabold text-teal-900 text-[11px]">LPH/ಗಿಡ</span>
         </div>
       </div>
 
-      <!-- Today's Live 5-Parameter Weather-Adjusted Irrigation Prescription Banner (Agricultural Teal Stat-Blocks) -->
       <div class="p-3.5 rounded-xl bg-teal-950 text-white space-y-2.5 text-xs shadow-xs border border-teal-800">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <span class="font-extrabold text-xs sm:text-sm text-teal-100 uppercase tracking-wide">${LANG === "KN" ? "ಇಂದಿನ ನಿಖರ ಡ್ರಿಪ್ ನೀರಿನ ಶಿಫಾರಸು (5-ಪ್ಯಾರಾಮೀಟರ್ ಹವಾಮಾನ ಲೆಕ್ಕ)" : "Today's Weather-Adjusted Drip Target (5-Parameter Model)"}</span>
@@ -6483,27 +6516,42 @@ function openSwap(taskId, idx, id) {
     return { ...item, resWarn, compatConflict, rank };
   }).sort((a, b) => a.rank - b.rank);
 
-  let h = `<div class="p-3 bg-slate-100 border border-slate-200 rounded-xl space-y-1.5">
-    <div class="text-[11px] font-bold text-slate-500 uppercase">${LANG === "KN" ? "ಪ್ರಸ್ತುತ ಶಿಫಾರಸು ಮಾಡಿದ ಲವಣಾಂಶ:" : "Currently Scheduled Active Salt:"}</div>
-    <div class="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">🧪 ${getSaltOnlyTitle(c)} ${getUniformGroupBadge(c)}</div>
-    <div class="text-slate-600">🏷️ <b>${LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರುಗಳು:" : "Store Brands:"}</b> ${getBrandOnlySubtitle(c)}</div>
+  const renderBrandChips = (brandsStr) => {
+    const arr = (brandsStr || "").split(",").map(s => s.trim()).filter(Boolean);
+    if (!arr.length) return "";
+    return arr.map(b => {
+      const cleanName = b.replace(/'/g, "\\'");
+      return `<button type="button" onclick="copyAndSelectBrandChip(this, '${cleanName}')" title="${LANG === 'KN' ? 'ಕಾಪಿ ಮಾಡಲು ಮತ್ತು ಪರೀಕ್ಷಿಸಲು ಒತ್ತಿ' : 'Tap to copy & check brand'}" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white hover:bg-emerald-50 border border-slate-300 hover:border-emerald-500 text-slate-800 text-[11px] font-bold shadow-2xs transition">
+        <span>${b}</span>
+        <svg class="w-2.5 h-2.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+      </button>`;
+    }).join(" ");
+  };
+
+  let h = `<div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+    <div class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">${LANG === "KN" ? "ಪ್ರಸ್ತುತ ಶಿಫಾರಸು ಮಾಡಿದ ಲವಣಾಂಶ:" : "Currently Scheduled Active Salt:"}</div>
+    <div class="font-extrabold text-sm text-slate-900 flex items-center gap-1.5 flex-wrap">${getSaltOnlyTitle(c)} ${getUniformGroupBadge(c)}</div>
+    <div class="space-y-1">
+      <div class="text-[11px] font-bold text-slate-600">${LANG === "KN" ? "ಅನುಮೋದಿತ ಕಂಪನಿ ಹೆಸರುಗಳು (ಕಾಪಿ ಮಾಡಲು ಒತ್ತಿ):" : "Approved Store Brands (Tap any chip to copy):"}</div>
+      <div class="flex flex-wrap gap-1">${renderBrandChips(getBrandOnlySubtitle(c))}</div>
+    </div>
     <div class="pt-1 flex items-center gap-1.5">
-      <input id="newBrandForSaltInput" type="text" placeholder="${LANG === 'KN' ? '+ ಈ ಲವಣಾಂಶಕ್ಕೆ ಹೊಸ ಕಂಪನಿ ಹೆಸರು ಸೇರಿಸಿ' : '+ Add missing brand name for this salt'}" class="flex-1 border border-slate-300 rounded-lg px-2 py-1 text-xs bg-white font-semibold" />
-      <button onclick="addBrandToExistingSaltFromSwap('${c.id}')" class="bg-slate-800 text-white font-bold px-2.5 py-1 rounded-lg text-xs shrink-0">➕ ${LANG === "KN" ? "ಕಂಪನಿ ಸೇರಿಸಿ" : "Save Brand"}</button>
+      <input id="newBrandForSaltInput" type="text" placeholder="${LANG === 'KN' ? '+ ಈ ಲವಣಾಂಶಕ್ಕೆ ಹೊಸ ಕಂಪನಿ ಹೆಸರು ಸೇರಿಸಿ' : '+ Add missing brand name for this salt'}" class="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white font-semibold text-slate-900" />
+      <button type="button" onclick="addBrandToExistingSaltFromSwap('${c.id}')" class="bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-3 py-1.5 rounded-lg text-xs shrink-0">+ ${LANG === "KN" ? "ಸೇರಿಸಿ" : "Save Brand"}</button>
     </div>
   </div>`;
 
   const warnMsg = getDealerWarning(c);
-  if (warnMsg) h += `<div class="p-2.5 bg-amber-50 border border-amber-200 text-amber-950 rounded-lg">💡 ${warnMsg}</div>`;
+  if (warnMsg) h += `<div class="p-2.5 bg-red-50/80 border border-red-200 border-l-4 border-l-red-600 text-red-950 rounded-lg text-xs font-semibold"><b>${LANG === "KN" ? "ತಪ್ಪಿಸಬೇಕಾದವು (Avoid):" : "Avoid / Dealer Caution:"}</b> ${warnMsg}</div>`;
 
   if (c.procurement_criticality === "CRITICAL_MUST_SOURCE" && rawApproved.length === 0) {
-    h += `<div class="p-3 bg-red-50 border border-red-200 text-red-950 rounded-xl font-bold">
-      🔴 ${LANG === "KN"
-        ? `ಇದು ಕಡ್ಡಾಯವಾಗಿ ಬೇಕಾದ ಪೋಷಕಾಂಶ (${getSaltOnlyTitle(c)}). ಇದಕ್ಕೆ ಬೇರೆ ಪರ್ಯಾಯವಿಲ್ಲ.`
+    h += `<div class="p-3 bg-red-50 border border-red-200 text-red-950 rounded-xl font-bold text-xs">
+      ${LANG === "KN"
+        ? `ಇದು ಕಡ್ಡಾಯವಾಗಿ ಬೇಕಾದ ಪೋಷಕಾಂಶ (${getSaltOnlyTitle(c)}). ಇದಕ್ಕೆ ಬೇರೆ ಲವಣಾಂಶದ ಪರ್ಯಾಯವಿಲ್ಲ.`
         : `ESSENTIAL STAGE INPUT: Do not substitute ${getSaltOnlyTitle(c)} with another salt.`}
     </div>`;
   } else {
-    h += `<div class="font-extrabold text-emerald-900 pt-1">✅ ${LANG === "KN" ? "ಅನುಮೋದಿತ ಪರ್ಯಾಯಗಳು:" : "Approved Alternatives (Checked Against Past Sprays & Stage):"}</div>`;
+    h += `<div class="font-extrabold text-emerald-950 text-xs pt-1">${LANG === "KN" ? "ಅನುಮೋದಿತ ಪರ್ಯಾಯಗಳು (ಕಂಪನಿ ಹೆಸರು ಒತ್ತಿ ಕಾಪಿ ಮಾಡಿ):" : "Approved Alternatives (Tap any brand chip to copy):"}</div>`;
     rawApproved.forEach(item => {
       const sc = item.cat;
       const rateUnit = (sc.unit === "kg" || sc.unit === "g") ? "g" : "ml";
@@ -6512,23 +6560,23 @@ function openSwap(taskId, idx, id) {
         : `${sc.base_dose_per_acre} ${sc.unit} / Acre`;
 
       const isClean = item.rank === 0;
-      const cardBorder = item.compatConflict ? "border-red-300 bg-red-50/70" : isClean ? "border-2 border-emerald-300 bg-emerald-50/70" : "border border-amber-300 bg-amber-50/70";
+      const cardBorder = item.compatConflict ? "border-red-300 bg-red-50/70" : isClean ? "border-2 border-emerald-400 bg-emerald-50/50" : "border border-amber-300 bg-amber-50/70";
       const statusBadge = item.compatConflict
-        ? `<div class="text-[11px] font-bold text-red-800 mt-1">${item.compatConflict}</div>`
+        ? `<div class="inline-block text-[10px] font-extrabold text-red-900 bg-red-100 border border-red-300 rounded-md px-2 py-0.5 mt-1">Avoid: ${item.compatConflict}</div>`
         : item.resWarn
-          ? `<div class="text-[11px] font-bold text-amber-900 bg-amber-100/80 border border-amber-300 rounded px-2 py-1 mt-1">${LANG === "KN" ? item.resWarn.msgKn : item.resWarn.msgEn}</div>`
-          : `<div class="text-[11px] font-bold text-emerald-800 mt-0.5">🟢 ${LANG === "KN" ? "ಸುರಕ್ಷಿತ ಆಯ್ಕೆ (ಕಳೆದ 21 ದಿನಗಳಲ್ಲಿ ಬಳಸಿಲ್ಲ)" : "Fresh Rotation — Not sprayed in past 21 days"}</div>`;
+          ? `<div class="text-[11px] font-bold text-amber-950 bg-amber-100/80 border border-amber-300 rounded px-2 py-1 mt-1">${LANG === "KN" ? item.resWarn.msgKn : item.resWarn.msgEn}</div>`
+          : `<div class="text-[11px] font-bold text-emerald-800 mt-0.5">${LANG === "KN" ? "ಸುರಕ್ಷಿತ ಆಯ್ಕೆ (ಕಳೆದ 21 ದಿನಗಳಲ್ಲಿ ಬಳಸಿಲ್ಲ)" : "Fresh Rotation — Not sprayed in past 21 days"}</div>`;
 
-      h += `<div class="p-3 ${cardBorder} rounded-xl flex justify-between items-center gap-2">
-        <div class="space-y-0.5">
-          <div class="font-extrabold text-sm text-slate-900 flex items-center gap-1.5 flex-wrap">
-            <span>🧪 ${getSaltOnlyTitle(sc)}</span> ${getUniformGroupBadge(sc)}
+      h += `<div class="p-3 ${cardBorder} rounded-xl flex justify-between items-start gap-2">
+        <div class="space-y-1 min-w-0 flex-1">
+          <div class="font-extrabold text-xs sm:text-sm text-slate-900 flex items-center gap-1.5 flex-wrap">
+            <span>${getSaltOnlyTitle(sc)}</span> ${getUniformGroupBadge(sc)}
           </div>
-          <div class="text-xs font-bold text-slate-800">⚖️ ${doseInfo} • <span class="font-normal">${LANG === "KN" ? item.noteKn : item.noteEn}</span></div>
-          <div class="text-[11px] text-slate-600">🏷️ <b>${LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರುಗಳು:" : "Store Brands:"}</b> ${getBrandOnlySubtitle(sc)}</div>
+          <div class="text-xs font-bold text-slate-800">${doseInfo} • <span class="font-normal text-slate-600">${LANG === "KN" ? item.noteKn : item.noteEn}</span></div>
+          <div class="flex flex-wrap gap-1 pt-0.5">${renderBrandChips(getBrandOnlySubtitle(sc))}</div>
           ${statusBadge}
         </div>
-        ${item.compatConflict ? "" : `<button onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="${isClean ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-amber-600 hover:bg-amber-700'} text-white font-extrabold px-3.5 py-2 rounded-lg shrink-0 shadow">
+        ${item.compatConflict ? "" : `<button type="button" onclick="doSwap('${taskId}',${idx},'${sc.id}')" class="${isClean ? 'bg-emerald-800 hover:bg-emerald-900' : 'bg-amber-600 hover:bg-amber-700'} text-white font-extrabold px-3 py-2 rounded-lg shrink-0 shadow-2xs text-xs">
           ${LANG === "KN" ? "ಬಳಸಿ" : "Select"}
         </button>`}
       </div>`;
@@ -6537,6 +6585,23 @@ function openSwap(taskId, idx, id) {
 
   document.getElementById("swapModalContent").innerHTML = h;
   document.getElementById("swapModal").classList.remove("hidden");
+}
+
+function copyAndSelectBrandChip(btnEl, brandText) {
+  const cleanBrand = (brandText || "").replace(/\s*\([^)]*\)\s*/g, "").trim();
+  if (navigator.clipboard && cleanBrand) {
+    navigator.clipboard.writeText(cleanBrand).catch(() => {});
+  }
+  const sBox = document.getElementById("modalBrandSearchInput");
+  if (sBox) {
+    sBox.value = cleanBrand;
+    filterModalBrandOptions(cleanBrand);
+  }
+  if (btnEl) {
+    const origHtml = btnEl.innerHTML;
+    btnEl.innerHTML = `<span class="text-emerald-800 font-extrabold">✓ ${LANG === "KN" ? "ಕಾಪಿ ಆಗಿದೆ" : "Copied"}</span>`;
+    setTimeout(() => { btnEl.innerHTML = origHtml; }, 1200);
+  }
 }
 
 function evaluateDealerBrandInModal() {
@@ -6990,6 +7055,29 @@ function getMinimumAllowedDateForTask(tk) {
   return check.ok ? "2026-08-15" : check.suggestedDateStr;
 }
 
+function updateDelayPreviewText() {
+  const prevBox = document.getElementById("delayMovePreview");
+  const tk = tasks.find(x => x.id === activeDelayTaskId);
+  const newDateStr = document.getElementById("delayCustomDate")?.value;
+  if (!prevBox || !tk || !newDateStr) return;
+
+  const loc = LANG === "KN" ? "kn-IN" : "en-IN";
+  const fmtShort = (ymd) => {
+    const [y, m, d] = (ymd || "2026-11-16").split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(loc, { day: "2-digit", month: "short" });
+  };
+  const delta = diffDaysYMD(tk.current_scheduled_date, newDateStr);
+  const deltaTag = delta === 0
+    ? (LANG === "KN" ? "ಯಾವುದೇ ಬದಲಾವಣೆ ಇಲ್ಲ" : "No change")
+    : delta > 0
+      ? `+${delta} ${LANG === "KN" ? "ದಿನ ಮುಂದಕ್ಕೆ" : "days"}`
+      : `${delta} ${LANG === "KN" ? "ದಿನ ಹಿಂದಕ್ಕೆ" : "days"}`;
+
+  prevBox.innerHTML = LANG === "KN"
+    ? `${fmtShort(tk.current_scheduled_date)} ರಿಂದ → <span class="underline">${fmtShort(newDateStr)}</span> ಕ್ಕೆ ಬದಲಾಗುತ್ತಿದೆ (${deltaTag})`
+    : `Moving from ${fmtShort(tk.current_scheduled_date)} → <span class="underline">${fmtShort(newDateStr)}</span> (${deltaTag})`;
+}
+
 function openDelayModal(taskId) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
   activeDelayTaskId = taskId;
@@ -7001,6 +7089,7 @@ function openDelayModal(taskId) {
   const radioToSelect = document.querySelector('input[name="cascadeMode"][value="TRACK"]');
   if (radioToSelect) radioToSelect.checked = true;
 
+  updateDelayPreviewText();
   document.getElementById("delayModal").classList.remove("hidden");
 }
 
@@ -7010,8 +7099,15 @@ function setDelayOffset(days) {
   let candidate = addDaysYMD(tk.current_scheduled_date, days);
   if (candidate < "2026-08-15") candidate = "2026-08-15";
   document.getElementById("delayCustomDate").value = candidate;
+  updateDelayPreviewText();
 }
-function setDelayToOriginalDate() { const tk = tasks.find(x => x.id === activeDelayTaskId); if (tk) document.getElementById("delayCustomDate").value = tk.originally_scheduled_date || tk.current_scheduled_date; }
+function setDelayToOriginalDate() {
+  const tk = tasks.find(x => x.id === activeDelayTaskId);
+  if (tk) {
+    document.getElementById("delayCustomDate").value = tk.originally_scheduled_date || tk.current_scheduled_date;
+    updateDelayPreviewText();
+  }
+}
 
 async function applyScheduleShift(tk, requestedDateStr, cascadeMode, reason, keepCurrentWeekView = false, skipInteractiveConfirm = false) {
   const oldDateStr = tk.current_scheduled_date;
