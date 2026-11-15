@@ -240,21 +240,21 @@
   </div>
 
   <!-- 3. CONTEXTUAL WEEK SELECTOR BAR (Shown on Weekly Tasks & Weekly Store List) -->
-  <div id="weekNavCard" class="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2">
+  <div id="weekNavCard" class="bg-white rounded-xl p-3 shadow-xs border border-slate-200/90 flex flex-col sm:flex-row items-center justify-between gap-2">
     <div class="text-center sm:text-left">
       <div id="wkTitle" class="text-sm sm:text-base font-extrabold text-slate-900">Week 11</div>
-      <div id="dadTitle" class="text-xs text-emerald-700 font-bold"></div>
+      <div id="dadTitle" class="text-xs text-emerald-800 font-bold"></div>
     </div>
     <div class="flex items-center gap-1.5 w-full sm:w-auto justify-center flex-wrap">
-      <button type="button" onclick="stepWeek(-1)" aria-label="Previous Week" class="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700">
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      <button type="button" onclick="stepWeek(-1)" aria-label="Previous week" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
       </button>
-      <select id="wkSelect" onchange="goWeek(this.value)" class="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-slate-50 text-slate-800 flex-1 sm:flex-initial"></select>
-      <button type="button" onclick="stepWeek(1)" aria-label="Next Week" class="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700">
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+      <select id="wkSelect" onchange="goWeek(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-slate-50 text-slate-900 flex-1 sm:flex-initial"></select>
+      <button type="button" onclick="stepWeek(1)" aria-label="Next week" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
       </button>
-      <button type="button" onclick="showHub('TASKS_HUB','LOG_MANUAL')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-sm">
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      <button type="button" onclick="showHub('TASKS_HUB','LOG_MANUAL')" class="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xs shadow-2xs inline-flex items-center gap-1.5 transition">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
         <span>Add Card</span>
       </button>
     </div>
@@ -263,260 +263,302 @@
   <!-- WEEKLY TASK CARDS (1-Col on Mobile, 2-Col Grid on Laptop) -->
   <div id="panel_TASKS" class="grid grid-cols-1 lg:grid-cols-2 gap-3.5 items-start"></div>
 
-    <section id="panel_ANALYTICS" class="hidden space-y-3">
-      <div class="bg-white rounded-xl p-4 shadow-sm border space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 class="font-extrabold text-sm sm:text-base text-slate-900" id="ui_riskCardTitle">🛡️ 6-Threat Orchard Risk Radar (Select Multiple to Combine Spray)</h2>
-            <p class="text-xs text-slate-500" id="ui_riskCardSub">Tick unqueued threats below and tap 'Smart Combine &amp; Queue' (caps at 2 synergistic pesticides, respects 5d Copper cooldown &amp; deduplicates upcoming baseline sprays):</p>
+  <!-- ANALYTICS HUB SECTIONS (Risk Radar, Thermal GDD, NPK Ledger) -->
+  <section id="panel_ANALYTICS" class="hidden space-y-3.5">
+    <div class="bg-white rounded-xl p-4 shadow-xs border border-slate-200/90 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+        <div>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+            <h2 class="font-extrabold text-sm sm:text-base text-slate-900" id="ui_riskCardTitle">6-Threat Orchard Risk Radar (Select Multiple to Combine Spray)</h2>
           </div>
-          <button onclick="queueCombinedSelectedRisks()" id="btnCombineRadar" class="hidden bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow">
-            🧪 Smart Combine &amp; Queue Selected
+          <p class="text-xs text-slate-500 mt-0.5" id="ui_riskCardSub">Tick unqueued threats below and tap 'Smart Combine &amp; Queue' (caps at 2 synergistic pesticides, respects 5d Copper cooldown &amp; deduplicates upcoming baseline sprays):</p>
+        </div>
+        <button type="button" onclick="queueCombinedSelectedRisks()" id="btnCombineRadar" class="hidden bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xs px-3.5 py-2 rounded-lg shadow-xs">
+          Smart Combine &amp; Queue Selected
+        </button>
+      </div>
+      <div id="multiRiskGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs"></div>
+    </div>
+
+    <div class="bg-white rounded-xl p-4 shadow-xs border border-slate-200/90 space-y-2">
+      <div class="flex items-center gap-1.5 text-xs font-extrabold text-emerald-800 uppercase tracking-wide">
+        <svg class="w-4 h-4 text-amber-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+        <span id="ui_gddCardTitle">Thermal Growing Degree Days (GDD Base 10°C / Cap 38°C)</span>
+      </div>
+      <div class="text-2xl font-extrabold text-slate-900" id="gddTotalValue">... GDD</div>
+      <div class="text-xs text-slate-600" id="gddComparisonText">...</div>
+      <div class="text-[11px] text-slate-700 font-semibold pt-2 border-t border-slate-200" id="gddHarvestForecast">...</div>
+    </div>
+
+    <div class="bg-white rounded-xl p-4 shadow-xs border border-slate-200/90 space-y-3">
+      <div class="border-b border-slate-100 pb-2.5">
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+          <h2 class="font-extrabold text-sm sm:text-base text-slate-900" id="ui_npkLedgerTitle">Cumulative Elemental Nutrient Ledger (Grams / Plant Delivered vs. Target)</h2>
+        </div>
+        <p class="text-xs text-slate-500 mt-0.5" id="ui_npkLedgerSub">Calculated across 1,500 plants from all COMPLETED applications so far vs. ICAR-NRCP target curve for today's DAD.</p>
+      </div>
+      <div id="npkBarsContainer" class="space-y-3 text-xs"></div>
+    </div>
+  </section>
+
+  <!-- LOG MANUAL WORK / ADD NEW TASK CARD PANEL -->
+  <section id="panel_MANUAL" class="hidden bg-white rounded-xl p-4 shadow-xs border border-slate-200/90 space-y-3.5">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+      <div>
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          <h2 id="ui_manTitle" class="font-extrabold text-sm sm:text-base text-slate-900">Record Manual or Past Spray / Drip</h2>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-0.5" id="ui_manSub">Pick application mode, date, and up to 3 inputs. Card title is auto-generated and validated for 3-Gate safety &amp; safe date gaps.</p>
+      </div>
+      <button type="button" onclick="openNewChemModal()" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs font-bold px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 transition">
+        <svg class="w-3.5 h-3.5 text-emerald-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/></svg>
+        <span>New Store Chemical</span>
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+        <label id="ui_lblManType" class="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 block mb-1">1. Application Mode</label>
+        <select id="manType" onchange="onManualTypeChange()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900">
+          <option value="FOLIAR_SPRAY" id="ui_optFoliar">Foliar Spray</option>
+          <option value="STANDALONE_COPPER" id="ui_optCopper">Standalone Copper Spray</option>
+          <option value="DRIP_MON_THU" id="ui_optDrip">Drip Fertigation (3 Acres)</option>
+        </select>
+      </div>
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+        <label id="ui_lblManDate" class="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 block mb-1">2. Target Date</label>
+        <input type="date" id="manDate" onchange="onManualDateOrInputChanged()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900" />
+      </div>
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+        <label id="ui_lblManStatus" class="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 block mb-1">3. Card Status</label>
+        <select id="manStatus" onchange="analyzeNewCardDraft()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900">
+          <option value="PENDING">Schedule as Pending Card</option>
+          <option value="COMPLETED">Log as Completed Card</option>
+        </select>
+      </div>
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+        <label id="ui_lblManCost" class="text-[10px] uppercase tracking-wider font-extrabold text-slate-500 block mb-1">4. Total Cost Paid (₹)</label>
+        <input type="number" id="manCost" placeholder="e.g., 1800" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900" />
+      </div>
+    </div>
+
+    <!-- Quick Search Filter for Dropdowns -->
+    <div class="relative text-xs">
+      <input type="text" id="manFilterSearch" oninput="populateManualSelects(this.value)" placeholder="Filter inputs by Brand Name or Active Salt (e.g. Agadi, Custodia, Delegate, MKP, SOP)..." class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-slate-50/70 font-semibold text-slate-800 focus:bg-white focus:border-emerald-600 focus:outline-none" />
+    </div>
+
+    <!-- 3 Input Combination Slots (Structured Stat-Blocks) -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+      <div class="p-3 rounded-xl border border-slate-200 bg-slate-50/80 space-y-2">
+        <label id="ui_lblManChem1" class="text-[11px] uppercase tracking-wide font-extrabold text-emerald-900 block">1st Input (Required)</label>
+        <select id="manChem1" onchange="prefillManualQty(1)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold bg-white text-slate-900"></select>
+        <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/80">
+          <span id="manDoseHint1" class="text-[11px] font-bold text-slate-600"></span>
+          <div class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1">
+            <span class="text-slate-400 text-[10px] font-bold uppercase">3-Ac:</span>
+            <input type="number" step="0.1" id="manQty1" onchange="onManualQtyEdit(1)" class="font-extrabold text-right bg-transparent text-slate-900 focus:outline-none" />
+            <span id="manUnit1" class="font-bold text-slate-600"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-3 rounded-xl border border-slate-200 bg-slate-50/80 space-y-2">
+        <label id="ui_lblManChem2" class="text-[11px] uppercase tracking-wide font-extrabold text-slate-700 block">2nd Input (Optional)</label>
+        <select id="manChem2" onchange="prefillManualQty(2)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold bg-white text-slate-900"></select>
+        <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/80">
+          <span id="manDoseHint2" class="text-[11px] font-bold text-slate-600"></span>
+          <div class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1">
+            <span class="text-slate-400 text-[10px] font-bold uppercase">3-Ac:</span>
+            <input type="number" step="0.1" id="manQty2" onchange="onManualQtyEdit(2)" class="font-extrabold text-right bg-transparent text-slate-900 focus:outline-none" />
+            <span id="manUnit2" class="font-bold text-slate-600"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-3 rounded-xl border border-slate-200 bg-slate-50/80 space-y-2">
+        <label id="ui_lblManChem3" class="text-[11px] uppercase tracking-wide font-extrabold text-slate-700 block">3rd Input (Optional)</label>
+        <select id="manChem3" onchange="prefillManualQty(3)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold bg-white text-slate-900"></select>
+        <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/80">
+          <span id="manDoseHint3" class="text-[11px] font-bold text-slate-600"></span>
+          <div class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1">
+            <span class="text-slate-400 text-[10px] font-bold uppercase">3-Ac:</span>
+            <input type="number" step="0.1" id="manQty3" onchange="onManualQtyEdit(3)" class="font-extrabold text-right bg-transparent text-slate-900 focus:outline-none" />
+            <span id="manUnit3" class="font-bold text-slate-600"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Locked Auto-Generated Card Title Preview -->
+    <div id="manAutoTitlePreview" class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-0.5"></div>
+
+    <!-- Live 3-Gate Combination & Safe-Gap Date Analyzer Output -->
+    <div id="manLiveAnalysisBox" class="space-y-2 text-xs"></div>
+
+    <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs flex items-center gap-2">
+      <input type="checkbox" id="manShiftCheck" checked class="w-4 h-4 accent-emerald-700" />
+      <label for="manShiftCheck" id="ui_lblManShift" class="font-semibold text-slate-700">Auto-ripple conflicting future cards one-by-one using Safe-Gap rules (5d Foliar / 2d Drip)</label>
+    </div>
+    <button type="button" onclick="saveManualActivity()" id="ui_btnSaveMan" class="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold py-2.5 rounded-xl shadow-xs text-xs sm:text-sm transition">Save Activity &amp; Update Schedule</button>
+  </section>
+
+  <!-- STORE, BRAND CHECKER & ORCHARD SPEND PANEL -->
+  <section id="panel_SHOP" class="hidden space-y-3.5">
+    <div class="bg-emerald-950 text-white rounded-xl p-4 shadow-xs border border-emerald-800 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <div class="text-xs text-emerald-200 font-semibold uppercase tracking-wide" id="ui_expTitle">Total Recorded Orchard Spend (3 Acres)</div>
+        <div class="text-2xl font-extrabold text-amber-300 mt-0.5" id="totalSeasonCost">₹ 0</div>
+      </div>
+      <div class="text-right text-xs text-emerald-100 space-y-1.5">
+        <div id="weekCostSummary" class="font-semibold">This Week Spend: ₹ 0</div>
+        <button type="button" onclick="openNewChemModal()" class="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 shadow-2xs transition">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          <span>Add New Store Chemical</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-4 shadow-xs border border-slate-200/90 space-y-2.5">
+      <div class="flex items-center gap-1.5">
+        <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg>
+        <h2 class="font-extrabold text-sm text-slate-900" id="ui_brandCheckerTitle">Agro-Store Brand &amp; Tank-Mix Compatibility Checker</h2>
+      </div>
+      <p class="text-xs text-slate-500" id="ui_brandCheckerSub">Select 1 or 2 store brands below to verify active salt, 21-day repeat-spray resistance, and drum mixing order:</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+        <select id="checkerBrand1" onchange="runStandaloneBrandChecker()" class="border border-slate-300 rounded-lg px-2.5 py-2 font-bold bg-slate-50 text-slate-900"></select>
+        <select id="checkerBrand2" onchange="runStandaloneBrandChecker()" class="border border-slate-300 rounded-lg px-2.5 py-2 font-bold bg-slate-50 text-slate-900"></select>
+      </div>
+      <div id="standaloneCheckerResult" class="text-xs space-y-2"></div>
+    </div>
+
+    <div class="bg-white rounded-xl p-4 shadow-xs border border-slate-200/90">
+      <div class="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
+        <div>
+          <h2 id="ui_shopTitle" class="font-extrabold text-sm sm:text-base text-slate-900">Agro-Store Shopping List (3 Acres)</h2>
+          <p id="ui_shopSub" class="text-xs text-slate-500">Skipped and completed items are excluded. Enter shed leftovers below.</p>
+        </div>
+        <button type="button" onclick="copyList()" id="ui_btnCopy" class="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-extrabold px-3.5 py-2 rounded-lg shadow-2xs transition">Copy List</button>
+      </div>
+      <div id="shopBox" class="divide-y divide-slate-100"></div>
+    </div>
+  </section>
+
+  <!-- AUDIT LOG & 30-WEEK MASTER SCHEDULE PANEL -->
+  <section id="panel_SCOUT" class="hidden space-y-4">
+    <div class="bg-white rounded-xl p-4 shadow-xs border border-slate-200/90 hidden">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div>
+          <h2 id="ui_scoutTitle" class="font-bold text-sm">Field Problem Reporter (Multi-Select &amp; Smart Combine)</h2>
+          <p id="ui_scoutSub" class="text-xs text-slate-500">Tick multiple problems to merge them into one synergistic spray, or tap Queue on any single issue.</p>
+        </div>
+        <button type="button" onclick="queueCombinedSelectedRisks()" id="btnCombineScout" class="hidden bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-xs">
+          Smart Combine &amp; Queue Selected
+        </button>
+      </div>
+      <div id="scoutGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-xs font-bold"></div>
+    </div>
+
+    <div class="bg-white rounded-xl p-4 shadow-xs border border-slate-200/90">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100">
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+          <h2 id="ui_auditTitle" class="font-extrabold text-sm text-slate-900">Recent Activity &amp; User Tracking Log</h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="exportScheduleCSV()" class="bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 transition">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            <span>Export CSV Backup</span>
           </button>
-        </div>
-        <div id="multiRiskGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs"></div>
-      </div>
-
-      <div class="bg-white rounded-xl p-4 shadow-sm border space-y-1.5">
-        <div class="text-xs font-extrabold text-amber-700 uppercase" id="ui_gddCardTitle">☀️ Thermal Growing Degree Days (GDD Base 10°C)</div>
-        <div class="text-2xl font-extrabold text-slate-900" id="gddTotalValue">... GDD</div>
-        <div class="text-xs text-slate-600" id="gddComparisonText">...</div>
-        <div class="text-[11px] text-emerald-800 font-semibold pt-1 border-t" id="gddHarvestForecast">...</div>
-      </div>
-
-      <div class="bg-white rounded-xl p-4 shadow-sm border space-y-3">
-        <div>
-          <h2 class="font-extrabold text-sm sm:text-base text-slate-900" id="ui_npkLedgerTitle">⚖️ Cumulative Elemental Nutrient Ledger (Grams / Plant Delivered vs. Target)</h2>
-          <p class="text-xs text-slate-500" id="ui_npkLedgerSub">Calculated across 1,500 plants from all COMPLETED applications so far vs. ICAR-NRCP target curve for today's DAD.</p>
-        </div>
-        <div id="npkBarsContainer" class="space-y-3 text-xs"></div>
-      </div>
-    </section>
-
-    <section id="panel_MANUAL" class="hidden bg-white rounded-xl p-4 shadow-sm border space-y-3">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 id="ui_manTitle" class="font-extrabold text-sm sm:text-base text-slate-900">➕ Add New Task Card (Foliar Spray or Drip Fertigation)</h2>
-          <p class="text-[11px] text-slate-500" id="ui_manSub">Pick application mode, date, and up to 3 inputs. Card title is auto-generated and validated for 3-Gate safety &amp; safe date gaps.</p>
-        </div>
-        <button onclick="openNewChemModal()" class="bg-indigo-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg shadow">➕ New Store Chemical</button>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
-        <div>
-          <label id="ui_lblManType" class="font-bold block mb-1">1. Application Mode:</label>
-          <select id="manType" onchange="onManualTypeChange()" class="w-full border rounded-lg px-2.5 py-2 font-bold bg-slate-50">
-            <option value="FOLIAR_SPRAY" id="ui_optFoliar">🌿 Foliar Spray</option>
-            <option value="STANDALONE_COPPER" id="ui_optCopper">⚠️ Standalone Copper Spray</option>
-            <option value="DRIP_MON_THU" id="ui_optDrip">💧 Drip Fertigation (3 Acres)</option>
-          </select>
-        </div>
-        <div>
-          <label id="ui_lblManDate" class="font-bold block mb-1">2. Target Date:</label>
-          <input type="date" id="manDate" onchange="onManualDateOrInputChanged()" class="w-full border rounded-lg px-2.5 py-2 font-bold bg-slate-50" />
-        </div>
-        <div>
-          <label id="ui_lblManStatus" class="font-bold block mb-1">3. Card Status:</label>
-          <select id="manStatus" onchange="analyzeNewCardDraft()" class="w-full border rounded-lg px-2.5 py-2 font-bold bg-slate-50">
-            <option value="PENDING">🕒 Schedule as Pending Card</option>
-            <option value="COMPLETED">✅ Log as Completed Card</option>
-          </select>
-        </div>
-        <div>
-          <label id="ui_lblManCost" class="font-bold block mb-1">4. Cost (₹ Optional):</label>
-          <input type="number" id="manCost" placeholder="e.g., 1800" class="w-full border rounded-lg px-2.5 py-2 font-bold" />
+          <button type="button" onclick="clearCurrentEnvAuditLog()" class="text-[11px] text-slate-500 hover:text-red-700 font-semibold underline">Clear Log</button>
         </div>
       </div>
+      <div id="auditLogBox" class="divide-y divide-slate-100 text-xs max-h-72 overflow-y-auto"></div>
+    </div>
 
-      <!-- Quick Search Filter for Dropdowns -->
-      <div class="text-xs">
-        <input type="text" id="manFilterSearch" oninput="populateManualSelects(this.value)" placeholder="🔎 Filter inputs by Brand Name or Active Salt (e.g. Agadi, Custodia, Delegate, MKP, SOP)..." class="w-full border border-indigo-200 rounded-lg px-3 py-1.5 bg-indigo-50/40 font-semibold text-slate-800" />
+    <div class="bg-white rounded-xl p-4 shadow-xs border border-slate-200/90 overflow-x-auto">
+      <div class="flex items-center gap-1.5 mb-2.5">
+        <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+        <h2 id="ui_masterTitle" class="font-extrabold text-sm text-slate-900">Complete Orchard Schedule (Week 0 to Week 30)</h2>
       </div>
-
-      <!-- 3 Input Combination Slots -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-        <div class="p-2.5 rounded-xl border bg-slate-50/70 space-y-1.5">
-          <label id="ui_lblManChem1" class="font-extrabold text-slate-800 block">1st Input (Required):</label>
-          <select id="manChem1" onchange="prefillManualQty(1)" class="w-full border rounded-lg px-2.5 py-1.5 font-semibold bg-white"></select>
-          <div class="flex items-center justify-between gap-1.5 pt-0.5">
-            <span id="manDoseHint1" class="text-[11px] font-bold text-emerald-800"></span>
-            <div class="flex items-center gap-1">
-              <span class="text-slate-500 text-[11px]">3-Ac:</span>
-              <input type="number" step="0.1" id="manQty1" onchange="onManualQtyEdit(1)" class="w-16 border rounded px-1.5 py-1 font-extrabold text-right bg-white" />
-              <span id="manUnit1" class="font-bold text-slate-600"></span>
-            </div>
-          </div>
-        </div>
-
-        <div class="p-2.5 rounded-xl border bg-slate-50/70 space-y-1.5">
-          <label id="ui_lblManChem2" class="font-extrabold text-slate-800 block">2nd Input (Optional):</label>
-          <select id="manChem2" onchange="prefillManualQty(2)" class="w-full border rounded-lg px-2.5 py-1.5 font-semibold bg-white"></select>
-          <div class="flex items-center justify-between gap-1.5 pt-0.5">
-            <span id="manDoseHint2" class="text-[11px] font-bold text-emerald-800"></span>
-            <div class="flex items-center gap-1">
-              <span class="text-slate-500 text-[11px]">3-Ac:</span>
-              <input type="number" step="0.1" id="manQty2" onchange="onManualQtyEdit(2)" class="w-16 border rounded px-1.5 py-1 font-extrabold text-right bg-white" />
-              <span id="manUnit2" class="font-bold text-slate-600"></span>
-            </div>
-          </div>
-        </div>
-
-        <div class="p-2.5 rounded-xl border bg-slate-50/70 space-y-1.5">
-          <label id="ui_lblManChem3" class="font-extrabold text-slate-800 block">3rd Input (Optional):</label>
-          <select id="manChem3" onchange="prefillManualQty(3)" class="w-full border rounded-lg px-2.5 py-1.5 font-semibold bg-white"></select>
-          <div class="flex items-center justify-between gap-1.5 pt-0.5">
-            <span id="manDoseHint3" class="text-[11px] font-bold text-emerald-800"></span>
-            <div class="flex items-center gap-1">
-              <span class="text-slate-500 text-[11px]">3-Ac:</span>
-              <input type="number" step="0.1" id="manQty3" onchange="onManualQtyEdit(3)" class="w-16 border rounded px-1.5 py-1 font-extrabold text-right bg-white" />
-              <span id="manUnit3" class="font-bold text-slate-600"></span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Locked Auto-Generated Card Title Preview (User cannot manually edit card name) -->
-      <div id="manAutoTitlePreview" class="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-xs space-y-0.5"></div>
-
-      <!-- Live 3-Gate Combination & Safe-Gap Date Analyzer Output -->
-      <div id="manLiveAnalysisBox" class="space-y-2 text-xs"></div>
-
-      <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs flex items-center gap-2">
-        <input type="checkbox" id="manShiftCheck" checked class="w-4 h-4" />
-        <label for="manShiftCheck" id="ui_lblManShift" class="font-semibold text-amber-900">Auto-ripple conflicting future cards one-by-one using Safe-Gap rules (5d Foliar / 2d Drip)</label>
-      </div>
-      <button onclick="saveManualActivity()" id="ui_btnSaveMan" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-2.5 rounded-xl shadow text-xs sm:text-sm">💾 Add Card &amp; Auto-Reconcile Schedule</button>
-    </section>
-
-    <section id="panel_SHOP" class="hidden space-y-3">
-      <div class="bg-emerald-900 text-white rounded-xl p-3.5 shadow-sm flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <div class="text-xs text-emerald-200 font-semibold" id="ui_expTitle">💰 Total Recorded Orchard Spend (3 Acres)</div>
-          <div class="text-xl font-extrabold text-amber-300" id="totalSeasonCost">₹ 0</div>
-        </div>
-        <div class="text-right text-xs text-emerald-100">
-          <div id="weekCostSummary">This Week Spend: ₹ 0</div>
-          <button onclick="openNewChemModal()" class="mt-1 bg-amber-400 text-slate-950 font-extrabold px-3 py-1 rounded-lg">➕ Add New Store Chemical</button>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-xl p-4 shadow-sm border space-y-2.5">
-        <h2 class="font-extrabold text-sm text-slate-900" id="ui_brandCheckerTitle">🧪 Agro-Store Brand &amp; Tank-Mix Compatibility Checker</h2>
-        <p class="text-xs text-slate-500" id="ui_brandCheckerSub">Select 1 or 2 store brands below to verify active salt, 21-day repeat-spray resistance, and drum mixing order:</p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-          <select id="checkerBrand1" onchange="runStandaloneBrandChecker()" class="border rounded-lg px-2.5 py-2 font-bold bg-slate-50"></select>
-          <select id="checkerBrand2" onchange="runStandaloneBrandChecker()" class="border rounded-lg px-2.5 py-2 font-bold bg-slate-50"></select>
-        </div>
-        <div id="standaloneCheckerResult" class="text-xs space-y-2"></div>
-      </div>
-
-      <div class="bg-white rounded-xl p-4 shadow-sm border">
-        <div class="flex items-center justify-between mb-3">
-          <div>
-            <h2 id="ui_shopTitle" class="font-bold text-sm sm:text-base">Agro-Store Shopping List (3 Acres)</h2>
-            <p id="ui_shopSub" class="text-xs text-slate-500">Skipped and completed items are excluded. Enter shed leftovers below.</p>
-          </div>
-          <button onclick="copyList()" id="ui_btnCopy" class="bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg">📲 Copy List</button>
-        </div>
-        <div id="shopBox" class="divide-y"></div>
-      </div>
-    </section>
-
-    <section id="panel_SCOUT" class="hidden space-y-4">
-      <div class="bg-white rounded-xl p-4 shadow-sm border">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <div>
-            <h2 id="ui_scoutTitle" class="font-bold text-sm">🔍 Field Problem Reporter (Multi-Select &amp; Smart Combine)</h2>
-            <p id="ui_scoutSub" class="text-xs text-slate-500">Tick multiple problems to merge them into one synergistic spray, or tap Queue on any single issue.</p>
-          </div>
-          <button onclick="queueCombinedSelectedRisks()" id="btnCombineScout" class="hidden bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow">
-            🧪 Smart Combine &amp; Queue Selected
-          </button>
-        </div>
-        <div id="scoutGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-xs font-bold"></div>
-      </div>
-      <div class="bg-white rounded-xl p-4 shadow-sm border">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <h2 id="ui_auditTitle" class="font-bold text-sm">👤 Recent Activity &amp; User Tracking Log</h2>
-          <div class="flex items-center gap-2">
-            <button onclick="exportScheduleCSV()" class="bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">📥 Export CSV Backup</button>
-            <button onclick="clearCurrentEnvAuditLog()" class="text-[11px] text-slate-400 hover:text-red-600 underline">🧹 Clear Log</button>
-          </div>
-        </div>
-        <div id="auditLogBox" class="divide-y text-xs max-h-60 overflow-y-auto"></div>
-      </div>
-      <div class="bg-white rounded-xl p-4 shadow-sm border overflow-x-auto">
-        <h2 id="ui_masterTitle" class="font-bold text-sm mb-2">📅 Complete Orchard Schedule (Week 0 to Week 30)</h2>
-        <table class="w-full text-left text-xs border-collapse">
-          <thead><tr class="border-b text-slate-500"><th class="py-1.5">Wk</th><th>DAD / Date</th><th>Task</th><th>Status / ₹</th></tr></thead>
-          <tbody id="allWeeksBody" class="divide-y"></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
+      <table class="w-full text-left text-xs border-collapse">
+        <thead><tr class="border-b border-slate-200 text-slate-600"><th class="py-2 px-2">Wk</th><th class="py-2 px-2">DAD / Date</th><th class="py-2 px-2">Task</th><th class="py-2 px-2">Status / ₹</th></tr></thead>
+        <tbody id="allWeeksBody" class="divide-y divide-slate-100"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
 
   <!-- FARM RAIN MODAL -->
   <div id="rainModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-2.5 text-xs">
-      <div class="flex items-center justify-between border-b pb-2">
-        <h3 id="ui_rainModalTitle" class="font-extrabold text-base text-slate-900">🌧️ Log Rain at Farm</h3>
-        <button onclick="document.getElementById('rainModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-2.5 text-xs shadow-xl border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-teal-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>
+          <h3 id="ui_rainModalTitle" class="font-extrabold text-base text-slate-900">Log Rain at Farm</h3>
+        </div>
+        <button type="button" onclick="document.getElementById('rainModal').classList.add('hidden')" class="font-bold text-slate-500 hover:text-slate-800 text-lg px-2">✕</button>
       </div>
       <p id="ui_rainModalSub" class="text-slate-600">Select how the orchard looked after rain, or enter exact mm:</p>
-      <button onclick="saveFarmRain(0,'Dry at Farm (0 mm)')" class="w-full p-2.5 rounded-xl border-2 bg-emerald-50 border-emerald-400 text-left">
-        <div class="font-extrabold text-emerald-950" id="ui_rn0">☀️ No Rain at Farm Today (0 mm) — Override False Satellite Rain</div>
+      <button type="button" onclick="saveFarmRain(0,'Dry at Farm (0 mm)')" class="w-full p-2.5 rounded-xl border border-emerald-300 bg-emerald-50/70 hover:bg-emerald-100/70 text-left transition">
+        <div class="font-extrabold text-emerald-950" id="ui_rn0">No Rain at Farm Today (0 mm) — Override False Satellite Rain</div>
       </button>
-      <button onclick="saveFarmRain(3,'Light Drizzle')" class="w-full p-2.5 rounded-xl border bg-sky-50 border-sky-200 text-left"><div class="font-extrabold text-sky-950" id="ui_rn1">🌦️ Light Drizzle (~3 mm) — Top 1 cm damp, no drip pause</div></button>
-      <button onclick="saveFarmRain(10,'Moderate Rain')" class="w-full p-2.5 rounded-xl border bg-blue-50 border-blue-200 text-left"><div class="font-extrabold text-blue-950" id="ui_rn2">🌧️ Moderate Rain (~10 mm) — Soil wet 3–4 inches deep</div></button>
-      <button onclick="saveFarmRain(20,'Heavy Downpour')" class="w-full p-2.5 rounded-xl border-2 bg-indigo-50 border-indigo-300 text-left"><div class="font-extrabold text-indigo-950" id="ui_rn3">⛈️ Heavy Downpour (~20 mm) — Water in furrows (Pause drip 48h + Copper)</div></button>
-      <button onclick="saveFarmRain(35,'Very Heavy Storm')" class="w-full p-2.5 rounded-xl border-2 bg-rose-50 border-rose-300 text-left"><div class="font-extrabold text-rose-950" id="ui_rn4">🌊 Very Heavy Storm (~35 mm) — Standing water near bunds/trunks</div></button>
-      <div class="pt-2 border-t flex items-center gap-2">
+      <button type="button" onclick="saveFarmRain(3,'Light Drizzle')" class="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-left transition"><div class="font-extrabold text-slate-800" id="ui_rn1">Light Drizzle (~3 mm) — Top 1 cm damp, no drip pause</div></button>
+      <button type="button" onclick="saveFarmRain(10,'Moderate Rain')" class="w-full p-2.5 rounded-xl border border-teal-200 bg-teal-50/60 hover:bg-teal-100/60 text-left transition"><div class="font-extrabold text-teal-950" id="ui_rn2">Moderate Rain (~10 mm) — Soil wet 3–4 inches deep</div></button>
+      <button type="button" onclick="saveFarmRain(20,'Heavy Downpour')" class="w-full p-2.5 rounded-xl border border-amber-300 bg-amber-50/80 hover:bg-amber-100/80 text-left transition"><div class="font-extrabold text-amber-950" id="ui_rn3">Heavy Downpour (~20 mm) — Water in furrows (Pause drip 48h + Copper)</div></button>
+      <button type="button" onclick="saveFarmRain(35,'Very Heavy Storm')" class="w-full p-2.5 rounded-xl border border-red-300 bg-red-50/80 hover:bg-red-100/80 text-left transition"><div class="font-extrabold text-red-950" id="ui_rn4">Very Heavy Storm (~35 mm) — Standing water near bunds/trunks</div></button>
+      <div class="pt-2.5 border-t border-slate-200 flex items-center gap-2">
         <span class="font-bold text-slate-700">Exact (mm):</span>
-        <input type="number" step="0.5" min="0" id="customRainMm" placeholder="e.g., 18" class="w-20 border rounded-lg px-2 py-1.5 font-bold" />
-        <button onclick="saveFarmRain(Number(document.getElementById('customRainMm').value||0),'Custom mm')" class="bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg">💾 Save</button>
-        <button onclick="clearFarmRain()" class="ml-auto text-red-600 underline font-bold">↺ Clear</button>
+        <input type="number" step="0.5" min="0" id="customRainMm" placeholder="18" class="w-20 border border-slate-300 rounded-lg px-2 py-1.5 font-bold text-slate-900" />
+        <button type="button" onclick="saveFarmRain(Number(document.getElementById('customRainMm').value||0),'Custom mm')" class="bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-3.5 py-1.5 rounded-lg">Save</button>
+        <button type="button" onclick="clearFarmRain()" class="ml-auto text-red-700 hover:underline font-bold">Reset</button>
       </div>
     </div>
   </div>
 
-  <!-- SMART ADD NEW CHEMICAL MODAL (Supports Single-Salt, 2-to-3 Co-Formulations, Ca+B / NPK+Micro & Dual Foliar/Drip) -->
+  <!-- SMART ADD NEW CHEMICAL MODAL -->
   <div id="newChemModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-white w-full max-w-xl rounded-t-2xl sm:rounded-2xl p-4 max-h-[94vh] overflow-y-auto space-y-2.5 text-xs">
-      <div class="flex items-center justify-between border-b pb-2">
+    <div class="bg-white w-full max-w-xl rounded-t-2xl sm:rounded-2xl p-4 sm:p-5 max-h-[94vh] overflow-y-auto space-y-3 text-xs shadow-xl border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
         <div>
-          <h3 class="font-extrabold text-base text-slate-900">➕ Add New Store Brand / Multi-Component Input</h3>
-          <p class="text-[11px] text-slate-500">Supports single salts, 2-to-3 co-formulations (e.g., Calcium 11% + Boron 2%), and dual Foliar + Drip products.</p>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg>
+            <h3 class="font-extrabold text-base text-slate-900">Add New Store Brand / Multi-Component Input</h3>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-0.5">Supports single salts, 2-to-3 co-formulations (e.g., Calcium 11% + Boron 2%), and dual Foliar + Drip products.</p>
         </div>
-        <button onclick="closeNewChemModal()" class="font-bold text-lg px-2">✕</button>
+        <button type="button" onclick="closeNewChemModal()" class="font-bold text-slate-500 hover:text-slate-800 text-lg px-2">✕</button>
       </div>
 
-      <!-- Quick Attach Brand to Existing Salt Container (Populated dynamically by openNewChemModal) -->
-      <div id="ncQuickBrandAttachBox" class="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl space-y-1.5 text-xs"></div>
+      <!-- Quick Attach Brand to Existing Salt Container -->
+      <div id="ncQuickBrandAttachBox" class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs"></div>
 
       <!-- Quick Preset Bar for Common Co-Formulations -->
       <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
-        <span class="font-bold text-slate-500">⚡ Quick Presets:</span>
-        <button type="button" onclick="fillNewChemPreset('YAB_CALCIB')" class="px-2 py-0.5 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold border border-emerald-300">🧪 Yab-CalciB (Ca 11% + B 2%)</button>
-        <button type="button" onclick="fillNewChemPreset('CUSTODIA')" class="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold border">🍄 2-Salt Fungicide</button>
-        <button type="button" onclick="fillNewChemPreset('NPK_MICRO')" class="px-2 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold border border-amber-300">⚖️ NPK + Mg/B Grade</button>
+        <span class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Quick Presets:</span>
+        <button type="button" onclick="fillNewChemPreset('YAB_CALCIB')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-bold border border-emerald-300 transition">Yab-CalciB (Ca 11% + B 2%)</button>
+        <button type="button" onclick="fillNewChemPreset('CUSTODIA')" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold border border-slate-300 transition">2-Salt Fungicide</button>
+        <button type="button" onclick="fillNewChemPreset('NPK_MICRO')" class="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-900 font-semibold border border-teal-300 transition">NPK + Mg/B Grade</button>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <div>
-          <label class="font-bold block mb-0.5 text-slate-700">1. Store Brand Name (English):</label>
-          <input type="text" id="ncNameEn" oninput="previewSmartChem()" placeholder="e.g., Yab-CalciB (Yabam) / Cosuit" class="w-full border rounded-lg px-2.5 py-1.5 font-bold" />
+          <label class="font-bold block mb-1 text-slate-700">1. Store Brand Name (English):</label>
+          <input type="text" id="ncNameEn" oninput="previewSmartChem()" placeholder="e.g., Yab-CalciB (Yabam) / Cosuit" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-slate-900" />
         </div>
         <div>
-          <label class="font-bold block mb-0.5 text-slate-700">Salt / Name in Kannada (Optional):</label>
-          <input type="text" id="ncNameKn" oninput="previewSmartChem()" placeholder="ಉದಾ: ದ್ರವ ಕ್ಯಾಲ್ಸಿಯಂ 11% + ಬೋರಾನ್ 2%" class="w-full border rounded-lg px-2.5 py-1.5" />
+          <label class="font-bold block mb-1 text-slate-700">Salt / Name in Kannada (Optional):</label>
+          <input type="text" id="ncNameKn" oninput="previewSmartChem()" placeholder="ಉದಾ: ದ್ರವ ಕ್ಯಾಲ್ಸಿಯಂ 11% + ಬೋರಾನ್ 2%" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900" />
         </div>
       </div>
 
       <!-- 2. MULTI-COMPONENT ACTIVE SALT & CONCENTRATION BUILDER -->
-      <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+      <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
         <div class="flex flex-wrap items-center justify-between gap-1">
           <span class="font-extrabold text-slate-800">2. Active Salt(s) / Nutrient Components &amp; Individual %:</span>
-          <select id="ncPctBasis" onchange="previewSmartChem()" class="border rounded px-1.5 py-0.5 text-[10px] font-bold bg-white text-slate-700" title="FCO Standard uses % w/w (Weight/Weight)">
+          <select id="ncPctBasis" onchange="previewSmartChem()" class="border border-slate-300 rounded-md px-2 py-0.5 text-[10px] font-bold bg-white text-slate-700" title="FCO Standard uses % w/w (Weight/Weight)">
             <option value="WW">% w/w (FCO Standard Min)</option>
             <option value="WV">% w/v (Weight / Volume)</option>
           </select>
@@ -524,57 +566,57 @@
         <datalist id="knownSaltsList"></datalist>
 
         <!-- Component 1 (Primary) -->
-        <div class="grid grid-cols-12 gap-1.5 items-center">
+        <div class="grid grid-cols-12 gap-2 items-center">
           <div class="col-span-8">
-            <label class="text-[10px] font-bold text-slate-600 block">Component 1 (Primary Salt or Element):</label>
-            <input type="text" id="ncSaltBase" list="knownSaltsList" oninput="onSaltOrPctChange(1)" placeholder="e.g., Calcium (or Copper Hydroxide)" class="w-full border rounded-lg px-2 py-1.5 font-bold bg-white" />
+            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Component 1 (Primary Salt or Element)</label>
+            <input type="text" id="ncSaltBase" list="knownSaltsList" oninput="onSaltOrPctChange(1)" placeholder="e.g., Calcium (or Copper Hydroxide)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900" />
           </div>
           <div class="col-span-4">
-            <label class="text-[10px] font-bold text-slate-600 block">Comp 1 (%):</label>
-            <div class="flex items-center border rounded-lg bg-white px-2 py-1.5">
-              <input type="number" step="0.01" min="0" max="100" id="ncSaltPct" oninput="onSaltOrPctChange(1)" placeholder="e.g., 11" class="w-full font-extrabold focus:outline-none text-right" />
+            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Comp 1 (%)</label>
+            <div class="flex items-center border border-slate-300 rounded-lg bg-white px-2 py-1.5">
+              <input type="number" step="0.01" min="0" max="100" id="ncSaltPct" oninput="onSaltOrPctChange(1)" placeholder="11" class="w-full font-extrabold focus:outline-none text-right text-slate-900" />
               <span class="font-bold text-slate-500 ml-1">%</span>
             </div>
           </div>
         </div>
 
-        <!-- Component 2 (Co-Formulation Partner, e.g., Boron 2% or Tebuconazole 18.3%) -->
-        <div class="grid grid-cols-12 gap-1.5 items-center">
+        <!-- Component 2 -->
+        <div class="grid grid-cols-12 gap-2 items-center">
           <div class="col-span-8">
-            <label class="text-[10px] font-bold text-slate-600 block">Component 2 (2nd Salt / Element — Optional):</label>
-            <input type="text" id="ncSaltBase2" list="knownSaltsList" oninput="onSaltOrPctChange(2)" placeholder="e.g., Boron (or Tebuconazole)" class="w-full border rounded-lg px-2 py-1.5 font-bold bg-white" />
+            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Component 2 (2nd Salt / Element — Optional)</label>
+            <input type="text" id="ncSaltBase2" list="knownSaltsList" oninput="onSaltOrPctChange(2)" placeholder="e.g., Boron (or Tebuconazole)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900" />
           </div>
           <div class="col-span-4">
-            <label class="text-[10px] font-bold text-slate-600 block">Comp 2 (%):</label>
-            <div class="flex items-center border rounded-lg bg-white px-2 py-1.5">
-              <input type="number" step="0.01" min="0" max="100" id="ncSaltPct2" oninput="onSaltOrPctChange(2)" placeholder="e.g., 2" class="w-full font-extrabold focus:outline-none text-right" />
+            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Comp 2 (%)</label>
+            <div class="flex items-center border border-slate-300 rounded-lg bg-white px-2 py-1.5">
+              <input type="number" step="0.01" min="0" max="100" id="ncSaltPct2" oninput="onSaltOrPctChange(2)" placeholder="2" class="w-full font-extrabold focus:outline-none text-right text-slate-900" />
               <span class="font-bold text-slate-500 ml-1">%</span>
             </div>
           </div>
         </div>
 
-        <!-- Component 3 (Optional 3rd Component) -->
-        <div id="ncComp3Row" class="hidden grid grid-cols-12 gap-1.5 items-center">
+        <!-- Component 3 -->
+        <div id="ncComp3Row" class="hidden grid grid-cols-12 gap-2 items-center">
           <div class="col-span-8">
-            <label class="text-[10px] font-bold text-slate-600 block">Component 3 (3rd Salt / Element — Optional):</label>
-            <input type="text" id="ncSaltBase3" list="knownSaltsList" oninput="onSaltOrPctChange(3)" placeholder="e.g., Zinc / Magnesium / 3rd Salt" class="w-full border rounded-lg px-2 py-1.5 font-bold bg-white" />
+            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Component 3 (3rd Salt / Element — Optional)</label>
+            <input type="text" id="ncSaltBase3" list="knownSaltsList" oninput="onSaltOrPctChange(3)" placeholder="e.g., Zinc / Magnesium" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900" />
           </div>
           <div class="col-span-4">
-            <label class="text-[10px] font-bold text-slate-600 block">Comp 3 (%):</label>
-            <div class="flex items-center border rounded-lg bg-white px-2 py-1.5">
-              <input type="number" step="0.01" min="0" max="100" id="ncSaltPct3" oninput="onSaltOrPctChange(3)" placeholder="e.g., 1.5" class="w-full font-extrabold focus:outline-none text-right" />
+            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Comp 3 (%)</label>
+            <div class="flex items-center border border-slate-300 rounded-lg bg-white px-2 py-1.5">
+              <input type="number" step="0.01" min="0" max="100" id="ncSaltPct3" oninput="onSaltOrPctChange(3)" placeholder="1.5" class="w-full font-extrabold focus:outline-none text-right text-slate-900" />
               <span class="font-bold text-slate-500 ml-1">%</span>
             </div>
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5">
-          <button type="button" onclick="document.getElementById('ncComp3Row').classList.toggle('hidden')" class="text-[11px] font-bold text-indigo-700 hover:underline">
-            ➕ Add / Toggle 3rd Component
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/80">
+          <button type="button" onclick="document.getElementById('ncComp3Row').classList.toggle('hidden')" class="text-[11px] font-bold text-emerald-800 hover:underline">
+            + Add / Toggle 3rd Component
           </button>
           <div class="flex items-center gap-1.5">
             <span class="text-[11px] font-semibold text-slate-600">Formulation (W-A-L-E-S):</span>
-            <select id="ncFormulation" onchange="previewSmartChem()" class="border rounded-lg px-2 py-1 font-bold bg-white">
+            <select id="ncFormulation" onchange="previewSmartChem()" class="border border-slate-300 rounded-lg px-2 py-1 font-bold bg-white text-slate-900">
               <option value="SL">SL / L (Soluble Liquid — Mix 3rd)</option>
               <option value="SC">SC (Suspension Liquid — Mix 3rd)</option>
               <option value="WG">WG / WDG (Granules — Mix 1st)</option>
@@ -588,14 +630,14 @@
           </div>
         </div>
 
-        <div id="ncStrengthScaleHint" class="hidden text-[11px] text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1.5 font-semibold"></div>
+        <div id="ncStrengthScaleHint" class="hidden text-[11px] text-emerald-950 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 font-semibold"></div>
       </div>
 
-      <!-- 3. CATEGORY & 4. APPLICATION MODE (Supports FOLIAR, DRIP, and BOTH) -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <!-- 3. CATEGORY & 4. APPLICATION MODE -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <div>
-          <label class="font-bold block mb-0.5 text-slate-700">3. Function / Category:</label>
-          <select id="ncCat" onchange="onNewChemCatOrMethodChange()" class="w-full border rounded-lg px-2 py-1.5 font-semibold">
+          <label class="font-bold block mb-1 text-slate-700">3. Function / Category:</label>
+          <select id="ncCat" onchange="onNewChemCatOrMethodChange()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 font-semibold bg-white text-slate-900">
             <option value="BIOSTIMULANT">Micronutrient / Ca-B / Bio (ಲಘು ಪೋಷಕಾಂಶ)</option>
             <option value="FERTIGATION">Macro WSF Fertilizer (ಡ್ರಿಪ್ ಗೊಬ್ಬರ)</option>
             <option value="FUNGICIDE">Fungicide (ಶಿಲೀಂಧ್ರನಾಶಕ)</option>
@@ -604,38 +646,38 @@
           </select>
         </div>
         <div>
-          <label class="font-bold block mb-0.5 text-slate-700">4. Application Mode:</label>
-          <select id="ncMethod" onchange="onNewChemCatOrMethodChange()" class="w-full border rounded-lg px-2 py-1.5 font-semibold">
-            <option value="BOTH">🌿+💧 Both Foliar &amp; Drip (ಎರಡಕ್ಕೂ)</option>
-            <option value="FOLIAR">🌿 Foliar Spray Only (per Liter)</option>
-            <option value="DRIP">💧 Drip Fertigation Only (per Acre)</option>
+          <label class="font-bold block mb-1 text-slate-700">4. Application Mode:</label>
+          <select id="ncMethod" onchange="onNewChemCatOrMethodChange()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 font-semibold bg-white text-slate-900">
+            <option value="BOTH">Both Foliar &amp; Drip (ಎರಡಕ್ಕೂ)</option>
+            <option value="FOLIAR">Foliar Spray Only (per Liter)</option>
+            <option value="DRIP">Drip Fertigation Only (per Acre)</option>
           </select>
         </div>
         <div>
-          <label class="font-bold block mb-0.5 text-slate-700">IRAC / FRAC Group (Optional):</label>
-          <input type="text" id="ncGroup" oninput="previewSmartChem()" placeholder="e.g., FRAC-11+3 or IRAC-5" class="w-full border rounded-lg px-2 py-1.5 font-mono font-bold" />
+          <label class="font-bold block mb-1 text-slate-700">IRAC / FRAC Group (Optional):</label>
+          <input type="text" id="ncGroup" oninput="previewSmartChem()" placeholder="e.g., FRAC-11+3 or IRAC-5" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 font-mono font-bold text-slate-900" />
         </div>
       </div>
 
-      <!-- 5. DOSAGE SPECIFICATION (Supports Foliar per Liter AND/OR Drip per Acre) -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2.5 bg-emerald-50/60 border border-emerald-200 rounded-xl">
-        <div id="ncFoliarDoseBox">
-          <label class="font-bold block mb-0.5 text-emerald-950" id="ncDoseLabel">5A. Foliar Dose (per Liter):</label>
+      <!-- 5. DOSAGE SPECIFICATION (Stat-Block Layout) -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+        <div id="ncFoliarDoseBox" class="bg-white border border-slate-200 rounded-lg p-2">
+          <label class="text-[10px] uppercase tracking-wider font-extrabold block mb-1 text-emerald-900" id="ncDoseLabel">5A. Foliar Dose (per L)</label>
           <div class="flex items-center gap-1">
-            <input type="number" step="0.05" min="0.05" id="ncDose" oninput="previewSmartChem()" value="2.0" class="w-full border rounded-lg px-2 py-1.5 font-extrabold text-emerald-900 bg-white" />
+            <input type="number" step="0.05" min="0.05" id="ncDose" oninput="previewSmartChem()" value="2.0" class="w-full border border-slate-300 rounded px-2 py-1 font-extrabold text-emerald-900 bg-slate-50" />
             <span class="text-[11px] font-bold text-slate-600">/L</span>
           </div>
         </div>
-        <div id="ncDripDoseBox">
-          <label class="font-bold block mb-0.5 text-sky-950">5B. Drip / Soil Dose (per Acre):</label>
+        <div id="ncDripDoseBox" class="bg-white border border-slate-200 rounded-lg p-2">
+          <label class="text-[10px] uppercase tracking-wider font-extrabold block mb-1 text-teal-900">5B. Drip Dose (per Acre)</label>
           <div class="flex items-center gap-1">
-            <input type="number" step="0.1" min="0.1" id="ncDoseAcre" oninput="previewSmartChem()" value="1.0" class="w-full border rounded-lg px-2 py-1.5 font-extrabold text-sky-900 bg-white" />
+            <input type="number" step="0.1" min="0.1" id="ncDoseAcre" oninput="previewSmartChem()" value="1.0" class="w-full border border-slate-300 rounded px-2 py-1 font-extrabold text-teal-900 bg-slate-50" />
             <span class="text-[11px] font-bold text-slate-600">/Ac</span>
           </div>
         </div>
-        <div>
-          <label class="font-bold block mb-0.5 text-slate-700">Base Unit:</label>
-          <select id="ncUnit" onchange="previewSmartChem()" class="w-full border rounded-lg px-2 py-1.5 font-bold bg-white">
+        <div class="bg-white border border-slate-200 rounded-lg p-2">
+          <label class="text-[10px] uppercase tracking-wider font-extrabold block mb-1 text-slate-600">Base Unit</label>
+          <select id="ncUnit" onchange="previewSmartChem()" class="w-full border border-slate-300 rounded px-2 py-1 font-bold bg-slate-50 text-slate-900">
             <option value="ml">ml (ಮಿ.ಲೀ — Liquids)</option>
             <option value="g">g (ಗ್ರಾಂ — Powders)</option>
             <option value="L">L (ಲೀಟರ್ — Bulk Liquid)</option>
@@ -644,114 +686,121 @@
         </div>
       </div>
 
-      <!-- 6. COMPLETE 6-ELEMENT NUTRIENT LEDGER SPECIFICATION (N, P2O5, K2O, Ca, Mg, B) -->
-      <div id="ncNutrientBox" class="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
+      <!-- 6. COMPLETE 6-ELEMENT NUTRIENT LEDGER SPECIFICATION (Cohesive Stat-Block Grid) -->
+      <div id="ncNutrientBox" class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
         <div class="flex items-center justify-between">
-          <span class="font-extrabold text-amber-950">⚖️ 6. Elemental / FCO Nutrient % (Auto-Synced from Components → Plant Ledger):</span>
-          <span class="text-[10px] text-amber-800 font-semibold">Auto-fills Ca%, B%, Mg%, NPK%</span>
+          <span class="font-extrabold text-slate-800">6. Elemental / FCO Nutrient % (Auto-Synced to Plant Ledger):</span>
+          <span class="text-[10px] text-emerald-800 font-semibold">Auto-fills Ca%, B%, Mg%, NPK%</span>
         </div>
-        <div class="grid grid-cols-6 gap-1.5 text-center">
-          <div><span class="text-[10px] font-extrabold text-sky-900">N %</span><input type="number" step="0.1" min="0" max="100" id="ncN" value="0" oninput="previewSmartChem(true)" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
-          <div><span class="text-[10px] font-extrabold text-amber-900">P₂O₅ %</span><input type="number" step="0.1" min="0" max="100" id="ncP" value="0" oninput="previewSmartChem(true)" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
-          <div><span class="text-[10px] font-extrabold text-rose-900">K₂O %</span><input type="number" step="0.1" min="0" max="100" id="ncK" value="0" oninput="previewSmartChem(true)" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
-          <div><span class="text-[10px] font-extrabold text-indigo-900">Ca %</span><input type="number" step="0.1" min="0" max="100" id="ncCa" value="0" oninput="previewSmartChem(true)" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
-          <div><span class="text-[10px] font-extrabold text-emerald-900">Mg %</span><input type="number" step="0.1" min="0" max="100" id="ncMg" value="0" oninput="previewSmartChem(true)" class="w-full border rounded px-1 py-1 text-center font-bold bg-white" /></div>
-          <div><span class="text-[10px] font-extrabold text-purple-900">Boron (B) %</span><input type="number" step="0.1" min="0" max="100" id="ncB" value="0" oninput="previewSmartChem(true)" class="w-full border rounded px-1 py-1 text-center font-bold bg-white border-purple-300" /></div>
+        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+          <div class="bg-white border border-slate-200 rounded-lg p-1.5"><span class="text-[10px] font-extrabold text-slate-500 block">N %</span><input type="number" step="0.1" min="0" max="100" id="ncN" value="0" oninput="previewSmartChem(true)" class="w-full border border-slate-200 rounded px-1 py-0.5 text-center font-extrabold text-slate-900 bg-slate-50 mt-0.5" /></div>
+          <div class="bg-white border border-slate-200 rounded-lg p-1.5"><span class="text-[10px] font-extrabold text-slate-500 block">P₂O₅ %</span><input type="number" step="0.1" min="0" max="100" id="ncP" value="0" oninput="previewSmartChem(true)" class="w-full border border-slate-200 rounded px-1 py-0.5 text-center font-extrabold text-slate-900 bg-slate-50 mt-0.5" /></div>
+          <div class="bg-white border border-slate-200 rounded-lg p-1.5"><span class="text-[10px] font-extrabold text-slate-500 block">K₂O %</span><input type="number" step="0.1" min="0" max="100" id="ncK" value="0" oninput="previewSmartChem(true)" class="w-full border border-slate-200 rounded px-1 py-0.5 text-center font-extrabold text-slate-900 bg-slate-50 mt-0.5" /></div>
+          <div class="bg-white border border-slate-200 rounded-lg p-1.5"><span class="text-[10px] font-extrabold text-slate-500 block">Ca %</span><input type="number" step="0.1" min="0" max="100" id="ncCa" value="0" oninput="previewSmartChem(true)" class="w-full border border-slate-200 rounded px-1 py-0.5 text-center font-extrabold text-slate-900 bg-slate-50 mt-0.5" /></div>
+          <div class="bg-white border border-slate-200 rounded-lg p-1.5"><span class="text-[10px] font-extrabold text-slate-500 block">Mg %</span><input type="number" step="0.1" min="0" max="100" id="ncMg" value="0" oninput="previewSmartChem(true)" class="w-full border border-slate-200 rounded px-1 py-0.5 text-center font-extrabold text-slate-900 bg-slate-50 mt-0.5" /></div>
+          <div class="bg-white border border-slate-200 rounded-lg p-1.5"><span class="text-[10px] font-extrabold text-slate-500 block">Boron %</span><input type="number" step="0.1" min="0" max="100" id="ncB" value="0" oninput="previewSmartChem(true)" class="w-full border border-slate-200 rounded px-1 py-0.5 text-center font-extrabold text-slate-900 bg-slate-50 mt-0.5" /></div>
         </div>
       </div>
 
-      <div id="ncRecognitionPreview" class="p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-[11px] text-emerald-950 space-y-1"></div>
-      <button type="button" onclick="saveNewChemical()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-2.5 rounded-xl shadow text-sm">💾 Save &amp; Wire Into All Orchard Calculations</button>
+      <div id="ncRecognitionPreview" class="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-[11px] text-emerald-950 space-y-1"></div>
+      <button type="button" onclick="saveNewChemical()" class="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold py-2.5 rounded-xl shadow-xs text-sm transition">Save &amp; Wire Into All Orchard Calculations</button>
     </div>
   </div>
 
   <!-- DELAY / RESCHEDULE MODAL -->
   <div id="delayModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-3 text-xs">
-      <div class="flex items-center justify-between border-b pb-2">
-        <h3 id="ui_delayModalTitle" class="font-extrabold text-base text-slate-900">⏳ Delay / Reschedule Task</h3>
-        <button onclick="closeDelayModal()" class="font-bold text-lg px-2">✕</button>
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-3 text-xs shadow-xl border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <h3 id="ui_delayModalTitle" class="font-extrabold text-base text-slate-900">Delay / Reschedule Task</h3>
+        </div>
+        <button type="button" onclick="closeDelayModal()" class="font-bold text-slate-500 hover:text-slate-800 text-lg px-2">✕</button>
       </div>
-      <div id="delayTaskName" class="p-2.5 bg-slate-100 rounded-lg font-bold text-slate-800"></div>
+      <div id="delayTaskName" class="p-2.5 bg-slate-100 border border-slate-200 rounded-lg font-bold text-slate-800"></div>
       <div>
         <label class="font-bold block mb-1.5 text-slate-700" id="ui_lblQuickDelay">1. Shift Earlier (-), Later (+) or Pick Date:</label>
         <div class="grid grid-cols-4 gap-1.5 font-bold mb-1.5">
-          <button onclick="setDelayOffset(-2)" class="py-1.5 rounded-lg border bg-sky-50 text-sky-900">-2d</button>
-          <button onclick="setDelayOffset(-1)" class="py-1.5 rounded-lg border bg-sky-50 text-sky-900">-1d</button>
-          <button onclick="setDelayToOriginalDate()" id="ui_btnOrigDate" class="col-span-2 py-1.5 rounded-lg border bg-emerald-50 text-emerald-900">↺ Original Date</button>
+          <button type="button" onclick="setDelayOffset(-2)" class="py-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800">-2d</button>
+          <button type="button" onclick="setDelayOffset(-1)" class="py-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800">-1d</button>
+          <button type="button" onclick="setDelayToOriginalDate()" id="ui_btnOrigDate" class="col-span-2 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-900">Original Date</button>
         </div>
         <div class="grid grid-cols-5 gap-1.5 font-bold mb-2">
-          <button onclick="setDelayOffset(1)" class="py-1.5 rounded-lg border bg-amber-50 text-amber-900">+1d</button>
-          <button onclick="setDelayOffset(2)" class="py-1.5 rounded-lg border bg-amber-100 text-amber-950">+2d</button>
-          <button onclick="setDelayOffset(3)" class="py-1.5 rounded-lg border bg-amber-50 text-amber-900">+3d</button>
-          <button onclick="setDelayOffset(5)" class="py-1.5 rounded-lg border bg-amber-50 text-amber-900">+5d</button>
-          <button onclick="setDelayOffset(7)" class="py-1.5 rounded-lg border bg-amber-50 text-amber-900">+7d</button>
+          <button type="button" onclick="setDelayOffset(1)" class="py-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800">+1d</button>
+          <button type="button" onclick="setDelayOffset(2)" class="py-1.5 rounded-lg border border-emerald-300 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-950">+2d</button>
+          <button type="button" onclick="setDelayOffset(3)" class="py-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800">+3d</button>
+          <button type="button" onclick="setDelayOffset(5)" class="py-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800">+5d</button>
+          <button type="button" onclick="setDelayOffset(7)" class="py-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800">+7d</button>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-slate-600 font-semibold" id="ui_lblNewDate">New Date:</span>
-          <input type="date" id="delayCustomDate" class="flex-1 border rounded-lg px-3 py-1.5 font-bold text-slate-900" />
+          <input type="date" id="delayCustomDate" class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 font-bold text-slate-900" />
         </div>
       </div>
       <div>
         <label class="font-bold block mb-1.5 text-slate-700" id="ui_lblCascadeMode">2. How should subsequent tasks update?</label>
         <div class="space-y-1.5">
-          <label class="flex items-start gap-2 p-2 rounded-lg border bg-emerald-50 border-emerald-200 cursor-pointer">
-            <input type="radio" name="cascadeMode" value="ALL" checked class="mt-0.5" />
-            <div><div class="font-bold text-emerald-950" id="ui_casAllTitle">🌊 Shift ALL subsequent tasks forward/backward</div><div class="text-[11px] text-emerald-800" id="ui_casAllSub">Moves all following Sprays and Drips by the exact same days.</div></div>
+          <label class="flex items-start gap-2 p-2.5 rounded-lg border border-emerald-300 bg-emerald-50/60 cursor-pointer">
+            <input type="radio" name="cascadeMode" value="ALL" checked class="mt-0.5 accent-emerald-700" />
+            <div><div class="font-bold text-emerald-950" id="ui_casAllTitle">Shift ALL subsequent tasks forward/backward</div><div class="text-[11px] text-emerald-800" id="ui_casAllSub">Moves all following Sprays and Drips by the exact same days.</div></div>
           </label>
-          <label class="flex items-start gap-2 p-2 rounded-lg border bg-slate-50 cursor-pointer">
-            <input type="radio" name="cascadeMode" value="TRACK" class="mt-0.5" />
-            <div><div class="font-bold text-slate-800" id="ui_casTrackTitle">🛤️ Shift ONLY same-type tasks (Drip or Spray)</div></div>
+          <label class="flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer">
+            <input type="radio" name="cascadeMode" value="TRACK" class="mt-0.5 accent-emerald-700" />
+            <div><div class="font-bold text-slate-800" id="ui_casTrackTitle">Shift ONLY same-type tasks (Drip or Spray)</div></div>
           </label>
         </div>
       </div>
       <div>
         <label class="font-bold block mb-1 text-slate-700" id="ui_lblDelayReason">3. Reason:</label>
-        <select id="delayReasonSelect" class="w-full border rounded-lg px-2.5 py-1.5 font-semibold">
-          <option value="RAIN" id="ui_rsnRain">🌧️ Rain / Wet Soil</option>
-          <option value="NO_POWER" id="ui_rsnPower">⚡ No Power / Pump Issue</option>
-          <option value="NO_LABOR" id="ui_rsnLabor">👷 Labor Unavailable</option>
-          <option value="SOURCING_FROM_OTHER_TOWN" id="ui_rsnStore">🏪 Chemical Sourcing Delay</option>
+        <select id="delayReasonSelect" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold bg-white text-slate-900">
+          <option value="RAIN" id="ui_rsnRain">Rain / Wet Soil</option>
+          <option value="NO_POWER" id="ui_rsnPower">No Power / Pump Issue</option>
+          <option value="NO_LABOR" id="ui_rsnLabor">Labor Unavailable</option>
+          <option value="SOURCING_FROM_OTHER_TOWN" id="ui_rsnStore">Chemical Sourcing Delay</option>
         </select>
       </div>
-      <button onclick="confirmDelayModal()" id="ui_btnConfirmDelay" class="w-full bg-amber-500 text-white font-extrabold py-2.5 rounded-xl shadow text-sm">✅ Confirm New Date &amp; Update Schedule</button>
+      <button type="button" onclick="confirmDelayModal()" id="ui_btnConfirmDelay" class="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold py-2.5 rounded-xl shadow-xs text-sm transition">Confirm New Date &amp; Update Schedule</button>
     </div>
   </div>
 
   <!-- SIMPLIFIED APPROVED ALTERNATIVES & BRAND VALIDATOR MODAL -->
   <div id="swapModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-3 text-xs">
-      <div class="flex items-center justify-between border-b pb-2">
-        <h3 id="ui_modalTitle" class="font-extrabold text-base text-slate-900">🏪 Approved Alternatives &amp; Store Brand Check</h3>
-        <button onclick="document.getElementById('swapModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
+    <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-4 max-h-[90vh] overflow-y-auto space-y-3 text-xs shadow-xl border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+          <h3 id="ui_modalTitle" class="font-extrabold text-base text-slate-900">Approved Alternatives &amp; Store Brand Check</h3>
+        </div>
+        <button type="button" onclick="document.getElementById('swapModal').classList.add('hidden')" class="font-bold text-slate-500 hover:text-slate-800 text-lg px-2">✕</button>
       </div>
 
-      <!-- 1. APPROVED ALTERNATIVES LIST (CLEAN GREEN CARDS ONLY) -->
       <div id="swapModalContent" class="space-y-2"></div>
 
-      <!-- 2. OPTIONAL: CHECK A SPECIFIC STORE BRAND OFFERED BY DEALER -->
-      <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2">
-        <label class="font-extrabold text-indigo-950 block" id="ui_lblBrandSearch">🔍 Dealer offered a specific brand name? Check it here:</label>
-        <select id="modalBrandSelect" onchange="evaluateDealerBrandInModal()" class="w-full border border-indigo-300 rounded-lg px-2.5 py-2 font-bold text-slate-900 bg-white"></select>
+      <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+        <label class="font-extrabold text-slate-800 block" id="ui_lblBrandSearch">Dealer offered a specific brand name? Check it here:</label>
+        <select id="modalBrandSelect" onchange="evaluateDealerBrandInModal()" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 font-bold text-slate-900 bg-white"></select>
         <div id="modalBrandAuditResult" class="space-y-1.5"></div>
       </div>
 
-      <button onclick="document.getElementById('swapModal').classList.add('hidden');openNewChemModal();" class="w-full bg-slate-100 border border-slate-300 text-slate-800 font-bold py-2 rounded-lg text-xs">➕ Brand not in list? Add New Store Chemical</button>
+      <button type="button" onclick="document.getElementById('swapModal').classList.add('hidden');openNewChemModal();" class="w-full bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold py-2 rounded-lg text-xs transition">+ Brand not in list? Add New Store Chemical</button>
     </div>
   </div>
 
   <!-- MANAGE USERS MODAL -->
   <div id="userModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[85vh] overflow-y-auto space-y-3">
-      <div class="flex items-center justify-between border-b pb-2">
-        <h3 id="ui_userModalTitle" class="font-bold text-base">👤 Manage App Users</h3>
-        <button onclick="document.getElementById('userModal').classList.add('hidden')" class="font-bold text-lg px-2">✕</button>
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[85vh] overflow-y-auto space-y-3 shadow-xl border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+        <div class="flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <h3 id="ui_userModalTitle" class="font-extrabold text-base text-slate-900">Manage App Users</h3>
+        </div>
+        <button type="button" onclick="document.getElementById('userModal').classList.add('hidden')" class="font-bold text-slate-500 hover:text-slate-800 text-lg px-2">✕</button>
       </div>
       <div class="flex gap-2 text-xs">
-        <input type="text" id="newUserName" placeholder="Enter new name..." class="flex-1 border rounded-lg px-3 py-2 font-semibold" />
-        <button onclick="addUser()" class="bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-lg">➕ Add</button>
+        <input type="text" id="newUserName" placeholder="Enter new name..." class="flex-1 border border-slate-300 rounded-lg px-3 py-2 font-semibold text-slate-900" />
+        <button type="button" onclick="addUser()" class="bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-3.5 py-2 rounded-lg">+ Add</button>
       </div>
-      <div id="userListContainer" class="divide-y text-xs"></div>
+      <div id="userListContainer" class="divide-y divide-slate-100 text-xs"></div>
     </div>
   </div>
 
@@ -2688,78 +2737,78 @@ async function mergeDuplicateSpraysInCurrentWeek() {
 
 const I18N = {
   EN: {
-    appTitle: "🍎 Hosahalli Pomegranate Tracker", appSub: "3 Acres • 1,500 Plants (10×8) • Wk 1 (Ethrel): 15 Aug 2026",
-    btnLogRain: "🌧️ Log Farm Rain", tabTasks: "Tasks", tabAnalytics: "Risk & NPK", tabManual: "Log Work", tabShop: "Store & ₹", tabScout: "Scout/Log",
-    gddCardTitle: "☀️ Thermal Growing Degree Days (GDD Base 10°C / Cap 38°C)",
-    riskCardTitle: "🛡️ 6-Threat Orchard Risk Radar (Select Multiple to Combine Spray)",
+    appTitle: "Hosahalli Pomegranate Tracker", appSub: "3 Acres • 1,500 Plants (10×8) • Wk 1 (Ethrel): 15 Aug 2026",
+    btnLogRain: "Log Rain", tabTasks: "Tasks", tabAnalytics: "Risk & NPK", tabManual: "Log Work", tabShop: "Store & ₹", tabScout: "Scout/Log",
+    gddCardTitle: "Thermal Growing Degree Days (GDD Base 10°C / Cap 38°C)",
+    riskCardTitle: "6-Threat Orchard Risk Radar (Select Multiple to Combine Spray)",
     riskCardSub: "Tick unqueued threats below and tap 'Smart Combine & Queue' (caps at 2 synergistic pesticides, respects 5d Copper cooldown & deduplicates upcoming baseline sprays):",
-    npkLedgerTitle: "⚖️ Cumulative Nutrient Ledger (FCO Standard + Pure Elemental P & K)",
+    npkLedgerTitle: "Cumulative Nutrient Ledger (FCO Standard + Pure Elemental P & K)",
     npkLedgerSub: "Calculated across 1,500 plants from all COMPLETED applications so far vs. ICAR-NRCP target curve for today's DAD.",
-    manTitle: "➕ Record Manual or Past Spray / Drip", lblManDate: "Date Applied:", lblManType: "Activity Type:", lblManCost: "Total Cost Paid (₹):",
-    optFoliar: "🌿 Foliar Spray (7 Drums)", optCopper: "⚠️ Standalone Copper Spray", optDrip: "💧 Drip Fertigation (3 Acres)",
-    lblManChem1: "Primary Input (Active Salt):", lblManChem2: "Second Input (Optional):", lblManNotes: "Notes / Brand Used:",
-    lblManShift: "Auto-adjust future schedule (+3d shift, 5d Copper cooldown, 10d Boron lock & IRAC/FRAC rotation)", btnSaveMan: "💾 Save Activity & Update Schedule",
-    expTitle: "💰 Total Recorded Orchard Spend (3 Acres)", shopTitle: "Agro-Store Shopping List (3 Acres)", shopSub: "Skipped and completed items are excluded. Enter shed leftovers below.", btnCopy: "📲 Copy List",
-    brandCheckerTitle: "🧪 Agro-Store Brand & Tank-Mix Compatibility Checker", brandCheckerSub: "Select 1 or 2 store brands below to verify active salt, 21-day repeat-spray resistance, and drum mixing order:",
-    scoutTitle: "🔍 Field Problem Reporter (Multi-Select & Smart Combine)", scoutSub: "Tick multiple problems to merge them into one synergistic spray, or tap Queue on any single issue.",
-    auditTitle: "👤 Recent Activity & User Tracking Log", masterTitle: "📅 Complete Orchard Schedule (Week 0 to Week 30)",
-    modalTitle: "🏪 Approved Alternatives & Store Brand Check", lblBrandSearch: "🔍 Dealer offered a specific brand name? Check it here:", userModalTitle: "👤 Manage App Users",
-    delayModalTitle: "⏳ Delay / Reschedule Task", lblQuickDelay: "1. Shift Earlier (-), Later (+) or Pick Date:", btnOrigDate: "↺ Original Date", lblNewDate: "New Date:",
-    lblCascadeMode: "2. How should subsequent tasks update?", casAllTitle: "🌊 Shift ALL subsequent tasks forward/backward (Recommended)", casAllSub: "Moves all following Sprays and Drips by the exact same days.",
-    casTrackTitle: "🛤️ Shift ONLY same-type tasks (Drip or Spray)", casSingleTitle: "📌 Move ONLY this single task",
-    lblDelayReason: "3. Reason:", rsnRain: "🌧️ Rain / Wet Soil", rsnPower: "⚡ No Power / Pump Issue", rsnLabor: "👷 Labor Unavailable", rsnStore: "🏪 Chemical Sourcing Delay",
-    btnConfirmDelay: "✅ Confirm New Date & Update Schedule", rainModalTitle: "🌧️ Log Rain at Farm", rainModalSub: "Select how the orchard looked after rain, or enter exact mm:",
-    rn1: "🌦️ Light Drizzle (~3 mm) — Top 1 cm damp, no drip pause", rn2: "🌧️ Moderate Rain (~10 mm) — Soil wet 3–4 inches deep",
-    rn3: "⛈️ Heavy Downpour (~20 mm) — Water in furrows (Pause drip 48h + Copper)", rn4: "🌊 Very Heavy Storm (~35 mm) — Standing water near bunds",
-    weekWord: "Week", preEthrelLabel: "📜 Week 0: Pre-Ethrel History (Before 15 Aug 2026)", dadWord: "DAD",
-    doneBtn: "✅ All Done", delayBtn: "⏳ Delay / Move", skipBtn: "⏭️ Skip All", resetBtn: "↺ Reset", deleteBtn: "🗑️ Delete", storeOutBtn: "🏪 Swap / Brand",
-    mustSource: "🔴 Must Source Exact", flexible: "🟢 Store Flexible",
-    status_PENDING: "🕒 Pending", status_PARTIAL: "🌗 Partial Done", status_COMPLETED: "✅ Completed", status_DELAYED: "⏳ Rescheduled", status_SKIPPED: "⏭️ Skipped",
-    type_DRIP_MON_THU: "💧 Main P-K Split Drip (3 Acres)", type_DRIP_SAT: "💧 Calcium / Micro Standalone Drip (3 Acres)",
-    type_FOLIAR_SPRAY: "🌿 Foliar Spray (7 Drums × 200L)", type_STANDALONE_COPPER: "⚠️ Standalone Copper Spray (Do NOT Mix)",
-    updatedBy: "Updated by", splitRemainingBtn: "📅 Move Remaining Unfinished Item(s) to Tomorrow"
+    manTitle: "Record Manual or Past Spray / Drip", lblManDate: "2. Target Date:", lblManType: "1. Application Mode:", lblManCost: "4. Total Cost Paid (₹):",
+    optFoliar: "Foliar Spray (7 Drums)", optCopper: "Standalone Copper Spray", optDrip: "Drip Fertigation (3 Acres)",
+    lblManChem1: "1st Input (Required):", lblManChem2: "2nd Input (Optional):", lblManNotes: "Notes / Brand Used:",
+    lblManShift: "Auto-adjust future schedule (+3d shift, 5d Copper cooldown, 10d Boron lock & IRAC/FRAC rotation)", btnSaveMan: "Save Activity & Update Schedule",
+    expTitle: "Total Recorded Orchard Spend (3 Acres)", shopTitle: "Agro-Store Shopping List (3 Acres)", shopSub: "Skipped and completed items are excluded. Enter shed leftovers below.", btnCopy: "Copy List",
+    brandCheckerTitle: "Agro-Store Brand & Tank-Mix Compatibility Checker", brandCheckerSub: "Select 1 or 2 store brands below to verify active salt, 21-day repeat-spray resistance, and drum mixing order:",
+    scoutTitle: "Field Problem Reporter (Multi-Select & Smart Combine)", scoutSub: "Tick multiple problems to merge them into one synergistic spray, or tap Queue on any single issue.",
+    auditTitle: "Recent Activity & User Tracking Log", masterTitle: "Complete Orchard Schedule (Week 0 to Week 30)",
+    modalTitle: "Approved Alternatives & Store Brand Check", lblBrandSearch: "Dealer offered a specific brand name? Check it here:", userModalTitle: "Manage App Users",
+    delayModalTitle: "Delay / Reschedule Task", lblQuickDelay: "1. Shift Earlier (-), Later (+) or Pick Date:", btnOrigDate: "Original Date", lblNewDate: "New Date:",
+    lblCascadeMode: "2. How should subsequent tasks update?", casAllTitle: "Shift ALL subsequent tasks forward/backward (Recommended)", casAllSub: "Moves all following Sprays and Drips by the exact same days.",
+    casTrackTitle: "Shift ONLY same-type tasks (Drip or Spray)", casSingleTitle: "Move ONLY this single task",
+    lblDelayReason: "3. Reason:", rsnRain: "Rain / Wet Soil", rsnPower: "No Power / Pump Issue", rsnLabor: "Labor Unavailable", rsnStore: "Chemical Sourcing Delay",
+    btnConfirmDelay: "Confirm New Date & Update Schedule", rainModalTitle: "Log Rain at Farm", rainModalSub: "Select how the orchard looked after rain, or enter exact mm:",
+    rn1: "Light Drizzle (~3 mm) — Top 1 cm damp, no drip pause", rn2: "Moderate Rain (~10 mm) — Soil wet 3–4 inches deep",
+    rn3: "Heavy Downpour (~20 mm) — Water in furrows (Pause drip 48h + Copper)", rn4: "Very Heavy Storm (~35 mm) — Standing water near bunds",
+    weekWord: "Week", preEthrelLabel: "Week 0: Pre-Ethrel History (Before 15 Aug 2026)", dadWord: "DAD",
+    doneBtn: "All Done", delayBtn: "Delay / Move", skipBtn: "Skip All", resetBtn: "Reset", deleteBtn: "Delete", storeOutBtn: "Swap / Brand",
+    mustSource: "Must Source Exact", flexible: "Store Flexible",
+    status_PENDING: "Pending", status_PARTIAL: "Partial Done", status_COMPLETED: "Completed", status_DELAYED: "Rescheduled", status_SKIPPED: "Skipped",
+    type_DRIP_MON_THU: "Main P-K Split Drip (3 Acres)", type_DRIP_SAT: "Calcium / Micro Standalone Drip (3 Acres)",
+    type_FOLIAR_SPRAY: "Foliar Spray (7 Drums × 200L)", type_STANDALONE_COPPER: "Standalone Copper Spray (Do NOT Mix)",
+    updatedBy: "Updated by", splitRemainingBtn: "Move Remaining Unfinished Item(s) to Tomorrow"
   },
   KN: {
-    appTitle: "🍎 ಹೊಸಹಳ್ಳಿ ದಾಳಿಂಬೆ ನಿರ್ವಹಣಾ ಟ್ರ್ಯಾಕರ್", appSub: "3 ಎಕರೆ • 1,500 ಗಿಡ (10×8) • ವಾರ 1 (ಎಥ್ರೆಲ್): 15 ಆಗಸ್ಟ್ 2026",
-    btnLogRain: "🌧️ ಮಳೆ ದಾಖಲಿಸಿ", tabTasks: "ಕೆಲಸಗಳು", tabAnalytics: "ರೋಗ ಅಪಾಯ & NPK", tabManual: "ಕೆಲಸ ಸೇರಿಸಿ", tabShop: "ಅಂಗಡಿ & ₹", tabScout: "ರೋಗ/ದಾಖಲೆ",
-    gddCardTitle: "☀️ ಉಷ್ಣಾಂಶ ಬೆಳವಣಿಗೆ ದಿನಗಳು (Thermal GDD - Base 10°C / Cap 38°C)",
-    riskCardTitle: "🛡️ 6-ರೋಗ/ಕೀಟಗಳ ಅಪಾಯ ರೇಡಾರ್ (ಒಟ್ಟಿಗೆ ಸೇರಿಸಲು ಕಾರ್ಡ್‌ಗಳನ್ನು ಆರಿಸಿ)",
+    appTitle: "ಹೊಸಹಳ್ಳಿ ದಾಳಿಂಬೆ ನಿರ್ವಹಣಾ ಟ್ರ್ಯಾಕರ್", appSub: "3 ಎಕರೆ • 1,500 ಗಿಡ (10×8) • ವಾರ 1 (ಎಥ್ರೆಲ್): 15 ಆಗಸ್ಟ್ 2026",
+    btnLogRain: "ಮಳೆ ದಾಖಲಿಸಿ", tabTasks: "ಕೆಲಸಗಳು", tabAnalytics: "ರೋಗ ಅಪಾಯ & NPK", tabManual: "ಕೆಲಸ ಸೇರಿಸಿ", tabShop: "ಅಂಗಡಿ & ₹", tabScout: "ರೋಗ/ದಾಖಲೆ",
+    gddCardTitle: "ಉಷ್ಣಾಂಶ ಬೆಳವಣಿಗೆ ದಿನಗಳು (Thermal GDD - Base 10°C / Cap 38°C)",
+    riskCardTitle: "6-ರೋಗ/ಕೀಟಗಳ ಅಪಾಯ ರೇಡಾರ್ (ಒಟ್ಟಿಗೆ ಸೇರಿಸಲು ಕಾರ್ಡ್‌ಗಳನ್ನು ಆರಿಸಿ)",
     riskCardSub: "ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಸಮಸ್ಯೆಗಳನ್ನು ಟಿಕ್ ಮಾಡಿ 'Smart Combine' ಒತ್ತಿದರೆ ಗರಿಷ್ಠ 2 ಸೂಕ್ತ ಔಷಧಿಗಳನ್ನು ಒಂದೇ ಸಿಂಪಡಣೆಗೆ ಸೇರಿಸುತ್ತದೆ:",
-    npkLedgerTitle: "⚖️ ಪ್ರತಿ ಗಿಡಕ್ಕೆ ನೀಡಲಾದ ಒಟ್ಟು ಪೋಷಕಾಂಶಗಳ ಲೆಕ್ಕ (ಗ್ರಾಂ/ಗಿಡ - ಗುರಿ vs ನೀಡಿದ್ದು)",
+    npkLedgerTitle: "ಪ್ರತಿ ಗಿಡಕ್ಕೆ ನೀಡಲಾದ ಒಟ್ಟು ಪೋಷಕಾಂಶಗಳ ಲೆಕ್ಕ (ಗ್ರಾಂ/ಗಿಡ - ಗುರಿ vs ನೀಡಿದ್ದು)",
     npkLedgerSub: "ಇಲ್ಲಿಯವರೆಗೆ ಪೂರ್ಣಗೊಂಡ ಡ್ರಿಪ್ ಮತ್ತು ಸಿಂಪಡಣೆಗಳಿಂದ 1,500 ಗಿಡಗಳಿಗೆ ತಲುಪಿದ ನಿಖರ N, P, K, Ca, Mg ಪ್ರಮಾಣ.",
-    manTitle: "➕ ಮಾಡಿದ ಸಿಂಪಡಣೆ / ಡ್ರಿಪ್ ಗೊಬ್ಬರ ದಾಖಲಿಸಿ", lblManDate: "ಮಾಡಿದ ದಿನಾಂಕ:", lblManType: "ಕೆಲಸದ ವಿಧ:", lblManCost: "ಒಟ್ಟು ಖರ್ಚು (₹):",
-    optFoliar: "🌿 ಎಲೆ ಸಿಂಪಡಣೆ (7 ಡ್ರಮ್)", optCopper: "⚠️ ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಸಿಂಪಡಣೆ", optDrip: "💧 ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)",
-    lblManChem1: "ಮೊದಲನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಲವಣಾಂಶ):", lblManChem2: "ಎರಡನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಐಚ್ಛಿಕ):", lblManNotes: "ವಿವರ / ಕಂಪನಿ ಹೆಸರು:",
-    lblManShift: "ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸಿ (+3 ದಿನ ಮುಂದೂಡಿಕೆ, 5 ದಿನ ಕಾಪರ್ ಅಂತರ, ಬೋರಾನ್ ಮಿತಿ)", btnSaveMan: "💾 ದಾಖಲಿಸಿ ಮತ್ತು ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ",
-    expTitle: "💰 ಒಟ್ಟು ದಾಖಲಾದ ತೋಟದ ಖರ್ಚು (3 ಎಕರೆ)", shopTitle: "ಅಗ್ರೋ ಅಂಗಡಿ ಖರೀದಿ ಪಟ್ಟಿ (3 ಎಕರೆ)", shopSub: "ಪೂರ್ಣಗೊಂಡ ಮತ್ತು ಬಿಟ್ಟುಬಿಟ್ಟ ಔಷಧಿಗಳನ್ನು ಕೈಬಿಡಲಾಗಿದೆ. ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣ ನಮೂದಿಸಿ.", btnCopy: "📲 ಪಟ್ಟಿ ಕಾಪಿ ಮಾಡಿ",
-    brandCheckerTitle: "🧪 ಅಗ್ರೋ ಅಂಗಡಿ ಕಂಪನಿ ಹೆಸರು & ಮಿಶ್ರಣ ಪರೀಕ್ಷಕ", brandCheckerSub: "ಅಂಗಡಿಯವರು ಕೊಡುವ ಕಂಪನಿ ಹೆಸರನ್ನು ಕೆಳಗೆ ಆರಿಸಿ — ಲವಣಾಂಶ, 21 ದಿನದ ಪುನರಾವರ್ತನೆ ಮತ್ತು ಡ್ರಮ್ ಮಿಶ್ರಣ ಕ್ರಮ ತಿಳಿಯಿರಿ:",
-    scoutTitle: "🔍 ತೋಟದ ರೋಗ / ಕೀಟ ವರದಿ ಮಾಡಿ (ಮಲ್ಟಿ-ಸೆಲೆಕ್ಟ್ ಮತ್ತು ಒಂದೇ ಸಿಂಪಡಣೆ)", scoutSub: "ಎರಡು ಅಥವಾ ಹೆಚ್ಚು ಸಮಸ್ಯೆಗಳನ್ನು ಟಿಕ್ ಮಾಡಿ ಒಂದೇ ಸಿಂಪಡಣೆಯಾಗಿ ಸೇರಿಸಿ.",
-    auditTitle: "👤 ಯಾರು, ಯಾವಾಗ ಬದಲಾವಣೆ ಮಾಡಿದರು (ದಾಖಲೆ ಪಟ್ಟಿ)", masterTitle: "📅 ಪೂರ್ಣ ವೇಳಾಪಟ್ಟಿ (ವಾರ 0 ರಿಂದ ವಾರ 30 ರವರೆಗೆ)",
-    modalTitle: "🏪 ಅನುಮೋದಿತ ಪರ್ಯಾಯಗಳು & ಕಂಪನಿ ಹೆಸರು ಪರೀಕ್ಷಕ", lblBrandSearch: "🔍 ಅಂಗಡಿಯವರು ಬೇರೆ ಕಂಪನಿ ಹೆಸರು ಕೊಡುತ್ತಿದ್ದಾರೆಯೇ? ಇಲ್ಲಿ ಪರಿಶೀಲಿಸಿ:", userModalTitle: "👤 ಬಳಕೆದಾರರ ಹೆಸರು ನಿರ್ವಹಿಸಿ",
-    delayModalTitle: "⏳ ದಿನಾಂಕ ಬದಲಿಸಿ / ಮುಂದೂಡಿ", lblQuickDelay: "1. ದಿನಗಳನ್ನು ಹಿಂದೆ (-) / ಮುಂದೆ (+) ಮಾಡಿ ಅಥವಾ ದಿನಾಂಕ ಆರಿಸಿ:", btnOrigDate: "↺ ಮೂಲ ದಿನಾಂಕಕ್ಕೆ ತನ್ನಿ", lblNewDate: "ಹೊಸ ದಿನಾಂಕ:",
-    lblCascadeMode: "2. ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಹೇಗೆ ಬದಲಾಗಬೇಕು?", casAllTitle: "🌊 ಮುಂದಿನ ಎಲ್ಲಾ ಸಿಂಪಡಣೆ ಮತ್ತು ಡ್ರಿಪ್ ಒಟ್ಟಿಗೆ ಬದಲಿಸಿ (ಶಿಫಾರಸು)", casAllSub: "ಮುಂದಿನ ಎಲ್ಲಾ ಕೆಲಸಗಳೂ ಅಷ್ಟೇ ದಿನ ಮುಂದೆ ಅಥವಾ ಹಿಂದೆ ಬರುತ್ತವೆ.",
-    casTrackTitle: "🛤️ ಇದೇ ವಿಧದ ಕೆಲಸಗಳನ್ನು ಮಾತ್ರ ಬದಲಿಸಿ (ಡ್ರಿಪ್ ಅಥವಾ ಸಿಂಪಡಣೆ ಮಾತ್ರ)", casSingleTitle: "📌 ಈ ಒಂದು ಕೆಲಸವನ್ನು ಮಾತ್ರ ಬದಲಿಸಿ",
-    lblDelayReason: "3. ಕಾರಣ:", rsnRain: "🌧️ ಮಳೆ / ಹಸಿ ಮಣ್ಣು", rsnPower: "⚡ ವಿದ್ಯುತ್ / ಮೋಟಾರ್ ಸಮಸ್ಯೆ", rsnLabor: "👷 ಕೂಲಿ ಕಾರ್ಮಿಕರ ಕೊರತೆ", rsnStore: "🏪 ಔಷಧಿ / ಗೊಬ್ಬರ ತರಲು ವಿಳಂಬ",
-    btnConfirmDelay: "✅ ಹೊಸ ದಿನಾಂಕ ಖಚಿತಪಡಿಸಿ & ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ", rainModalTitle: "🌧️ ತೋಟದ ಮಳೆ ಪ್ರಮಾಣ ದಾಖಲಿಸಿ", rainModalSub: "ಮಳೆಯ ನಂತರ ತೋಟದ ಮಣ್ಣು ಹೇಗಿತ್ತು ಎಂದು ಆರಿಸಿ ಅಥವಾ ಮಿ.ಮೀ ನಮೂದಿಸಿ:",
-    rn1: "🌦️ ತುಂತುರು ಮಳೆ (~3 ಮಿ.ಮೀ) — ಮೇಲ್ಮಣ್ಣು ಮಾತ್ರ ಹಸಿ", rn2: "🌧️ ಸಾಧಾರಣ ಮಳೆ (~10 ಮಿ.ಮೀ) — 3–4 ಇಂಚು ಮಣ್ಣು ಹಸಿ",
-    rn3: "⛈️ ಜೋರು ಮಳೆ (~20 ಮಿ.ಮೀ) — ಸಾಲುಗಳಲ್ಲಿ ನೀರು ಹರಿದಿದೆ (48ಗಂ ಡ್ರಿಪ್ ನಿಲ್ಲಿಸಿ + ಕಾಪರ್)", rn4: "🌊 ಭಾರಿ ಮಳೆ (~35 ಮಿ.ಮೀ) — ಗಿಡದ ಬುಡದಲ್ಲಿ ನೀರು ನಿಂತಿದೆ",
-    weekWord: "ವಾರ", preEthrelLabel: "📜 ವಾರ 0: ಎಥ್ರೆಲ್ ಮುಂಚಿನ ದಾಖಲೆಗಳು (15 ಆಗಸ್ಟ್ 2026 ಕ್ಕಿಂತ ಮೊದಲು)", dadWord: "ದಿನ (DAD)",
-    doneBtn: "✅ ಎಲ್ಲಾ ಪೂರ್ಣ", delayBtn: "⏳ ದಿನಾಂಕ ಬದಲಿಸಿ", skipBtn: "⏭️ ಬಿಟ್ಟುಬಿಡಿ", resetBtn: "↺ ಮರುಹೊಂದಿಸಿ", deleteBtn: "🗑️ ಅಳಿಸಿ", storeOutBtn: "🏪 ಬದಲಿಸಿ / ಕಂಪನಿ",
-    mustSource: "🔴 ಇದೇ ಲವಣಾಂಶ ಕಡ್ಡಾಯ", flexible: "🟢 ಬದಲಿಸಬಹುದು",
-    status_PENDING: "🕒 ಬಾಕಿ ಇದೆ", status_PARTIAL: "🌗 ಅರ್ಧ ಪೂರ್ಣಗೊಂಡಿದೆ", status_COMPLETED: "✅ ಪೂರ್ಣಗೊಂಡಿದೆ", status_DELAYED: "⏳ ದಿನಾಂಕ ಬದಲಾಗಿದೆ", status_SKIPPED: "⏭️ ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ",
-    type_DRIP_MON_THU: "💧 ಮುಖ್ಯ P-K ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)", type_DRIP_SAT: "💧 ಕ್ಯಾಲ್ಸಿಯಂ / ಲಘು ಪೋಷಕಾಂಶ ಡ್ರಿಪ್ (3 ಎಕರೆ)",
-    type_FOLIAR_SPRAY: "🌿 ಎಲೆ ಸಿಂಪಡಣೆ (7 ಡ್ರಮ್ × 200 ಲೀಟರ್)", type_STANDALONE_COPPER: "⚠️ ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ (ಬೇರೆ ಬೆರೆಸಬೇಡಿ)",
-    updatedBy: "ನವೀಕರಿಸಿದವರು", splitRemainingBtn: "📅 ಬಾಕಿ ಉಳಿದ ಗೊಬ್ಬರ/ಔಷಧಿಯನ್ನು ನಾಳೆಗೆ ಪ್ರತ್ಯೇಕ ಕಾರ್ಡ್ ಮಾಡಿ"
+    manTitle: "ಮಾಡಿದ ಸಿಂಪಡಣೆ / ಡ್ರಿಪ್ ಗೊಬ್ಬರ ದಾಖಲಿಸಿ", lblManDate: "2. ಮಾಡಿದ ದಿನಾಂಕ:", lblManType: "1. ಕೆಲಸದ ವಿಧ:", lblManCost: "4. ಒಟ್ಟು ಖರ್ಚು (₹):",
+    optFoliar: "ಎಲೆ ಸಿಂಪಡಣೆ (7 ಡ್ರಮ್)", optCopper: "ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಸಿಂಪಡಣೆ", optDrip: "ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)",
+    lblManChem1: "1ನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಕಡ್ಡಾಯ):", lblManChem2: "2ನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಐಚ್ಛಿಕ):", lblManNotes: "ವಿವರ / ಕಂಪನಿ ಹೆಸರು:",
+    lblManShift: "ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಂದಿಸಿ (+3 ದಿನ ಮುಂದೂಡಿಕೆ, 5 ದಿನ ಕಾಪರ್ ಅಂತರ, ಬೋರಾನ್ ಮಿತಿ)", btnSaveMan: "ದಾಖಲಿಸಿ ಮತ್ತು ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ",
+    expTitle: "ಒಟ್ಟು ದಾಖಲಾದ ತೋಟದ ಖರ್ಚು (3 ಎಕರೆ)", shopTitle: "ಅಗ್ರೋ ಅಂಗಡಿ ಖರೀದಿ ಪಟ್ಟಿ (3 ಎಕರೆ)", shopSub: "ಪೂರ್ಣಗೊಂಡ ಮತ್ತು ಬಿಟ್ಟುಬಿಟ್ಟ ಔಷಧಿಗಳನ್ನು ಕೈಬಿಡಲಾಗಿದೆ. ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದ ಪ್ರಮಾಣ ನಮೂದಿಸಿ.", btnCopy: "ಪಟ್ಟಿ ಕಾಪಿ ಮಾಡಿ",
+    brandCheckerTitle: "ಅಗ್ರೋ ಅಂಗಡಿ ಕಂಪನಿ ಹೆಸರು & ಮಿಶ್ರಣ ಪರೀಕ್ಷಕ", brandCheckerSub: "ಅಂಗಡಿಯವರು ಕೊಡುವ ಕಂಪನಿ ಹೆಸರನ್ನು ಕೆಳಗೆ ಆರಿಸಿ — ಲವಣಾಂಶ, 21 ದಿನದ ಪುನರಾವರ್ತನೆ ಮತ್ತು ಡ್ರಮ್ ಮಿಶ್ರಣ ಕ್ರಮ ತಿಳಿಯಿರಿ:",
+    scoutTitle: "ತೋಟದ ರೋಗ / ಕೀಟ ವರದಿ ಮಾಡಿ (ಮಲ್ಟಿ-ಸೆಲೆಕ್ಟ್ ಮತ್ತು ಒಂದೇ ಸಿಂಪಡಣೆ)", scoutSub: "ಎರಡು ಅಥವಾ ಹೆಚ್ಚು ಸಮಸ್ಯೆಗಳನ್ನು ಟಿಕ್ ಮಾಡಿ ಒಂದೇ ಸಿಂಪಡಣೆಯಾಗಿ ಸೇರಿಸಿ.",
+    auditTitle: "ಯಾರು, ಯಾವಾಗ ಬದಲಾವಣೆ ಮಾಡಿದರು (ದಾಖಲೆ ಪಟ್ಟಿ)", masterTitle: "ಪೂರ್ಣ ವೇಳಾಪಟ್ಟಿ (ವಾರ 0 ರಿಂದ ವಾರ 30 ರವರೆಗೆ)",
+    modalTitle: "ಅನುಮೋದಿತ ಪರ್ಯಾಯಗಳು & ಕಂಪನಿ ಹೆಸರು ಪರೀಕ್ಷಕ", lblBrandSearch: "ಅಂಗಡಿಯವರು ಬೇರೆ ಕಂಪನಿ ಹೆಸರು ಕೊಡುತ್ತಿದ್ದಾರೆಯೇ? ಇಲ್ಲಿ ಪರಿಶೀಲಿಸಿ:", userModalTitle: "ಬಳಕೆದಾರರ ಹೆಸರು ನಿರ್ವಹಿಸಿ",
+    delayModalTitle: "ದಿನಾಂಕ ಬದಲಿಸಿ / ಮುಂದೂಡಿ", lblQuickDelay: "1. ದಿನಗಳನ್ನು ಹಿಂದೆ (-) / ಮುಂದೆ (+) ಮಾಡಿ ಅಥವಾ ದಿನಾಂಕ ಆರಿಸಿ:", btnOrigDate: "ಮೂಲ ದಿನಾಂಕಕ್ಕೆ ತನ್ನಿ", lblNewDate: "ಹೊಸ ದಿನಾಂಕ:",
+    lblCascadeMode: "2. ಮುಂದಿನ ವೇಳಾಪಟ್ಟಿ ಹೇಗೆ ಬದಲಾಗಬೇಕು?", casAllTitle: "ಮುಂದಿನ ಎಲ್ಲಾ ಸಿಂಪಡಣೆ ಮತ್ತು ಡ್ರಿಪ್ ಒಟ್ಟಿಗೆ ಬದಲಿಸಿ (ಶಿಫಾರಸು)", casAllSub: "ಮುಂದಿನ ಎಲ್ಲಾ ಕೆಲಸಗಳೂ ಅಷ್ಟೇ ದಿನ ಮುಂದೆ ಅಥವಾ ಹಿಂದೆ ಬರುತ್ತವೆ.",
+    casTrackTitle: "ಇದೇ ವಿಧದ ಕೆಲಸಗಳನ್ನು ಮಾತ್ರ ಬದಲಿಸಿ (ಡ್ರಿಪ್ ಅಥವಾ ಸಿಂಪಡಣೆ ಮಾತ್ರ)", casSingleTitle: "ಈ ಒಂದು ಕೆಲಸವನ್ನು ಮಾತ್ರ ಬದಲಿಸಿ",
+    lblDelayReason: "3. ಕಾರಣ:", rsnRain: "ಮಳೆ / ಹಸಿ ಮಣ್ಣು", rsnPower: "ವಿದ್ಯುತ್ / ಮೋಟಾರ್ ಸಮಸ್ಯೆ", rsnLabor: "ಕೂಲಿ ಕಾರ್ಮಿಕರ ಕೊರತೆ", rsnStore: "ಔಷಧಿ / ಗೊಬ್ಬರ ತರಲು ವಿಳಂಬ",
+    btnConfirmDelay: "ಹೊಸ ದಿನಾಂಕ ಖಚಿತಪಡಿಸಿ & ವೇಳಾಪಟ್ಟಿ ನವೀಕರಿಸಿ", rainModalTitle: "ತೋಟದ ಮಳೆ ಪ್ರಮಾಣ ದಾಖಲಿಸಿ", rainModalSub: "ಮಳೆಯ ನಂತರ ತೋಟದ ಮಣ್ಣು ಹೇಗಿತ್ತು ಎಂದು ಆರಿಸಿ ಅಥವಾ ಮಿ.ಮೀ ನಮೂದಿಸಿ:",
+    rn1: "ತುಂತುರು ಮಳೆ (~3 ಮಿ.ಮೀ) — ಮೇಲ್ಮಣ್ಣು ಮಾತ್ರ ಹಸಿ", rn2: "ಸಾಧಾರಣ ಮಳೆ (~10 ಮಿ.ಮೀ) — 3–4 ಇಂಚು ಮಣ್ಣು ಹಸಿ",
+    rn3: "ಜೋರು ಮಳೆ (~20 ಮಿ.ಮೀ) — ಸಾಲುಗಳಲ್ಲಿ ನೀರು ಹರಿದಿದೆ (48ಗಂ ಡ್ರಿಪ್ ನಿಲ್ಲಿಸಿ + ಕಾಪರ್)", rn4: "ಭಾರಿ ಮಳೆ (~35 ಮಿ.ಮೀ) — ಗಿಡದ ಬುಡದಲ್ಲಿ ನೀರು ನಿಂತಿದೆ",
+    weekWord: "ವಾರ", preEthrelLabel: "ವಾರ 0: ಎಥ್ರೆಲ್ ಮುಂಚಿನ ದಾಖಲೆಗಳು (15 ಆಗಸ್ಟ್ 2026 ಕ್ಕಿಂತ ಮೊದಲು)", dadWord: "ದಿನ (DAD)",
+    doneBtn: "ಎಲ್ಲಾ ಪೂರ್ಣ", delayBtn: "ದಿನಾಂಕ ಬದಲಿಸಿ", skipBtn: "ಬಿಟ್ಟುಬಿಡಿ", resetBtn: "ಮರುಹೊಂದಿಸಿ", deleteBtn: "ಅಳಿಸಿ", storeOutBtn: "ಬದಲಿಸಿ / ಕಂಪನಿ",
+    mustSource: "ಇದೇ ಲವಣಾಂಶ ಕಡ್ಡಾಯ", flexible: "ಬದಲಿಸಬಹುದು",
+    status_PENDING: "ಬಾಕಿ ಇದೆ", status_PARTIAL: "ಅರ್ಧ ಪೂರ್ಣಗೊಂಡಿದೆ", status_COMPLETED: "ಪೂರ್ಣಗೊಂಡಿದೆ", status_DELAYED: "ದಿನಾಂಕ ಬದಲಾಗಿದೆ", status_SKIPPED: "ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ",
+    type_DRIP_MON_THU: "ಮುಖ್ಯ P-K ಡ್ರಿಪ್ ಗೊಬ್ಬರ (3 ಎಕರೆ)", type_DRIP_SAT: "ಕ್ಯಾಲ್ಸಿಯಂ / ಲಘು ಪೋಷಕಾಂಶ ಡ್ರಿಪ್ (3 ಎಕರೆ)",
+    type_FOLIAR_SPRAY: "ಎಲೆ ಸಿಂಪಡಣೆ (7 ಡ್ರಮ್ × 200 ಲೀಟರ್)", type_STANDALONE_COPPER: "ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ (ಬೇರೆ ಬೆರೆಸಬೇಡಿ)",
+    updatedBy: "ನವೀಕರಿಸಿದವರು", splitRemainingBtn: "ಬಾಕಿ ಉಳಿದ ಗೊಬ್ಬರ/ಔಷಧಿಯನ್ನು ನಾಳೆಗೆ ಪ್ರತ್ಯೇಕ ಕಾರ್ಡ್ ಮಾಡಿ"
   }
 };
 
 const STAGE_KN = {
-  "Pre-Ethrel History": "📜 ಎಥ್ರೆಲ್ ಮುಂಚಿನ ದಾಖಲೆಗಳು", "Completed Keep History": "✅ ಪೂರ್ಣಗೊಂಡ ಕೆಲಸಗಳು (ಆಗಸ್ಟ್ 15 – ಅಕ್ಟೋಬರ್ 16)",
+  "Pre-Ethrel History": "ಎಥ್ರೆಲ್ ಮುಂಚಿನ ದಾಖಲೆಗಳು", "Completed Keep History": "ಪೂರ್ಣಗೊಂಡ ಕೆಲಸಗಳು (ಆಗಸ್ಟ್ 15 – ಅಕ್ಟೋಬರ್ 16)",
   "Stage A: Early Sizing": "ಹಂತ A: ಆರಂಭಿಕ ಕಾಯಿ ಬೆಳವಣಿಗೆ", "Stage B: Guava-Size": "ಹಂತ B: ಪೇರಳೆ ಗಾತ್ರದ ಹಂತ",
   "Stage C: Aril Swelling": "ಹಂತ C: ಕಾಳು ತುಂಬುವ ಹಂತ", "Stage C: Color (Zero-N)": "ಹಂತ C: ಕೆಂಪು ಬಣ್ಣ ಬರುವ ಹಂತ (ಸಾರಜನಕ ಮುಕ್ತ)",
   "Stage D: Deep Ripening": "ಹಂತ D: ಗಾಢ ಕೆಂಪು ಬಣ್ಣ ಮತ್ತು ಮಾಗುವ ಹಂತ", "Stage D: Pre-Harvest": "ಹಂತ D: ಕಟಾವಿಗೆ ಮುನ್ನ ಅಂತಿಮ ಹಂತ",
   "Stage D: 1st Harvest": "ಹಂತ D: ಮೊದಲನೇ ಕಟಾವು", "Stage D: 2nd Harvest": "ಹಂತ D: ಎರಡನೇ ಕಟಾವು",
-  "Post-Harvest Recovery": "ಕಟಾವಿನ ನಂತರ ಗಿಡ ಚೇತರಿಕೆ", "Curative Scouting Task": "🚨 ತುರ್ತು ರೋಗ/ಕೀಟ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ", "Manual / Past Activity": "✍️ ಕೈಯಾರೆ ದಾಖಲಿಸಿದ ಕೆಲಸ"
+  "Post-Harvest Recovery": "ಕಟಾವಿನ ನಂತರ ಗಿಡ ಚೇತರಿಕೆ", "Curative Scouting Task": "ತುರ್ತು ರೋಗ/ಕೀಟ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ", "Manual / Past Activity": "ಕೈಯಾರೆ ದಾಖಲಿಸಿದ ಕೆಲಸ"
 };
 
 function cleanHardcodedDayPrefix(desc, isKn) {
@@ -2822,13 +2871,13 @@ function translateDescToKn(desc) {
 }
 
 const SCOUT_ISSUES = [
-  { code: "BLIGHT_SPOT", shortEn: "Blight", shortKn: "ಅಂಗಮಾರಿ", taskType: "STANDALONE_COPPER", enTitle: "🦠 Bacterial Blight Oily Spot", knTitle: "🦠 ಬ್ಯಾಕ್ಟೀರಿಯಾ ಅಂಗಮಾರಿ ಮಚ್ಚೆ", enDesc: "Curative Blight Spray: Copper Hydroxide + Bronopol", knDesc: "ತುರ್ತು ಅಂಗಮಾರಿ ಸಿಂಪಡಣೆ: ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ + ಬ್ರೊನೊಪಾಲ್", recipe: [{ input_id: "BAC_COPPER_HYDROXIDE", dose_per_liter: 1.5 }, { input_id: "BAC_BRONOPOL", dose_per_liter: 0.5 }] },
-  { code: "THRIPS_SCAR", shortEn: "Thrips", shortKn: "ಥ್ರಿಪ್ಸ್", taskType: "FOLIAR_SPRAY", enTitle: "🦗 Thrips Rind Scarring", knTitle: "🦗 ಥ್ರಿಪ್ಸ್ ಕಜ್ಜಿ / ಗೀರು", enDesc: "Curative Thrips Knockdown: Spinetoram 11.7% SC", knDesc: "ತುರ್ತು ಥ್ರಿಪ್ಸ್ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ: ಸ್ಪೈನೆಟೊರಾಮ್", recipe: [{ input_id: "INS_SPINETORAM", dose_per_liter: 0.8 }] },
-  { code: "FRUIT_BORER", shortEn: "Borer", shortKn: "ಕೊರಕ ಹುಳು", taskType: "FOLIAR_SPRAY", enTitle: "🐛 Fruit Borer Hole", knTitle: "🐛 ಹಣ್ಣು ಕೊರೆಯುವ ಹುಳು", enDesc: "Curative Borer Knockdown: Chlorantraniliprole", knDesc: "ತುರ್ತು ಹುಳು ನಿಯಂತ್ರಣ: ಕ್ಲೋರಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ ಸಿಂಪಡಣೆ", recipe: [{ input_id: "INS_CHLORANTRANILIPROLE", dose_per_liter: 0.3 }] },
-  { code: "MEALYBUG", shortEn: "Mealy/Scale", shortKn: "ಹಿಟ್ಟು ತಿಗಣೆ", taskType: "FOLIAR_SPRAY", enTitle: "🐜 Mealybug & Scale Insects", knTitle: "🐜 ಹಿಟ್ಟು ತಿಗಣೆ ಮತ್ತು ಶಲ್ಕ ಕೀಟ", enDesc: "Curative Mealybug Spray: Spirotetramat + Buprofezin", knDesc: "ತುರ್ತು ಹಿಟ್ಟು ತಿಗಣೆ ಸಿಂಪಡಣೆ: ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ + ಬುಪ್ರೊಫೆಜಿನ್", recipe: [{ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 }, { input_id: "INS_BUPROFEZIN", dose_per_liter: 1.5 }] },
-  { code: "MITES", shortEn: "Red Mites", shortKn: "ಕೆಂಪು ನುಸಿ", taskType: "FOLIAR_SPRAY", enTitle: "🕷️ Red Spider & Flat Mites", knTitle: "🕷️ ಕೆಂಪು ನುಸಿ ಮತ್ತು ಚಪ್ಪಟೆ ನುಸಿ", enDesc: "Curative Miticide Spray: Spiromesifen 22.9% SC (Oberon)", knDesc: "ತುರ್ತು ನುಸಿ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ: ಸ್ಪೈರೋಮೆಸಿಫೆನ್ 22.9% SC", recipe: [{ input_id: "INS_SPIROMESIFEN", dose_per_liter: 0.8 }] },
-  { code: "FRUIT_ROT", shortEn: "Fruit Rot", shortKn: "ಕೊಳೆ ರೋಗ", taskType: "FOLIAR_SPRAY", enTitle: "🍄 Fungal Fruit Rot", knTitle: "🍄 ಹಣ್ಣು ಕೊಳೆ ರೋಗ", enDesc: "Curative Rot Spray: Fluxapyroxad + Pyraclostrobin", knDesc: "ತುರ್ತು ಹಣ್ಣು ಕೊಳೆ ರೋಗ ಸಿಂಪಡಣೆ: ಮೆರಿವಾನ್ / ಪ್ರಿಯಾಕ್ಸರ್", recipe: [{ input_id: "FUN_FLUXA_PYRA", dose_per_liter: 0.6 }] },
-  { code: "CRACKING", shortEn: "Cracking", shortKn: "ಸೀಳುವಿಕೆ", taskType: "FOLIAR_SPRAY", enTitle: "⚡ Sunburn / Fruit Cracking", knTitle: "⚡ ಬಿಸಿಲು ಕಲೆ / ಹಣ್ಣು ಸೀಳುವಿಕೆ", enDesc: "Anti-Cracking Shield: Chelated Ca-B + Orthosilicic Acid", knDesc: "ಹಣ್ಣು ಸೀಳುವಿಕೆ ತಡೆಗೆ: ಕ್ಯಾಲ್ಸಿಯಂ-ಬೋರಾನ್ + ಸಿಲಿಕಾನ್ ಸಿಂಪಡಣೆ", recipe: [{ input_id: "MIC_CA_B_LIQUID", dose_per_liter: 1.5 }, { input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 }] }
+  { code: "BLIGHT_SPOT", shortEn: "Blight", shortKn: "ಅಂಗಮಾರಿ", taskType: "STANDALONE_COPPER", enTitle: "Bacterial Blight Oily Spot", knTitle: "ಬ್ಯಾಕ್ಟೀರಿಯಾ ಅಂಗಮಾರಿ ಮಚ್ಚೆ", enDesc: "Curative Blight Spray: Copper Hydroxide + Bronopol", knDesc: "ತುರ್ತು ಅಂಗಮಾರಿ ಸಿಂಪಡಣೆ: ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್ + ಬ್ರೊನೊಪಾಲ್", recipe: [{ input_id: "BAC_COPPER_HYDROXIDE", dose_per_liter: 1.5 }, { input_id: "BAC_BRONOPOL", dose_per_liter: 0.5 }] },
+  { code: "THRIPS_SCAR", shortEn: "Thrips", shortKn: "ಥ್ರಿಪ್ಸ್", taskType: "FOLIAR_SPRAY", enTitle: "Thrips Rind Scarring", knTitle: "ಥ್ರಿಪ್ಸ್ ಕಜ್ಜಿ / ಗೀರು", enDesc: "Curative Thrips Knockdown: Spinetoram 11.7% SC", knDesc: "ತುರ್ತು ಥ್ರಿಪ್ಸ್ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ: ಸ್ಪೈನೆಟೊರಾಮ್", recipe: [{ input_id: "INS_SPINETORAM", dose_per_liter: 0.8 }] },
+  { code: "FRUIT_BORER", shortEn: "Borer", shortKn: "ಕೊರಕ ಹುಳು", taskType: "FOLIAR_SPRAY", enTitle: "Fruit Borer Hole", knTitle: "ಹಣ್ಣು ಕೊರೆಯುವ ಹುಳು", enDesc: "Curative Borer Knockdown: Chlorantraniliprole", knDesc: "ತುರ್ತು ಹುಳು ನಿಯಂತ್ರಣ: ಕ್ಲೋರಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್ ಸಿಂಪಡಣೆ", recipe: [{ input_id: "INS_CHLORANTRANILIPROLE", dose_per_liter: 0.3 }] },
+  { code: "MEALYBUG", shortEn: "Mealy/Scale", shortKn: "ಹಿಟ್ಟು ತಿಗಣೆ", taskType: "FOLIAR_SPRAY", enTitle: "Mealybug & Scale Insects", knTitle: "ಹಿಟ್ಟು ತಿಗಣೆ ಮತ್ತು ಶಲ್ಕ ಕೀಟ", enDesc: "Curative Mealybug Spray: Spirotetramat + Buprofezin", knDesc: "ತುರ್ತು ಹಿಟ್ಟು ತಿಗಣೆ ಸಿಂಪಡಣೆ: ಸ್ಪೈರೋಟೆಟ್ರಾಮ್ಯಾಟ್ + ಬುಪ್ರೊಫೆಜಿನ್", recipe: [{ input_id: "INS_SPIROTETRAMAT", dose_per_liter: 1.0 }, { input_id: "INS_BUPROFEZIN", dose_per_liter: 1.5 }] },
+  { code: "MITES", shortEn: "Red Mites", shortKn: "ಕೆಂಪು ನುಸಿ", taskType: "FOLIAR_SPRAY", enTitle: "Red Spider & Flat Mites", knTitle: "ಕೆಂಪು ನುಸಿ ಮತ್ತು ಚಪ್ಪಟೆ ನುಸಿ", enDesc: "Curative Miticide Spray: Spiromesifen 22.9% SC (Oberon)", knDesc: "ತುರ್ತು ನುಸಿ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ: ಸ್ಪೈರೋಮೆಸಿಫೆನ್ 22.9% SC", recipe: [{ input_id: "INS_SPIROMESIFEN", dose_per_liter: 0.8 }] },
+  { code: "FRUIT_ROT", shortEn: "Fruit Rot", shortKn: "ಕೊಳೆ ರೋಗ", taskType: "FOLIAR_SPRAY", enTitle: "Fungal Fruit Rot", knTitle: "ಹಣ್ಣು ಕೊಳೆ ರೋಗ", enDesc: "Curative Rot Spray: Fluxapyroxad + Pyraclostrobin", knDesc: "ತುರ್ತು ಹಣ್ಣು ಕೊಳೆ ರೋಗ ಸಿಂಪಡಣೆ: ಮೆರಿವಾನ್ / ಪ್ರಿಯಾಕ್ಸರ್", recipe: [{ input_id: "FUN_FLUXA_PYRA", dose_per_liter: 0.6 }] },
+  { code: "CRACKING", shortEn: "Cracking", shortKn: "ಸೀಳುವಿಕೆ", taskType: "FOLIAR_SPRAY", enTitle: "Sunburn / Fruit Cracking", knTitle: "ಬಿಸಿಲು ಕಲೆ / ಹಣ್ಣು ಸೀಳುವಿಕೆ", enDesc: "Anti-Cracking Shield: Chelated Ca-B + Orthosilicic Acid", knDesc: "ಹಣ್ಣು ಸೀಳುವಿಕೆ ತಡೆಗೆ: ಕ್ಯಾಲ್ಸಿಯಂ-ಬೋರಾನ್ + ಸಿಲಿಕಾನ್ ಸಿಂಪಡಣೆ", recipe: [{ input_id: "MIC_CA_B_LIQUID", dose_per_liter: 1.5 }, { input_id: "BIO_ORTHOSILICIC", dose_per_liter: 1.5 }] }
 ];
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -3256,21 +3305,21 @@ function openNewChemModal() {
   if (attachBox) {
     const sortedSalts = Object.values(catalog).sort((a, b) => getSaltOnlyTitle(a, "EN").localeCompare(getSaltOnlyTitle(b, "EN")));
     attachBox.innerHTML = `
-      <div class="font-extrabold text-indigo-950">🏷️ ${LANG === "KN" ? "ಆಯ್ಕೆ 1: ಈಗಾಗಲೇ ಇರುವ ಲವಣಾಂಶಕ್ಕೆ ಹೊಸ ಕಂಪನಿ ಹೆಸರು ಮಾತ್ರ ಸೇರಿಸಿ:" : "Option 1: Same Salt & Same % Strength? Just Attach Brand Name:"}</div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-        <select id="ncExistingSaltSelect" class="w-full border border-indigo-300 rounded-lg px-2 py-1.5 bg-white font-bold text-slate-900">
+      <div class="font-extrabold text-slate-800">${LANG === "KN" ? "ಆಯ್ಕೆ 1: ಈಗಾಗಲೇ ಇರುವ ಲವಣಾಂಶಕ್ಕೆ ಹೊಸ ಕಂಪನಿ ಹೆಸರು ಮಾತ್ರ ಸೇರಿಸಿ:" : "Option 1: Same Salt & Same % Strength? Just Attach Brand Name:"}</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <select id="ncExistingSaltSelect" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-bold text-slate-900">
           <option value="">-- ${LANG === "KN" ? "ಲವಣಾಂಶ ಆರಿಸಿ" : "Select Existing Active Salt"} --</option>
-          ${sortedSalts.map(c => `<option value="${c.id}">🧪 ${getSaltOnlyTitle(c)} — [${getBrandOnlySubtitle(c)}]</option>`).join("")}
+          ${sortedSalts.map(c => `<option value="${c.id}">${getSaltOnlyTitle(c)} — [${getBrandOnlySubtitle(c)}]</option>`).join("")}
         </select>
         <div class="flex items-center gap-1.5">
-          <input id="ncQuickBrandName" type="text" placeholder="${LANG === 'KN' ? 'ಹೊಸ ಕಂಪನಿ ಹೆಸರು' : 'New Brand Name'}" class="flex-1 border border-indigo-300 rounded-lg px-2 py-1.5 bg-white font-bold text-slate-900" />
-          <button type="button" onclick="saveBrandToExistingSaltFromModal()" class="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold px-2.5 py-1.5 rounded-lg shrink-0 shadow">
-            ➕ ${LANG === "KN" ? "ಸೇರಿಸಿ" : "Attach"}
+          <input id="ncQuickBrandName" type="text" placeholder="${LANG === 'KN' ? 'ಹೊಸ ಕಂಪನಿ ಹೆಸರು' : 'New Brand Name'}" class="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-bold text-slate-900" />
+          <button type="button" onclick="saveBrandToExistingSaltFromModal()" class="bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold px-3 py-1.5 rounded-lg shrink-0 shadow-2xs">
+            + ${LANG === "KN" ? "ಸೇರಿಸಿ" : "Attach"}
           </button>
         </div>
       </div>
-      <div class="text-[10px] text-indigo-800 border-t border-indigo-200 pt-1 font-semibold">
-        ⬇️ ${LANG === "KN" ? "ಆಯ್ಕೆ 2: ಬೇರೆ % ಪ್ರಮಾಣ ಅಥವಾ ಬಹು-ಲವಣಾಂಶ (ಉದಾ: Calcium 11% + Boron 2%) ಹೊಂದಿದ್ದರೆ ಕೆಳಗೆ ಭರ್ತಿ ಮಾಡಿ:" : "Option 2: Different % Strength or Multi-Component Product (e.g. Yab-CalciB Ca 11% + B 2%)? Fill below:"}
+      <div class="text-[10px] text-slate-500 border-t border-slate-200 pt-1.5 font-semibold">
+        ${LANG === "KN" ? "ಆಯ್ಕೆ 2: ಬೇರೆ % ಪ್ರಮಾಣ ಅಥವಾ ಬಹು-ಲವಣಾಂಶ (ಉದಾ: Calcium 11% + Boron 2%) ಹೊಂದಿದ್ದರೆ ಕೆಳಗೆ ಭರ್ತಿ ಮಾಡಿ:" : "Option 2: Different % Strength or Multi-Component Product (e.g. Yab-CalciB Ca 11% + B 2%)? Fill below:"}
       </div>
     `;
   }
@@ -3537,12 +3586,20 @@ function previewSmartChem(manualNutrientEdit = false) {
   const prevEl = document.getElementById("ncRecognitionPreview");
   if (prevEl) {
     prevEl.innerHTML = `
-      <div class="font-extrabold text-emerald-950">🔍 Live Recognition &amp; Orchard Math Preview:</div>
-      <div>🧪 <b>Main Card Title (Active Salt):</b> <span class="text-slate-900 font-bold">${fullSaltTitle}</span></div>
-      <div>🏷️ <b>Store Brand Subtitle:</b> ${brand || "Custom Brand"} • <b>W-A-L-E-S Order:</b> [${form}]</div>
-      ${method !== "DRIP" ? `<div>🌿 <b>Foliar Math (${CFG.drums}×${CFG.drumL}L):</b> ${doseL} ${rateUnit}/L → <b>${perDrum} ${rateUnit}/drum</b> → <b>${totalFoliar3Ac} ${unit} / 3 Acres</b></div>` : ""}
-      ${method !== "FOLIAR" ? `<div>💧 <b>Drip Math (3 Acres):</b> ${doseAc} ${macroUnit}/Acre → <b>${totalDrip3Ac} ${macroUnit} / 3 Acres</b></div>` : ""}
-      ${nutBadges.length ? `<div class="text-indigo-900 font-bold">⚖️ <b>Nutrient Ledger Impact:</b> ${nutBadges.join(" • ")}</div>` : ""}
+      <div class="font-extrabold text-emerald-950 uppercase tracking-wider text-[10px]">Live Recognition &amp; Orchard Math Preview</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+        <div class="bg-white border border-emerald-200 rounded-lg p-2">
+          <div class="text-[10px] font-bold uppercase text-slate-400">Main Card Title (Active Salt)</div>
+          <div class="font-extrabold text-slate-900 text-xs mt-0.5">${fullSaltTitle}</div>
+          <div class="text-[10px] text-slate-500 mt-0.5">Brand: <b>${brand || "Custom Brand"}</b> • W-A-L-E-S: <b>[${form}]</b></div>
+        </div>
+        <div class="bg-white border border-emerald-200 rounded-lg p-2 space-y-0.5">
+          <div class="text-[10px] font-bold uppercase text-slate-400">Calculated 3-Acre Dosages</div>
+          ${method !== "DRIP" ? `<div class="text-xs text-slate-800"><b>Foliar (${CFG.drums}×${CFG.drumL}L):</b> ${doseL} ${rateUnit}/L → <b>${perDrum} ${rateUnit}/drum</b> (${totalFoliar3Ac} ${unit}/3Ac)</div>` : ""}
+          ${method !== "FOLIAR" ? `<div class="text-xs text-slate-800"><b>Drip (3 Acres):</b> ${doseAc} ${macroUnit}/Ac → <b>${totalDrip3Ac} ${macroUnit}/3Ac</b></div>` : ""}
+        </div>
+      </div>
+      ${nutBadges.length ? `<div class="text-emerald-900 font-bold pt-1 border-t border-emerald-200/70"><b>Plant Nutrient Impact:</b> ${nutBadges.join(" • ")}</div>` : ""}
     `;
   }
 
@@ -3805,30 +3862,26 @@ function renderAnalyticsTab() {
   const gModel = getGddStageModel();
   const { tStr, todayDad, actualGdd, realDailyMeanGdd, futureDailyGddRate, currentStage, getDateForGdd } = gModel;
 
-  // 1. Today's Daily GDD, Heat-Stress Arrest Status (>38°C), and Historical Baseline Comparison
   const tMax = Number(wState.tMax) || 30.5;
   const tMin = Number(wState.tMin) || 18.2;
   const todayDailyGdd = computeDailyGdd(tMax, tMin);
   const heatArrestActive = tMax > 38.0;
   const heatPenalty = heatArrestActive ? Number(((tMax - 38.0) * 0.5).toFixed(2)) : 0;
 
-  // Kudligi/Hosahalli long-term historical mean (14.2 GDD/day on Base 10°C) vs. Real Observed (Aug 15 -> Today)
   const histExpectedGddToDate = Math.round((todayDad + 1) * 14.2);
   const gddDiffVsNormal = Math.round(actualGdd - histExpectedGddToDate);
   const biologicalThermalAgeDays = Math.round(actualGdd / 14.2);
   const daysAheadBehind = biologicalThermalAgeDays - (todayDad + 1);
 
-  // Tier 2 (15-Day Live Forecast) & Tier 3 (Seasonal Anomaly Multiplier)
   const forecast15dTotal = Number(wState.forecast15dTotalGdd || (futureDailyGddRate * 15).toFixed(1));
   const anomalyFactor = Math.min(1.15, Math.max(0.90, ((realDailyMeanGdd * 0.5) + (futureDailyGddRate * 0.5)) / 15.6));
   const anomalyPct = Math.round((anomalyFactor - 1.0) * 100);
 
-  // Key Super Bhagwa Milestones (2,150 GDD Zero-N Lock | 2,800 GDD 1st Harvest | 2,950 GDD 2nd Harvest)
   const estZeroNDateStr    = getDateForGdd(2150);
   const estZeroNDad        = diffDaysYMD("2026-08-15", estZeroNDateStr);
-  const estHarvest1DateStr = getDateForGdd(SUPER_BHAGWA_GDD_TARGET); // 2,800 GDD
+  const estHarvest1DateStr = getDateForGdd(SUPER_BHAGWA_GDD_TARGET);
   const estHarvest1Dad     = diffDaysYMD("2026-08-15", estHarvest1DateStr);
-  const estHarvest2DateStr = getDateForGdd(2950); // 2,950 GDD (2nd/Final Harvest)
+  const estHarvest2DateStr = getDateForGdd(2950);
   const estHarvest2Dad     = diffDaysYMD("2026-08-15", estHarvest2DateStr);
 
   const overallGddPct = Math.min(100, Math.round((actualGdd / SUPER_BHAGWA_GDD_TARGET) * 100));
@@ -3836,12 +3889,11 @@ function renderAnalyticsTab() {
   const masterBar = document.getElementById("gddProgressBar");
   if (masterBar) masterBar.style.width = `${overallGddPct}%`;
 
-  // Stage-specific physiological & management notes
   const STAGE_NOTES = [
     { en: "Cell division, root flush & rind wall formation",       kn: "ಕೋಶ ವಿಭಜನೆ, ಬೇರು ವೃದ್ಧಿ ಮತ್ತು ಸಿಪ್ಪೆ ರಚನೆ" },
     { en: "Rapid fruit volume expansion & rind elasticity",        kn: "ಕಾಯಿ ಗಾತ್ರ ವೇಗವಾಗಿ ಹಿಗ್ಗುವ ಮತ್ತು ಸಿಪ್ಪೆ ಹಿಗ್ಗುವ ಹಂತ" },
     { en: "Aril filling, seed hardening & peak K₂O + Ca demand",   kn: "ಕಾಳು ತುಂಬುವ, ತೂಕ ಹೆಚ್ಚುವ ಮತ್ತು ಗರಿಷ್ಠ ಪೊಟ್ಯಾಷ್/ಕ್ಯಾಲ್ಸಿಯಂ ಹಂತ" },
-    { en: "🔴 Gate P1 Zero-Nitrogen Lock (Anthocyanin red color)", kn: "🔴 ಸಾರಜನಕ ಮುಕ್ತ ಹಂತ (ಕೆಂಪು ಬಣ್ಣ ವೃದ್ಧಿಸಲು 0% N)" },
+    { en: "Gate P1 Zero-Nitrogen Lock (Anthocyanin red color)",    kn: "ಸಾರಜನಕ ಮುಕ್ತ ಹಂತ (ಕೆಂಪು ಬಣ್ಣ ವೃದ್ಧಿಸಲು 0% N)" },
     { en: "Brix sugar surge & RDI (-20% controlled water)",        kn: "ಸಿಹಿ (Brix) ಹೆಚ್ಚಳ ಮತ್ತು ನಿಯಂತ್ರಿತ ನೀರು (-20%)" },
     { en: "1st Harvest (2,800 GDD) to 2nd Harvest (2,950 GDD)",    kn: "ಮೊದಲ ಕಟಾವು (2,800 GDD) ರಿಂದ ಎರಡನೇ ಕಟಾವು (2,950 GDD)" }
   ];
@@ -3859,140 +3911,176 @@ function renderAnalyticsTab() {
     const dateBadgeLabel = isDone
       ? (LANG === "KN" ? "ಪೂರ್ಣಗೊಂಡ ದಿನಾಂಕ" : "Observed")
       : isCurr
-        ? (LANG === "KN" ? "ಪ್ರಾರಂಭ – ಅಂದಾಜು ಮುಕ್ತಾಯ" : "Started – Est. End")
-        : (LANG === "KN" ? "3-ಹಂತದ ಮುನ್ಸೂಚನೆ" : "3-Tier Forecast");
+        ? (LANG === "KN" ? "ಪ್ರಾರಂಭ – ಅಂದಾಜು ಮುಕ್ತಾಯ" : "Active Window")
+        : (LANG === "KN" ? "3-ಹಂತದ ಮುನ್ಸೂಚನೆ" : "Projected");
 
-    const rowCls = isCurr ? "bg-amber-50 border-amber-400 border-2 shadow-sm" : isDone ? "bg-emerald-50/60 border-emerald-200" : "bg-slate-50 border-slate-200";
+    const rowCls = isCurr
+      ? "bg-emerald-50/70 border-emerald-600 border-2 shadow-2xs"
+      : isDone
+        ? "bg-slate-50/90 border-slate-200"
+        : "bg-white border-slate-200";
     const noteObj = STAGE_NOTES[idx] || { en: "", kn: "" };
+    const statusIconSvg = isDone
+      ? `<svg class="w-3.5 h-3.5 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`
+      : isCurr
+        ? `<span class="w-2 h-2 rounded-full bg-emerald-600 shrink-0"></span>`
+        : `<span class="w-2 h-2 rounded-full bg-slate-300 shrink-0"></span>`;
 
-    return `<div class="p-2.5 rounded-xl border ${rowCls} text-[11px] space-y-1">
+    return `<div class="p-3 rounded-xl border ${rowCls} text-[11px] space-y-1.5">
       <div class="flex flex-wrap justify-between items-center gap-1 font-bold">
-        <span class="text-slate-900">${isDone ? "✅" : isCurr ? "📍" : "⏳"} ${LANG === "KN" ? s.kn : s.en}</span>
-        <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-white border text-slate-700">${s.minGdd}–${s.maxGdd} GDD (${pct}%)</span>
+        <span class="text-slate-900 inline-flex items-center gap-1.5">${statusIconSvg}<span>${LANG === "KN" ? s.kn : s.en}</span></span>
+        <span class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-700">${s.minGdd}–${s.maxGdd} GDD (${pct}%)</span>
       </div>
-      <div class="text-[10px] text-slate-700 font-semibold flex flex-wrap justify-between gap-1">
-        <span>📅 <b>${dateBadgeLabel}:</b> ${formatShortStageDate(startYmd)} – ${formatShortStageDate(endYmd)}</span>
+      <div class="text-[10px] text-slate-600 font-semibold flex flex-wrap justify-between gap-1">
+        <span><b>${dateBadgeLabel}:</b> ${formatShortStageDate(startYmd)} – ${formatShortStageDate(endYmd)}</span>
         <span class="text-emerald-800 font-extrabold">${startDad}–${endDad} DAD <span class="text-slate-400 font-normal">(Ref: ${s.dadRange})</span></span>
       </div>
       <div class="text-[10px] text-slate-500">${LANG === "KN" ? noteObj.kn : noteObj.en}</div>
       <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-        <div class="${isDone ? 'bg-emerald-600' : 'bg-amber-500'} h-1.5 rounded-full" style="width:${pct}%"></div>
+        <div class="${isDone ? 'bg-emerald-700' : 'bg-teal-600'} h-1.5 rounded-full" style="width:${pct}%"></div>
       </div>
     </div>`;
   }).join("");
 
-  // 4-Box Scientific & Weather Telemetry Strip + 6-Stage Timeline
+  // Cohesive 4-Column Stat-Block Strip for GDD Telemetry
   const telemetryBoxesHtml = `
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 my-2 text-[11px]">
-      <div class="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 space-y-0.5">
-        <div class="font-extrabold text-amber-950">🌡️ ${LANG === "KN" ? "ಇಂದಿನ ಉಷ್ಣಾಂಶ & GDD" : "Today's Real-Time GDD"}</div>
-        <div class="text-slate-800 font-bold">+${todayDailyGdd} GDD <span class="font-normal text-slate-600">(${tMax}°C / ${tMin}°C)</span></div>
-        <div class="text-[10px] ${heatArrestActive ? 'text-red-700 font-bold' : 'text-emerald-800'}">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 my-2.5 text-[11px]">
+      <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಇಂದಿನ ಉಷ್ಣಾಂಶ & GDD" : "Today's Real-Time GDD"}</div>
+        <div class="text-sm font-extrabold text-slate-900">+${todayDailyGdd} GDD <span class="text-xs font-semibold text-slate-500">(${tMax}° / ${tMin}°C)</span></div>
+        <div class="text-[10px] ${heatArrestActive ? 'text-red-700 font-bold' : 'text-emerald-800 font-medium'}">
           ${heatArrestActive
-            ? (LANG === "KN" ? `⚠️ >38°C ಬಿಸಿಲು ತಡೆ (-${heatPenalty} GDD ಕಡಿತ)` : `⚠️ >38°C Stomatal Arrest (-${heatPenalty} GDD)`)
-            : (LANG === "KN" ? "✅ <38°C ಸೂಕ್ತ ದ್ಯುತಿಸಂಶ್ಲೇಷಣೆ (ಸಕ್ರಿಯ ಬೆಳವಣಿಗೆ)" : "✅ <38°C Optimal Stomatal Assimilation")}
+            ? (LANG === "KN" ? `>38°C ಬಿಸಿಲು ತಡೆ (-${heatPenalty} GDD ಕಡಿತ)` : `>38°C Stomatal Arrest (-${heatPenalty} GDD)`)
+            : (LANG === "KN" ? "<38°C ಸೂಕ್ತ ದ್ಯುತಿಸಂಶ್ಲೇಷಣೆ (ಸಕ್ರಿಯ ಬೆಳವಣಿಗೆ)" : "<38°C Optimal Stomatal Assimilation")}
         </div>
       </div>
 
-      <div class="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-0.5">
-        <div class="font-extrabold text-emerald-950">📡 ${LANG === "KN" ? "ಹಂತ 1: ನೈಜ ಸರಾಸರಿ (15 Aug – ಇಂದು)" : "Tier 1: Observed (15 Aug – Today)"}</div>
-        <div class="text-slate-800 font-bold">${realDailyMeanGdd} GDD/day <span class="font-normal text-slate-600">(${todayDad + 1}d)</span></div>
+      <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಹಂತ 1: ನೈಜ ಸರಾಸರಿ (15 Aug – ಇಂದು)" : "Tier 1: Observed (15 Aug – Today)"}</div>
+        <div class="text-sm font-extrabold text-slate-900">${realDailyMeanGdd} GDD/d <span class="text-xs font-semibold text-slate-500">(${todayDad + 1}d)</span></div>
         <div class="text-[10px] text-slate-600">
           ${LANG === "KN"
             ? `ವಾಡಿಕೆ ಸರಾಸರಿ (14.2/d): ${histExpectedGddToDate} GDD (${gddDiffVsNormal >= 0 ? '+' + gddDiffVsNormal : gddDiffVsNormal} GDD)`
-            : `Vs. Historical 14.2/d (${histExpectedGddToDate} GDD): <b>${gddDiffVsNormal >= 0 ? '+' + gddDiffVsNormal : gddDiffVsNormal} GDD</b>`}
+            : `Vs. Normal 14.2/d (${histExpectedGddToDate} GDD): <b>${gddDiffVsNormal >= 0 ? '+' + gddDiffVsNormal : gddDiffVsNormal} GDD</b>`}
         </div>
       </div>
 
-      <div class="p-2.5 rounded-xl bg-indigo-50/80 border border-indigo-200 space-y-0.5">
-        <div class="font-extrabold text-indigo-950">🧬 ${LANG === "KN" ? "ಜೈವಿಕ ವಯಸ್ಸು vs ಕ್ಯಾಲೆಂಡರ್ ದಿನ" : "Biological Age vs. Calendar DAD"}</div>
-        <div class="text-slate-800 font-bold">${biologicalThermalAgeDays} GDD-Days <span class="font-normal text-slate-600">vs ${todayDad} DAD</span></div>
+      <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಜೈವಿಕ ವಯಸ್ಸು vs ಕ್ಯಾಲೆಂಡರ್ ದಿನ" : "Biological Age vs. Calendar DAD"}</div>
+        <div class="text-sm font-extrabold text-slate-900">${biologicalThermalAgeDays} GDD-Days <span class="text-xs font-semibold text-slate-500">vs ${todayDad} DAD</span></div>
         <div class="text-[10px] font-bold ${daysAheadBehind >= 0 ? 'text-emerald-800' : 'text-amber-800'}">
           ${daysAheadBehind >= 0
-            ? (LANG === "KN" ? `⚡ ವಾಡಿಕೆಗಿಂತ +${daysAheadBehind} ದಿನ ಮುಂದಿದೆ` : `⚡ Crop is +${daysAheadBehind} days ahead of normal`)
-            : (LANG === "KN" ? `⏳ ವಾಡಿಕೆಗಿಂತ ${daysAheadBehind} ದಿನ ಹಿಂದಿದೆ` : `⏳ Crop is ${daysAheadBehind} days behind normal`)}
+            ? (LANG === "KN" ? `ವಾಡಿಕೆಗಿಂತ +${daysAheadBehind} ದಿನ ಮುಂದಿದೆ` : `+${daysAheadBehind} days ahead of historical norm`)
+            : (LANG === "KN" ? `ವಾಡಿಕೆಗಿಂತ ${daysAheadBehind} ದಿನ ಹಿಂದಿದೆ` : `${daysAheadBehind} days behind historical norm`)}
         </div>
       </div>
 
-      <div class="p-2.5 rounded-xl bg-sky-50/80 border border-sky-200 space-y-0.5">
-        <div class="font-extrabold text-sky-950">🔮 ${LANG === "KN" ? "ಹಂತ 2 & 3: ಮುಂದಿನ 15 ದಿನಗಳ ಮುನ್ಸೂಚನೆ" : "Tier 2 & 3: 15d Forecast + Curve"}</div>
-        <div class="text-slate-800 font-bold">${futureDailyGddRate} GDD/day <span class="font-normal text-slate-600">(+${forecast15dTotal} / 15d)</span></div>
+      <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಹಂತ 2 & 3: ಮುಂದಿನ 15 ದಿನಗಳ ಮುನ್ಸೂಚನೆ" : "Tier 2 & 3: 15d Forecast + Curve"}</div>
+        <div class="text-sm font-extrabold text-slate-900">${futureDailyGddRate} GDD/d <span class="text-xs font-semibold text-slate-500">(+${forecast15dTotal} / 15d)</span></div>
         <div class="text-[10px] text-slate-600">
           ${LANG === "KN"
             ? `ಹಂಗಾಮಿನ ಉಷ್ಣಾಂಶ ವ್ಯತ್ಯಾಸ: ${anomalyPct >= 0 ? '+' + anomalyPct : anomalyPct}% (ಮಾಸಿಕ ವಕ್ರರೇಖೆ)`
-            : `Season Anomaly: <b>${anomalyPct >= 0 ? '+' + anomalyPct : anomalyPct}%</b> applied to Dec–Feb curve`}
+            : `Season Anomaly: <b>${anomalyPct >= 0 ? '+' + anomalyPct : anomalyPct}%</b> on Dec–Feb curve`}
         </div>
       </div>
     </div>
   `;
 
   document.getElementById("gddComparisonText").innerHTML = `
-    <div class="text-xs text-slate-700 font-semibold">
-      📍 ${LANG === "KN" ? "ಪ್ರಸ್ತುತ ಜೈವಿಕ ಹಂತ:" : "Active Biological Stage:"} <b class="text-emerald-900">${LANG === "KN" ? currentStage.kn : currentStage.en}</b>
+    <div class="text-xs text-slate-700 font-semibold flex items-center gap-1.5">
+      <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+      <span>${LANG === "KN" ? "ಪ್ರಸ್ತುತ ಜೈವಿಕ ಹಂತ:" : "Active Biological Stage:"} <b class="text-emerald-900">${LANG === "KN" ? currentStage.kn : currentStage.en}</b></span>
     </div>
     ${telemetryBoxesHtml}
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">${stageTimelineHtml}</div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-2">${stageTimelineHtml}</div>
   `;
 
   document.getElementById("gddHarvestForecast").innerHTML = `
-    <div class="space-y-1.5">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <span>🔴 <b>${LANG === "KN" ? "ಸಾರಜನಕ ಮುಕ್ತ ಬಣ್ಣದ ಹಂತ (2,150 GDD):" : "Gate P1 Zero-N Color Lock (2,150 GDD):"}</b> ${formatShortStageDate(estZeroNDateStr)} (~${estZeroNDad} DAD)</span>
-        <span>🍎 <b>${LANG === "KN" ? "1ನೇ ಕಟಾವು (2,800 GDD):" : "1st Harvest (2,800 GDD):"}</b> ${formatShortStageDate(estHarvest1DateStr)} (~${estHarvest1Dad} DAD)</span>
-        <span>🧺 <b>${LANG === "KN" ? "2ನೇ ಕಟಾವು (2,950 GDD):" : "2nd Harvest (2,950 GDD):"}</b> ${formatShortStageDate(estHarvest2DateStr)} (~${estHarvest2Dad} DAD)</span>
+    <div class="space-y-2">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+        <div class="p-2 rounded-lg bg-slate-50 border border-slate-200">
+          <div class="text-[10px] font-bold uppercase text-slate-400">${LANG === "KN" ? "ಸಾರಜನಕ ಮುಕ್ತ ಬಣ್ಣದ ಹಂತ (2,150 GDD)" : "Gate P1 Zero-N Lock (2,150 GDD)"}</div>
+          <div class="font-extrabold text-slate-900 mt-0.5">${formatShortStageDate(estZeroNDateStr)} <span class="text-slate-500 font-semibold">(~${estZeroNDad} DAD)</span></div>
+        </div>
+        <div class="p-2 rounded-lg bg-emerald-50/60 border border-emerald-200">
+          <div class="text-[10px] font-bold uppercase text-emerald-800">${LANG === "KN" ? "1ನೇ ಕಟಾವು (2,800 GDD)" : "1st Harvest Window (2,800 GDD)"}</div>
+          <div class="font-extrabold text-emerald-950 mt-0.5">${formatShortStageDate(estHarvest1DateStr)} <span class="text-emerald-700 font-semibold">(~${estHarvest1Dad} DAD)</span></div>
+        </div>
+        <div class="p-2 rounded-lg bg-slate-50 border border-slate-200">
+          <div class="text-[10px] font-bold uppercase text-slate-400">${LANG === "KN" ? "2ನೇ ಕಟಾವು (2,950 GDD)" : "2nd Harvest Window (2,950 GDD)"}</div>
+          <div class="font-extrabold text-slate-900 mt-0.5">${formatShortStageDate(estHarvest2DateStr)} <span class="text-slate-500 font-semibold">(~${estHarvest2Dad} DAD)</span></div>
+        </div>
       </div>
-      <div class="text-[10px] text-amber-900/90 border-t border-amber-200/80 pt-1 font-normal">
-        📚 <b>${LANG === "KN" ? "ಮಾನದಂಡ ಉಲ್ಲೇಖ:" : "Model Reference:"}</b> Super Bhagwa Base 10°C / Cap 38°C model (2,800–2,950 GDD to harvest, matching Syngenta Base-10°C telemetry from 15 Aug 2026; corresponds to ~4,105 heat units on IAHS Base-4.5°C scale).Formula: <code>max(0, (min(Tmax,38)+max(Tmin,10))/2 - 10 - max(0, (Tmax-38)*0.5))</code>.
+      <div class="text-[10px] text-slate-500 font-normal">
+        <b>${LANG === "KN" ? "ಮಾನದಂಡ ಉಲ್ಲೇಖ:" : "Model Reference:"}</b> Super Bhagwa Base 10°C / Cap 38°C model (2,800–2,950 GDD to harvest from 15 Aug 2026). Formula: <code>max(0, (min(Tmax,38)+max(Tmin,10))/2 - 10 - max(0, (Tmax-38)*0.5))</code>.
       </div>
     </div>
   `;
 
+  // 2. 6-Threat Orchard Risk Radar (Choice Card Pattern + Lucide Threat SVGs)
   const risks = computeAllSixRisks();
   document.getElementById("multiRiskGrid").innerHTML = SCOUT_ISSUES.map(iss => {
     const rObj = risks[iss.code] || { score: 20, whyEn: "", whyKn: "" };
     const sc = rObj.score, queuedTask = getQueuedTaskCoveringIssue(iss.code);
     const isChecked = selectedRiskCodes.has(iss.code);
     const isHigh = sc >= 65, isMod = sc >= 40 && sc < 65;
-    const badgeCls = isHigh ? "bg-red-600 text-white" : isMod ? "bg-amber-400 text-slate-950" : "bg-emerald-600 text-white";
+
+    const badgeCls = isHigh
+      ? "bg-red-100 text-red-900 border border-red-300"
+      : isMod
+        ? "bg-amber-100 text-amber-900 border border-amber-300"
+        : "bg-emerald-100 text-emerald-900 border border-emerald-300";
     const barCls = isHigh ? "bg-red-600" : isMod ? "bg-amber-500" : "bg-emerald-600";
-    const cardBorder = queuedTask ? "border-emerald-400 bg-emerald-50/40" : isChecked ? "border-2 border-indigo-600 bg-indigo-50/50" : isHigh ? "border-red-300 bg-red-50/40" : isMod ? "border-amber-200 bg-amber-50/30" : "border-slate-200 bg-slate-50";
+    const cardBorder = queuedTask
+      ? "border-emerald-400 bg-emerald-50/40"
+      : isChecked
+        ? "border-2 border-emerald-700 bg-emerald-50/30 shadow-2xs"
+        : isHigh
+          ? "border-red-200/90 bg-red-50/30"
+          : "border-slate-200 bg-slate-50/70 hover:bg-white";
     const levelWord = isHigh ? (LANG === "KN" ? "ಗರಿಷ್ಠ" : "HIGH") : isMod ? (LANG === "KN" ? "ಮಧ್ಯಮ" : "MOD") : (LANG === "KN" ? "ಕಡಿಮೆ" : "LOW");
 
+    const cleanWhyText = (LANG === "KN" ? rObj.whyKn : rObj.whyEn).replace(/[🧬🛡️🦠⚠️✅⚡]/g, "").trim();
+
     const actionBtnHtml = queuedTask
-      ? `<button onclick="event.stopPropagation();goWeek(${queuedTask.week_number});showTab('TASKS');" class="shrink-0 bg-emerald-700 text-white font-extrabold px-2.5 py-1 rounded text-[10px] shadow-sm">
-           ✅ ${LANG === "KN" ? `${queuedTask.current_scheduled_date} ಕ್ಕೆ ಸೇರಿಸಲಾಗಿದೆ (ನೋಡಿ)` : `Queued for ${queuedTask.current_scheduled_date} (View)`}
+      ? `<button type="button" onclick="event.stopPropagation();goWeek(${queuedTask.week_number});showTab('TASKS');" class="shrink-0 bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold px-2.5 py-1 rounded-lg text-[10px] shadow-2xs inline-flex items-center gap-1">
+           <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+           <span>${LANG === "KN" ? `${queuedTask.current_scheduled_date} (ನೋಡಿ)` : `Queued ${queuedTask.current_scheduled_date}`}</span>
          </button>`
-      : `<button onclick="event.stopPropagation();addScoutingTask('${iss.code}')" class="shrink-0 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 font-bold px-2 py-1 rounded text-[10px] shadow-sm">
-           ➕ ${LANG === "KN" ? "ಸಿಂಪಡಣೆ ಸೇರಿಸಿ" : "Queue Spray"}
+      : `<button type="button" onclick="event.stopPropagation();addScoutingTask('${iss.code}')" class="shrink-0 bg-white hover:bg-emerald-50 border border-slate-300 hover:border-emerald-600 text-slate-800 hover:text-emerald-900 font-bold px-2.5 py-1 rounded-lg text-[10px] shadow-2xs transition">
+           + ${LANG === "KN" ? "ಸಿಂಪಡಣೆ ಸೇರಿಸಿ" : "Queue Spray"}
          </button>`;
 
-    return `<div onclick="toggleRiskSelection('${iss.code}')" class="cursor-pointer p-3 rounded-xl border ${cardBorder} space-y-1.5 flex flex-col justify-between">
+    return `<div onclick="toggleRiskSelection('${iss.code}')" class="cursor-pointer p-3.5 rounded-xl border ${cardBorder} space-y-2 flex flex-col justify-between transition">
       <div>
-        <div class="flex items-center justify-between gap-1">
+        <div class="flex items-center justify-between gap-2">
           <label class="flex items-center gap-2 font-extrabold text-slate-900 cursor-pointer">
-            ${queuedTask ? `<span class="text-emerald-700">☑️</span>` : `<input type="checkbox" ${isChecked ? "checked" : ""} onclick="event.stopPropagation();toggleRiskSelection('${iss.code}')" class="w-4 h-4 accent-indigo-600" />`}
+            ${queuedTask
+              ? `<span class="inline-flex items-center justify-center w-4 h-4 rounded bg-emerald-700 text-white"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span>`
+              : `<input type="checkbox" ${isChecked ? "checked" : ""} onclick="event.stopPropagation();toggleRiskSelection('${iss.code}')" class="w-4 h-4 accent-emerald-700 rounded" />`}
             <span>${LANG === "KN" ? iss.knTitle : iss.enTitle}</span>
           </label>
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${badgeCls}">${levelWord} • ${sc}%</span>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${badgeCls}">${levelWord} • ${sc}%</span>
         </div>
-        <div class="w-full bg-slate-200 rounded-full h-2 my-1.5 overflow-hidden">
-          <div class="${barCls} h-2 rounded-full" style="width:${sc}%"></div>
+        <div class="w-full bg-slate-200 rounded-full h-1.5 my-2 overflow-hidden">
+          <div class="${barCls} h-1.5 rounded-full" style="width:${sc}%"></div>
         </div>
-        <div class="text-[11px] text-slate-600">${LANG === "KN" ? rObj.whyKn : rObj.whyEn}</div>
+        <div class="text-[11px] text-slate-600">${cleanWhyText}</div>
       </div>
-      <div class="pt-1.5 border-t border-slate-200/80 flex items-center justify-between gap-2">
-        <span class="text-[10px] text-slate-500 truncate">${LANG === "KN" ? iss.knDesc : iss.enDesc}</span>
+      <div class="pt-2 border-t border-slate-200/80 flex items-center justify-between gap-2">
+        <span class="text-[10px] text-slate-500 font-medium truncate">${LANG === "KN" ? iss.knDesc : iss.enDesc}</span>
         ${actionBtnHtml}
       </div>
     </div>`;
   }).join("");
 
+  // 3. Cumulative Elemental Nutrient Ledger (Cohesive Emerald/Teal Palette & Stat-Blocks)
   const del = getCumulativeNutrientsPerPlant();
   const schedTgt = computeScheduleTrueTargetsToDate(tStr);
   const progressRatio = Math.min(1, Math.max(0.1, todayDad / 185));
   const fs = schedTgt.fullSeason || {};
 
-  // Agronomic Ratio & Antagonism Diagnostics (ICAR-NRCP Solapur)
   const kToNRatio = del.N > 0.5 ? Number((del.K / del.N).toFixed(2)) : 0;
   const reqKToN = actualGdd < 950 ? 1.2 : actualGdd < 1450 ? 2.0 : actualGdd < 2150 ? 3.5 : 5.0;
   const kToNOk = kToNRatio >= reqKToN * 0.85;
@@ -4007,64 +4095,63 @@ function renderAnalyticsTab() {
     {
       key: "N", labelEn: "Nitrogen (N) — Canopy & Early Fruit Sizing", labelKn: "ಸಾರಜನಕ (N) — ಚಿಗುರು ಮತ್ತು ಆರಂಭಿಕ ಕಾಯಿ ಬೆಳವಣಿಗೆ",
       targetToDate: Math.max(1, Number((schedTgt.N || 65 * Math.min(1, todayDad / 140)).toFixed(1))),
-      fullSeason: Math.round(fs.N || 65), nrcpRef: "65g (Locks @ 2,150 GDD)", color: "bg-sky-600", elemSub: ""
+      fullSeason: Math.round(fs.N || 65), nrcpRef: "65g (Locks @ 2,150 GDD)", color: "bg-emerald-700", elemSub: ""
     },
     {
       key: "P", labelEn: "Phosphorus (P₂O₅) — Flowering, Root Flush & Cell Division", labelKn: "ರಂಜಕ (P₂O₅) — ಹೂವು, ಬೇರು ಮತ್ತು ಕೋಶ ವಿಭಜನೆ",
       targetToDate: Math.max(1, Number((schedTgt.P || 145 * progressRatio).toFixed(1))),
-      fullSeason: Math.round(fs.P || 145), nrcpRef: "145g P₂O₅ (63.3g Pure P)", color: "bg-amber-500",
+      fullSeason: Math.round(fs.P || 145), nrcpRef: "145g P₂O₅ (63.3g Pure P)", color: "bg-teal-700",
       elemSub: LANG === "KN"
-        ? `⚛️ ಶುದ್ಧ ರಂಜಕ (Pure Elemental P = P₂O₅ × 0.4364): <b>${del.P_elem.toFixed(1)} g</b> / ${((schedTgt.P || 50) * 0.4364).toFixed(1)} g`
-        : `⚛️ Pure Elemental P (P₂O₅ × 0.4364): <b>${del.P_elem.toFixed(1)} g</b> / ${((schedTgt.P || 50) * 0.4364).toFixed(1)} g scheduled`
+        ? `ಶುದ್ಧ ರಂಜಕ (Pure Elemental P = P₂O₅ × 0.4364): <b>${del.P_elem.toFixed(1)} g</b> / ${((schedTgt.P || 50) * 0.4364).toFixed(1)} g`
+        : `Pure Elemental P (P₂O₅ × 0.4364): <b>${del.P_elem.toFixed(1)} g</b> / ${((schedTgt.P || 50) * 0.4364).toFixed(1)} g scheduled`
     },
     {
       key: "K", labelEn: "Potassium (K₂O) — Aril Weight, TSS Sweetness & Red Color", labelKn: "ಪೊಟ್ಯಾಷ್ (K₂O) — ಕಾಳಿನ ತೂಕ, ಸಿಹಿ ಮತ್ತು ಕೆಂಪು ಬಣ್ಣ",
       targetToDate: Math.max(1, Number((schedTgt.K || 240 * progressRatio).toFixed(1))),
-      fullSeason: Math.round(fs.K || 240), nrcpRef: "240g K₂O (199.2g Pure K)", color: "bg-rose-600",
+      fullSeason: Math.round(fs.K || 240), nrcpRef: "240g K₂O (199.2g Pure K)", color: "bg-emerald-700",
       elemSub: LANG === "KN"
-        ? `⚛️ ಶುದ್ಧ ಪೊಟ್ಯಾಷ್ (Pure Elemental K = K₂O × 0.8301): <b>${del.K_elem.toFixed(1)} g</b> / ${((schedTgt.K || 80) * 0.8301).toFixed(1)} g`
-        : `⚛️ Pure Elemental K (K₂O × 0.8301): <b>${del.K_elem.toFixed(1)} g</b> / ${((schedTgt.K || 80) * 0.8301).toFixed(1)} g scheduled`
+        ? `ಶುದ್ಧ ಪೊಟ್ಯಾಷ್ (Pure Elemental K = K₂O × 0.8301): <b>${del.K_elem.toFixed(1)} g</b> / ${((schedTgt.K || 80) * 0.8301).toFixed(1)} g`
+        : `Pure Elemental K (K₂O × 0.8301): <b>${del.K_elem.toFixed(1)} g</b> / ${((schedTgt.K || 80) * 0.8301).toFixed(1)} g scheduled`
     },
     {
       key: "Ca", labelEn: "Calcium (Ca) — Rind Pectin Wall & Anti-Cracking", labelKn: "ಕ್ಯಾಲ್ಸಿಯಂ (Ca) — ಸಿಪ್ಪೆ ಗಟ್ಟಿತನ (ಸೀಳುವಿಕೆ ತಡೆ)",
       targetToDate: caTargetNow,
-      fullSeason: Math.round(fs.Ca || 45), nrcpRef: "45g Pure Ca", color: "bg-indigo-600", elemSub: ""
+      fullSeason: Math.round(fs.Ca || 45), nrcpRef: "45g Pure Ca", color: "bg-teal-700", elemSub: ""
     },
     {
       key: "Mg", labelEn: "Magnesium (Mg) — Chlorophyll & Sugar Translocation", labelKn: "ಮೆಗ್ನೀಸಿಯಮ್ (Mg) — ಎಲೆ ಹಸಿರು ಮತ್ತು ಸಿಹಿ ಸಾಗಾಣಿಕೆ",
       targetToDate: Math.max(1, Number((schedTgt.Mg || 25 * progressRatio).toFixed(1))),
-      fullSeason: Math.round(fs.Mg || 25), nrcpRef: "25g Pure Mg", color: "bg-emerald-600", elemSub: ""
+      fullSeason: Math.round(fs.Mg || 25), nrcpRef: "25g Pure Mg", color: "bg-emerald-700", elemSub: ""
     }
   ];
 
-  // 3-Box Agronomic Ratio & Balance Header
   const ratioHeaderHtml = `
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3 text-[11px]">
-      <div class="p-2.5 rounded-xl border ${kToNOk ? 'bg-emerald-50/70 border-emerald-200' : 'bg-amber-50 border-amber-300'} space-y-0.5">
-        <div class="font-extrabold text-slate-900">⚖️ ${LANG === "KN" ? "K₂O : N ಅನುಪಾತ (ಕಾಯಿ ಗಾತ್ರ & ಸಿಹಿ)" : "K₂O : N Ratio (Sizing vs. Vegetative)"}</div>
-        <div class="font-bold text-slate-800">${LANG === "KN" ? "ಪ್ರಸ್ತುತ:" : "Current:"} <b>${kToNRatio} : 1</b> <span class="text-slate-500 font-normal">(Target: ≥${reqKToN}:1)</span></div>
-        <div class="text-[10px] ${kToNOk ? 'text-emerald-800' : 'text-amber-900 font-bold'}">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-3 text-[11px]">
+      <div class="p-3 rounded-xl border ${kToNOk ? 'bg-slate-50 border-slate-200' : 'bg-amber-50/70 border-amber-300'} space-y-1">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "K₂O : N ಅನುಪಾತ (ಕಾಯಿ ಗಾತ್ರ & ಸಿಹಿ)" : "K₂O : N Ratio (Sizing vs. Canopy)"}</div>
+        <div class="text-sm font-extrabold text-slate-900">${kToNRatio} : 1 <span class="text-xs text-slate-500 font-normal">(Target ≥${reqKToN}:1)</span></div>
+        <div class="text-[10px] ${kToNOk ? 'text-emerald-800 font-semibold' : 'text-amber-900 font-bold'}">
           ${kToNOk
-            ? (LANG === "KN" ? "✅ ಈ ಹಂತಕ್ಕೆ ಸೂಕ್ತ ಅನುಪಾತದಲ್ಲಿದೆ" : "✅ Balanced for current GDD stage")
-            : (LANG === "KN" ? "⚠️ ಪೊಟ್ಯಾಷ್ (00:52:34 / 00:00:50) ಪ್ರಮಾಣ ಹೆಚ್ಚಿಸಿ" : "⚠️ Needs higher K₂O relative to Nitrogen")}
+            ? (LANG === "KN" ? "ಈ ಹಂತಕ್ಕೆ ಸೂಕ್ತ ಅನುಪಾತದಲ್ಲಿದೆ" : "Balanced for current GDD stage")
+            : (LANG === "KN" ? "ಪೊಟ್ಯಾಷ್ (00:52:34 / 00:00:50) ಪ್ರಮಾಣ ಹೆಚ್ಚಿಸಿ" : "Needs higher K₂O relative to Nitrogen")}
         </div>
       </div>
 
-      <div class="p-2.5 rounded-xl border ${caKAntagonism ? 'bg-red-50 border-red-300' : 'bg-indigo-50/70 border-indigo-200'} space-y-0.5">
-        <div class="font-extrabold text-slate-900">🛡️ ${LANG === "KN" ? "Ca : K ಸಿಪ್ಪೆ ರಕ್ಷಣೆ (ಸೀಳುವಿಕೆ ತಡೆ)" : "Ca : K Rind Elasticity Balance"}</div>
-        <div class="font-bold text-slate-800">Ca: <b>${caPctNow}%</b> vs K₂O: <b>${kPctNow}%</b></div>
-        <div class="text-[10px] ${caKAntagonism ? 'text-red-800 font-bold' : 'text-indigo-900'}">
+      <div class="p-3 rounded-xl border ${caKAntagonism ? 'bg-red-50/80 border-red-300' : 'bg-slate-50 border-slate-200'} space-y-1">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "Ca : K ಸಿಪ್ಪೆ ರಕ್ಷಣೆ (ಸೀಳುವಿಕೆ ತಡೆ)" : "Ca : K Rind Elasticity Balance"}</div>
+        <div class="text-sm font-extrabold text-slate-900">Ca: ${caPctNow}% <span class="text-xs font-normal text-slate-500">vs</span> K₂O: ${kPctNow}%</div>
+        <div class="text-[10px] ${caKAntagonism ? 'text-red-800 font-bold' : 'text-emerald-800 font-semibold'}">
           ${caKAntagonism
-            ? (LANG === "KN" ? "🚨 ಎಚ್ಚರಿಕೆ: ಹೆಚ್ಚಿನ ಪೊಟ್ಯಾಷ್ ಕ್ಯಾಲ್ಸಿಯಂ ಹೀರಿಕೊಳ್ಳುವಿಕೆಯನ್ನು ತಡೆಯುತ್ತಿದೆ!" : "🚨 High K is competing with low Ca (Cracking risk!)")
-            : (LANG === "KN" ? "✅ ಕ್ಯಾಲ್ಸಿಯಂ ಮತ್ತು ಪೊಟ್ಯಾಷ್ ಸಮತೋಲನದಲ್ಲಿದೆ" : "✅ No K-induced Calcium lock detected")}
+            ? (LANG === "KN" ? "ಎಚ್ಚರಿಕೆ: ಹೆಚ್ಚಿನ ಪೊಟ್ಯಾಷ್ ಕ್ಯಾಲ್ಸಿಯಂ ಹೀರಿಕೊಳ್ಳುವಿಕೆಯನ್ನು ತಡೆಯುತ್ತಿದೆ!" : "High K is competing with low Ca (Cracking risk)")
+            : (LANG === "KN" ? "ಕ್ಯಾಲ್ಸಿಯಂ ಮತ್ತು ಪೊಟ್ಯಾಷ್ ಸಮತೋಲನದಲ್ಲಿದೆ" : "No K-induced Calcium lock detected")}
         </div>
       </div>
 
-      <div class="p-2.5 rounded-xl border bg-slate-50 border-slate-200 space-y-0.5">
-        <div class="font-extrabold text-slate-900">🔬 ${LANG === "KN" ? "ಬೋರಾನ್ (B) ಮತ್ತು ಮೂಲ ಗೊಬ್ಬರ" : "Boron (B) & Post-Ethrel Scope"}</div>
-        <div class="font-bold text-slate-800">${LANG === "KN" ? "ಬೋರಾನ್:" : "Boron Delivered:"} <b>${del.B.toFixed(2)} g/plant</b></div>
+      <div class="p-3 rounded-xl border bg-slate-50 border-slate-200 space-y-1">
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಬೋರಾನ್ (B) ಮತ್ತು ಮೂಲ ಗೊಬ್ಬರ" : "Boron (B) & Post-Ethrel Scope"}</div>
+        <div class="text-sm font-extrabold text-slate-900">${del.B.toFixed(2)} g / plant <span class="text-xs font-normal text-slate-500">Boron</span></div>
         <div class="text-[10px] text-slate-500">
-          ${LANG === "KN" ? "ಇದು 15 Aug ನಂತರದ ಡ್ರಿಪ್ + ಎಲೆ ಸಿಂಪಡಣೆ ಲೆಕ್ಕ (ಮೂಲ ಗೊಬ್ಬರ ಹೊರತುಪಡಿಸಿ)" : "Tracks post-15 Aug WSF Drip + Foliar (excludes solid basal ring FYM/DAP)"}
+          ${LANG === "KN" ? "15 Aug ನಂತರದ ಡ್ರಿಪ್ + ಎಲೆ ಸಿಂಪಡಣೆ ಲೆಕ್ಕ" : "Post-15 Aug WSF Drip + Foliar delivered"}
         </div>
       </div>
     </div>
@@ -4079,29 +4166,32 @@ function renderAnalyticsTab() {
     const barWidthPct = Math.min(100, rawPct);
 
     let statusBadge = "";
+    let barColor = n.color;
     if (rawPct < 80) {
-      statusBadge = `<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-extrabold">⚠️ ${LANG === "KN" ? "ಕೊರತೆ" : "Deficit"} (${rawPct}%)</span>`;
+      statusBadge = `<span class="px-2 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-extrabold">${LANG === "KN" ? "ಕೊರತೆ" : "Deficit"} • ${rawPct}%</span>`;
+      barColor = "bg-amber-500";
     } else if (rawPct <= 115) {
-      statusBadge = `<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 text-[10px] font-extrabold">✅ ${LANG === "KN" ? "ಸರಿಯಾಗಿದೆ" : "On Track"} (${rawPct}%)</span>`;
+      statusBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-[10px] font-extrabold">${LANG === "KN" ? "ಸರಿಯಾಗಿದೆ" : "On Track"} • ${rawPct}%</span>`;
     } else {
-      statusBadge = `<span class="px-1.5 py-0.5 rounded bg-rose-100 text-rose-900 text-[10px] font-extrabold">🚨 ${LANG === "KN" ? "ಹೆಚ್ಚುವರಿ" : "Surplus"} (${rawPct}%)</span>`;
+      statusBadge = `<span class="px-2 py-0.5 rounded-full bg-red-100 border border-red-300 text-red-900 text-[10px] font-extrabold">${LANG === "KN" ? "ಹೆಚ್ಚುವರಿ" : "Surplus"} • ${rawPct}%</span>`;
+      barColor = "bg-red-600";
     }
 
-    return `<div class="p-2.5 rounded-xl bg-slate-50/70 border border-slate-200/90 space-y-1">
+    return `<div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200 space-y-1.5">
       <div class="flex flex-wrap justify-between items-center font-bold gap-1">
-        <span class="text-slate-900">${LANG === "KN" ? n.labelKn : n.labelEn}</span>
-        <div class="flex items-center gap-1.5 flex-wrap">
-          <span><b>${actual} g</b> / ${target} g ${LANG === "KN" ? "ಇಂದಿನ ಗುರಿ" : "to date"}</span>
+        <span class="text-slate-900 text-xs sm:text-sm">${LANG === "KN" ? n.labelKn : n.labelEn}</span>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-xs text-slate-700"><b class="text-slate-900">${actual} g</b> / ${target} g ${LANG === "KN" ? "ಇಂದಿನ ಗುರಿ" : "to date"}</span>
           ${statusBadge}
         </div>
       </div>
       <div class="text-[11px] text-slate-600 flex flex-wrap justify-between gap-1">
-        <span>💧 <b>${LANG === "KN" ? "ಡ್ರಿಪ್ (ಬೇರು):" : "Drip (Root):"}</b> ${dripG} g • 🌿 <b>${LANG === "KN" ? "ಎಲೆ ಸಿಂಪಡಣೆ:" : "Foliar (Leaf):"}</b> ${folG} g</span>
-        <span class="text-slate-500">🎯 ${LANG === "KN" ? "ಪೂರ್ಣ ಹಂಗಾಮಿನ ಗುರಿ:" : "Full Season Plan:"} <b>${n.fullSeason} g/plant</b> <span class="text-[10px]">(NRCP: ${n.nrcpRef})</span></span>
+        <span><b>${LANG === "KN" ? "ಡ್ರಿಪ್ (ಬೇರು):" : "Drip (Root):"}</b> ${dripG} g • <b>${LANG === "KN" ? "ಎಲೆ ಸಿಂಪಡಣೆ:" : "Foliar (Leaf):"}</b> ${folG} g</span>
+        <span class="text-slate-500">${LANG === "KN" ? "ಪೂರ್ಣ ಹಂಗಾಮಿನ ಗುರಿ:" : "Full Season Plan:"} <b class="text-slate-800">${n.fullSeason} g/plant</b> <span class="text-[10px]">(NRCP: ${n.nrcpRef})</span></span>
       </div>
-      ${n.elemSub ? `<div class="text-[11px] text-slate-700 font-medium">${n.elemSub}</div>` : ""}
-      <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-        <div class="${n.color} h-2.5 rounded-full transition-all" style="width:${barWidthPct}%"></div>
+      ${n.elemSub ? `<div class="text-[11px] text-slate-600 font-medium">${n.elemSub}</div>` : ""}
+      <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+        <div class="${barColor} h-2 rounded-full transition-all" style="width:${barWidthPct}%"></div>
       </div>
     </div>`;
   }).join("");
@@ -5621,7 +5711,6 @@ function applyHubAndSubPillRouting() {
 }
 
 function renderSeasonSprayAndDripGuides() {
-  // Safely remove ONLY the old inline duplicate containers if they exist, without ever touching GDD or NPK elements
   ["gddTotalValue", "npkBarsContainer"].forEach(anchorId => {
     const card = document.getElementById(anchorId)?.closest(".bg-white");
     if (!card) return;
@@ -5645,9 +5734,7 @@ function renderSeasonSprayAndDripGuides() {
     analyticsPanel.appendChild(extraBox);
   }
 
-  // ==========================================================================
   // 1. 4-COLUMN (2x2) SEASONAL CHEMICAL SPRAY COUNTER & RESISTANCE TRACKER
-  // ==========================================================================
   const MAX_SEASON_SPRAYS = { BACTERICIDE: 6, FUNGICIDE: 3, INSECTICIDE: 2, BIOSTIMULANT: 8, FERTIGATION: 20 };
   const sprayCounts = {};
   tasks.filter(t => t.status === "COMPLETED" && t.current_scheduled_date >= "2026-08-15" && (t.task_type === "FOLIAR_SPRAY" || t.task_type === "STANDALONE_COPPER")).forEach(t => {
@@ -5663,14 +5750,13 @@ function renderSeasonSprayAndDripGuides() {
   const sortedSprays = Object.values(sprayCounts).sort((a, b) => b.count - a.count);
   const sprayGridHtml = sortedSprays.length ? `
     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0 border border-slate-200 rounded-xl overflow-hidden">
-      <!-- Column Headers for Left Pair (Cols 1-2) and Right Pair (Cols 3-4) -->
       <div class="bg-slate-100 px-3 py-2 text-[11px] font-extrabold text-slate-700 flex justify-between border-b border-slate-200">
-        <span>🧪 ${LANG === "KN" ? "ಲವಣಾಂಶ, ಕಂಪನಿ & ಕೊನೆಯ ದಿನಾಂಕ" : "Active Salt, Brand & Last Date"}</span>
-        <span>🛡️ ${LANG === "KN" ? "ಬಳಕೆ / ಗರಿಷ್ಠ ಮಿತಿ" : "Used / Max Cap"}</span>
+        <span>${LANG === "KN" ? "ಲವಣಾಂಶ, ಕಂಪನಿ & ಕೊನೆಯ ದಿನಾಂಕ" : "Active Salt, Brand & Last Date"}</span>
+        <span>${LANG === "KN" ? "ಬಳಕೆ / ಗರಿಷ್ಠ ಮಿತಿ" : "Used / Max Cap"}</span>
       </div>
       <div class="hidden md:flex bg-slate-100 px-3 py-2 text-[11px] font-extrabold text-slate-700 justify-between border-b border-l border-slate-200">
-        <span>🧪 ${LANG === "KN" ? "ಲವಣಾಂಶ, ಕಂಪನಿ & ಕೊನೆಯ ದಿನಾಂಕ" : "Active Salt, Brand & Last Date"}</span>
-        <span>🛡️ ${LANG === "KN" ? "ಬಳಕೆ / ಗರಿಷ್ಠ ಮಿತಿ" : "Used / Max Cap"}</span>
+        <span>${LANG === "KN" ? "ಲವಣಾಂಶ, ಕಂಪನಿ & ಕೊನೆಯ ದಿನಾಂಕ" : "Active Salt, Brand & Last Date"}</span>
+        <span>${LANG === "KN" ? "ಬಳಕೆ / ಗರಿಷ್ಠ ಮಿತಿ" : "Used / Max Cap"}</span>
       </div>
       ${sortedSprays.map((entry, idx) => {
         const c = entry.cat;
@@ -5681,29 +5767,27 @@ function renderSeasonSprayAndDripGuides() {
         const rightColBorder = (idx % 2 === 1) ? "md:border-l border-slate-200" : "";
         return `<div class="px-3 py-2.5 flex items-center justify-between gap-2 text-xs border-b border-slate-100 bg-white ${rightColBorder}">
           <div class="min-w-0">
-            <div class="font-extrabold text-slate-900 flex items-center gap-1 flex-wrap">
-              <span>🧪 ${getSaltOnlyTitle(c)}</span>
+            <div class="font-extrabold text-slate-900 flex items-center gap-1.5 flex-wrap">
+              <span>${getSaltOnlyTitle(c)}</span>
               ${getUniformGroupBadge(c)}
             </div>
-            <div class="text-[11px] text-slate-500 truncate">🏷️ ${getBrandOnlySubtitle(c)}</div>
-            <div class="text-[10px] text-slate-400">📅 ${LANG === "KN" ? "ಕೊನೆಯ ಸಿಂಪಡಣೆ:" : "Last sprayed:"} <b class="text-slate-600">${entry.lastDate}</b></div>
+            <div class="text-[11px] text-slate-500 truncate"><b>${LANG === "KN" ? "ಕಂಪನಿ:" : "Brands:"}</b> ${getBrandOnlySubtitle(c)}</div>
+            <div class="text-[10px] text-slate-400">${LANG === "KN" ? "ಕೊನೆಯ ಸಿಂಪಡಣೆ:" : "Last sprayed:"} <b class="text-slate-600">${entry.lastDate}</b></div>
           </div>
           <span class="px-2.5 py-1 rounded-full border font-extrabold text-[11px] shrink-0 ${badgeCls}">
-            ${entry.count} / ${maxAllowed} ${overCap ? "⚠️ Rotate" : "✅ Safe"}
+            ${entry.count} / ${maxAllowed} ${overCap ? "• Rotate" : "• Safe"}
           </span>
         </div>`;
       }).join("")}
     </div>` : `<div class="text-xs text-slate-500 py-3">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಎಲೆ ಸಿಂಪಡಣೆ ದಾಖಲಾಗಿಲ್ಲ." : "No completed foliar sprays recorded yet."}</div>`;
 
-  // ==========================================================================
-  // 2. FAO-56 + 72h SOIL MOISTURE MEMORY DRIP IRRIGATION ENGINE (LOCKED DAILY)
-  // ==========================================================================
+  // 2. FAO-56 + 72h SOIL MOISTURE MEMORY DRIP IRRIGATION ENGINE (Agricultural Teal Stat-Block Layout)
   const gModel = getGddStageModel();
   const emitterLphPerPlant = Number(localStorage.getItem("h_drip_lph") || 16);
   const tStr = todayYMD();
   const lockKey = `h_drip_daily_lock_${tStr}`;
 
-  const EFFECTIVE_AREA_M2 = 4.79; // (7.43 m² spacing × 0.58 canopy cover) / 0.90 drip efficiency
+  const EFFECTIVE_AREA_M2 = 4.79;
   const DRIP_STAGES = [
     { gddRange: "0–950 GDD",     dadRange: "0–58d",    kc: 0.60, baseLiters: 14, stageEn: "Stage A: Flowering & Early Sizing",     stageKn: "ಹಂತ A: ಹೂವು & ಆರಂಭಿಕ ಕಾಯಿ", freqEn: "Daily / Alternate Day",      freqKn: "ಪ್ರತಿದಿನ / ದಿನ ಬಿಟ್ಟು ದಿನ" },
     { gddRange: "950–1450 GDD",  dadRange: "59–90d",   kc: 0.85, baseLiters: 20, stageEn: "Stage B: Guava-Size Expansion",         stageKn: "ಹಂತ B: ಪೇರಳೆ ಗಾತ್ರದ ಹಂತ",    freqEn: "Daily (Morning)",            freqKn: "ಪ್ರತಿದಿನ (ಬೆಳಿಗ್ಗೆ)" },
@@ -5716,8 +5800,6 @@ function renderSeasonSprayAndDripGuides() {
   const curStageIdx = Math.max(0, SUPER_BHAGWA_STAGES.findIndex(s => s.en === gModel.currentStage.en));
   const activeDripStage = DRIP_STAGES[curStageIdx] || DRIP_STAGES[1];
 
-  // Read or create today's locked daily drip snapshot so values NEVER jitter throughout the day
-  // (Only recalculates if in SIM mode, if Farm Rain is logged, or if user clicks 'Recalculate')
   let lockedSnap = null;
   if (wState.mode !== "SIM") {
     try { lockedSnap = JSON.parse(localStorage.getItem(lockKey) || "null"); } catch { lockedSnap = null; }
@@ -5773,75 +5855,93 @@ function renderSeasonSprayAndDripGuides() {
   const todayOrchardKL = ((netTodayLiters * CFG.plants) / 1000).toFixed(1);
 
   const splitPulseAdvice = netTodayLiters >= 20
-    ? (LANG === "KN" ? `⚡ ಕೆಂಪು ಮಣ್ಣಿನಲ್ಲಿ ಸೋರಿಕೆ ತಡೆಯಲು 2 ಬಾರಿ ನೀರು ಕೊಡಿ: ಬೆಳಿಗ್ಗೆ ${Math.round(todayRunMins * 0.6)} ನಿಮಿಷ + ಸಂಜೆ ${Math.round(todayRunMins * 0.4)} ನಿಮಿಷ` : `⚡ Red-Soil Split Pulse: Run ${Math.round(todayRunMins * 0.6)} mins in Morning + ${Math.round(todayRunMins * 0.4)} mins in Evening`)
+    ? (LANG === "KN" ? `ಕೆಂಪು ಮಣ್ಣಿನಲ್ಲಿ ಸೋರಿಕೆ ತಡೆಯಲು 2 ಬಾರಿ ನೀರು ಕೊಡಿ: ಬೆಳಿಗ್ಗೆ ${Math.round(todayRunMins * 0.6)} ನಿಮಿಷ + ಸಂಜೆ ${Math.round(todayRunMins * 0.4)} ನಿಮಿಷ` : `Red-Soil Split Pulse: Run ${Math.round(todayRunMins * 0.6)} mins in Morning + ${Math.round(todayRunMins * 0.4)} mins in Evening`)
     : (netTodayLiters === 0
-        ? (LANG === "KN" ? "🌧️ ಕಳೆದ 72 ಗಂಟೆಗಳ ಮಳೆಯ ತೇವಾಂಶ ಮಣ್ಣಿನಲ್ಲಿದೆ — ಇಂದು ಡ್ರಿಪ್ ನೀರು ಬೇಡ (48h Rain Pause)" : "🌧️ 72h Root-Zone Moisture Sufficient — Pause Drip Irrigation Today")
-        : (LANG === "KN" ? `✅ ಬೆಳಿಗ್ಗೆ ಒಂದೇ ಬಾರಿ ${todayRunMins} ನಿಮಿಷ ಡ್ರಿಪ್ ಚಾಲನೆ ಮಾಡಿ` : `✅ Single Morning Run: ${todayRunMins} mins`));
+        ? (LANG === "KN" ? "ಕಳೆದ 72 ಗಂಟೆಗಳ ಮಳೆಯ ತೇವಾಂಶ ಮಣ್ಣಿನಲ್ಲಿದೆ — ಇಂದು ಡ್ರಿಪ್ ನೀರು ಬೇಡ (48h Rain Pause)" : "72h Root-Zone Moisture Sufficient — Pause Drip Irrigation Today")
+        : (LANG === "KN" ? `ಬೆಳಿಗ್ಗೆ ಒಂದೇ ಬಾರಿ ${todayRunMins} ನಿಮಿಷ ಡ್ರಿಪ್ ಚಾಲನೆ ಮಾಡಿ` : `Single Morning Session: Run drip for ${todayRunMins} mins`));
 
-  // Stage Table ALWAYS shows the constant stage baseline (ds.baseLiters), never overwritten by today's weather!
   const dripRowsHtml = DRIP_STAGES.map((ds, i) => {
     const isCurrent = i === curStageIdx;
-    const stageLiters = ds.baseLiters; // Constant Stage Baseline!
+    const stageLiters = ds.baseLiters;
     const totalOrchardKL = ((stageLiters * CFG.plants) / 1000).toFixed(1);
     const runMins = Math.round((stageLiters / emitterLphPerPlant) * 60);
-    const rowCls = isCurrent ? "bg-sky-50 border-2 border-sky-500 font-bold" : "bg-white border border-slate-200";
+    const rowCls = isCurrent ? "bg-teal-50/70 border-2 border-teal-700 font-bold shadow-2xs" : "bg-slate-50/70 border border-slate-200";
     const activeBadge = isCurrent
-      ? `<div class="mt-1 inline-block px-2 py-0.5 rounded bg-sky-800 text-white text-[10px] font-extrabold">
-           📍 ${LANG === "KN" ? `ಸಕ್ರಿಯ ಹಂತ • ಇಂದಿನ ಹವಾಮಾನ ಗುರಿ: ${netTodayLiters} L (${todayRunMins} ನಿಮಿಷ)` : `Active Stage • Today's Weather Target: ${netTodayLiters} L (${todayRunMins} mins)`}
+      ? `<div class="mt-1.5 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-teal-900 text-white text-[10px] font-extrabold">
+           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+           <span>${LANG === "KN" ? `ಸಕ್ರಿಯ ಹಂತ • ಇಂದಿನ ಹವಾಮಾನ ಗುರಿ: ${netTodayLiters} L (${todayRunMins} ನಿಮಿಷ)` : `Active Stage • Today's Weather Target: ${netTodayLiters} L (${todayRunMins} mins)`}</span>
          </div>`
       : "";
-    return `<div class="p-2.5 rounded-xl ${rowCls} text-xs flex flex-wrap items-center justify-between gap-2">
+    return `<div class="p-3 rounded-xl ${rowCls} text-xs flex flex-wrap items-center justify-between gap-2">
       <div>
-        <div class="font-extrabold text-slate-900">${isCurrent ? "📍 " : ""}${LANG === "KN" ? ds.stageKn : ds.stageEn} <span class="text-[10px] font-mono text-slate-500">(${ds.gddRange} • Kc=${ds.kc})</span></div>
-        <div class="text-[11px] text-slate-600">${LANG === "KN" ? ds.freqKn : ds.freqEn} • 🚜 ${LANG === "KN" ? "ಹಂತದ ಸರಾಸರಿ (3 ಎಕರೆ):" : "Stage Baseline (3 Ac):"} <b>${totalOrchardKL} kL/day</b> (${(stageLiters * CFG.plants).toLocaleString()} L)</div>
+        <div class="font-extrabold text-slate-900">${LANG === "KN" ? ds.stageKn : ds.stageEn} <span class="text-[10px] font-mono text-slate-500">(${ds.gddRange} • Kc=${ds.kc})</span></div>
+        <div class="text-[11px] text-slate-600 mt-0.5">${LANG === "KN" ? ds.freqKn : ds.freqEn} • ${LANG === "KN" ? "ಹಂತದ ಸರಾಸರಿ (3 ಎಕರೆ):" : "Stage Baseline (3 Ac):"} <b>${totalOrchardKL} kL/day</b> (${(stageLiters * CFG.plants).toLocaleString()} L)</div>
         ${activeBadge}
       </div>
       <div class="text-right">
-        <div class="text-sm font-extrabold text-sky-900">💧 ${stageLiters} L / ${LANG === "KN" ? "ಗಿಡ/ದಿನ" : "plant/day"}</div>
-        <div class="text-[11px] text-slate-600">⏱️ <b>~${runMins} mins</b> (@ ${emitterLphPerPlant} LPH/plant)</div>
+        <div class="text-sm font-extrabold text-teal-950">${stageLiters} L / ${LANG === "KN" ? "ಗಿಡ/ದಿನ" : "plant/day"}</div>
+        <div class="text-[11px] text-slate-600"><b>~${runMins} mins</b> (@ ${emitterLphPerPlant} LPH/plant)</div>
       </div>
     </div>`;
   }).join("");
 
   extraBox.innerHTML = `
-    <div id="sprayCounterCard" class="bg-white rounded-2xl p-4 shadow-sm border space-y-2.5">
-      <div class="flex flex-wrap items-center justify-between gap-2">
+    <div id="sprayCounterCard" class="bg-white rounded-xl p-4 shadow-xs border border-slate-200/90 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
         <div>
-          <div class="font-extrabold text-sm text-slate-900">🛡️ ${LANG === "KN" ? "ಈ ಹಂಗಾಮಿನಲ್ಲಿ ಬಳಸಿದ ಔಷಧಿಗಳ ಲೆಕ್ಕ ಮತ್ತು ಗರಿಷ್ಠ ಮಿತಿ (4-ಕಾಲಮ್ ಪಟ್ಟಿ)" : "Seasonal Chemical Spray Counter & Max Allowed Cap (ICAR-NRCP / IRAC-FRAC)"}</div>
-          <div class="text-xs text-slate-500">${LANG === "KN" ? "ಒಂದೇ ಔಷಧಿಯನ್ನು ಮಿತಿಗಿಂತ ಹೆಚ್ಚು ಬಾರಿ ಸಿಂಪಡಿಸಿದರೆ ಕೀಟ/ರೋಗಗಳಿಗೆ ನಿರೋಧಕ ಶಕ್ತಿ ಬರುತ್ತದೆ:" : "Tracks completed foliar sprays since 15 Aug 2026 vs. maximum seasonal anti-resistance limit:"}</div>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg>
+            <div class="font-extrabold text-sm sm:text-base text-slate-900">${LANG === "KN" ? "ಈ ಹಂಗಾಮಿನಲ್ಲಿ ಬಳಸಿದ ಔಷಧಿಗಳ ಲೆಕ್ಕ ಮತ್ತು ಗರಿಷ್ಠ ಮಿತಿ (4-ಕಾಲಮ್ ಪಟ್ಟಿ)" : "Seasonal Chemical Spray Counter & Max Allowed Cap (ICAR-NRCP / IRAC-FRAC)"}</div>
+          </div>
+          <div class="text-xs text-slate-500 mt-0.5">${LANG === "KN" ? "ಒಂದೇ ಔಷಧಿಯನ್ನು ಮಿತಿಗಿಂತ ಹೆಚ್ಚು ಬಾರಿ ಸಿಂಪಡಿಸಿದರೆ ಕೀಟ/ರೋಗಗಳಿಗೆ ನಿರೋಧಕ ಶಕ್ತಿ ಬರುತ್ತದೆ:" : "Tracks completed foliar sprays since 15 Aug 2026 vs. maximum seasonal anti-resistance limit:"}</div>
         </div>
       </div>
       ${sprayGridHtml}
     </div>
 
-    <div id="dripWaterCard" class="bg-white rounded-2xl p-4 shadow-sm border space-y-3">
-      <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-2.5">
+    <div id="dripWaterCard" class="bg-white rounded-xl p-4 shadow-xs border border-slate-200/90 space-y-3.5">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
         <div>
-          <div class="font-extrabold text-sm text-sky-950">💧 ${LANG === "KN" ? "ಹಂತವಾರು ಮತ್ತು ಇಂದಿನ ಡ್ರಿಪ್ ನೀರಿನ ವೇಳಾಪಟ್ಟಿ (1,500 ಗಿಡಗಳು • 10×8 ಅಡಿ)" : "FAO-56 & ICAR-NRCP Drip Irrigation Schedule (1,500 Super Bhagwa Plants)"}</div>
-          <div class="text-[11px] text-slate-500">📚 <b>${LANG === "KN" ? "ಮೂಲ:" : "Source:"}</b> ICAR-NRCP Solapur Micro-Irrigation Bulletin &amp; FAO-56 Hargreaves (ET₀ × Kc × 4.79m² eff. canopy)</div>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-teal-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>
+            <div class="font-extrabold text-sm sm:text-base text-slate-900">${LANG === "KN" ? "ಹಂತವಾರು ಮತ್ತು ಇಂದಿನ ಡ್ರಿಪ್ ನೀರಿನ ವೇಳಾಪಟ್ಟಿ (1,500 ಗಿಡಗಳು • 10×8 ಅಡಿ)" : "FAO-56 & ICAR-NRCP Drip Irrigation Schedule (1,500 Super Bhagwa Plants)"}</div>
+          </div>
+          <div class="text-[11px] text-slate-500 mt-0.5"><b>${LANG === "KN" ? "ಮೂಲ:" : "Source:"}</b> ICAR-NRCP Solapur Micro-Irrigation Bulletin &amp; FAO-56 Hargreaves (ET₀ × Kc × 4.79m² eff. canopy)</div>
         </div>
-        <div class="flex items-center gap-1 text-xs bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1">
-          <span>💧 ${LANG === "KN" ? "ಡ್ರಿಪರ್ ವೇಗ (LPH/ಗಿಡ):" : "Dripper Flow (LPH/plant):"}</span>
-          <input type="number" step="1" min="2" max="64" value="${emitterLphPerPlant}" onchange="localStorage.setItem('h_drip_lph',this.value);renderSeasonSprayAndDripGuides();" class="w-12 bg-white border rounded px-1 text-center font-extrabold" />
+        <div class="inline-flex items-center gap-1.5 text-xs bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1">
+          <span class="font-semibold text-slate-700">${LANG === "KN" ? "ಡ್ರಿಪರ್ ವೇಗ (LPH/ಗಿಡ):" : "Dripper Flow (LPH/plant):"}</span>
+          <input type="number" step="1" min="2" max="64" value="${emitterLphPerPlant}" onchange="localStorage.setItem('h_drip_lph',this.value);renderSeasonSprayAndDripGuides();" style="field-sizing:content;width:auto;min-inline-size:3ch;max-inline-size:6ch" class="bg-white border border-slate-300 rounded px-1.5 py-0.5 text-center font-extrabold text-slate-900" />
         </div>
       </div>
 
-      <!-- Today's Live 5-Parameter Weather-Adjusted Irrigation Prescription Banner -->
-      <div class="p-3 rounded-xl bg-sky-900 text-white space-y-1.5 text-xs shadow-sm">
+      <!-- Today's Live 5-Parameter Weather-Adjusted Irrigation Prescription Banner (Agricultural Teal Stat-Blocks) -->
+      <div class="p-3.5 rounded-xl bg-teal-950 text-white space-y-2.5 text-xs shadow-xs border border-teal-800">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <span class="font-extrabold text-sm text-sky-200">📍 ${LANG === "KN" ? "ಇಂದಿನ ನಿಖರ ಡ್ರಿಪ್ ನೀರಿನ ಶಿಫಾರಸು (5-ಪ್ಯಾರಾಮೀಟರ್ ಹವಾಮಾನ ಲೆಕ್ಕ):" : "Today's Weather-Adjusted Drip Target (5-Parameter Model):"}</span>
-          <span class="px-2.5 py-0.5 rounded-full bg-emerald-400 text-slate-950 font-extrabold text-xs">💧 ${netTodayLiters} L/plant • ⏱️ ${todayRunMins} mins (${todayOrchardKL} kL)</span>
+          <span class="font-extrabold text-xs sm:text-sm text-teal-100 uppercase tracking-wide">${LANG === "KN" ? "ಇಂದಿನ ನಿಖರ ಡ್ರಿಪ್ ನೀರಿನ ಶಿಫಾರಸು (5-ಪ್ಯಾರಾಮೀಟರ್ ಹವಾಮಾನ ಲೆಕ್ಕ)" : "Today's Weather-Adjusted Drip Target (5-Parameter Model)"}</span>
+          <span class="px-3 py-1 rounded-full bg-emerald-400 text-slate-950 font-extrabold text-xs">${netTodayLiters} L/plant • ${todayRunMins} mins (${todayOrchardKL} kL)</span>
         </div>
-        <div class="text-[11px] text-sky-100 flex flex-wrap gap-x-3 gap-y-1">
-          <span>☀️ <b>ET₀ (Today):</b> ${et0Today} mm/d (${tMax}°/${tMin}°C)</span>
-          <span>🌱 <b>Stage Kc:</b> ${activeDripStage.kc} (Base: ${activeDripStage.baseLiters}L → Weather Gross: ${grossTodayLiters}L)</span>
-          <span>💨 <b>72h RH (${rh72}%):</b> ${vpdPct === 0 ? "Normal (0%)" : (vpdPct > 0 ? `+${vpdPct}% Dry VPD` : `${vpdPct}% Humid`)}</span>
-          <span>🌧️ <b>72h Rain Credit:</b> -${rainCreditLitersPerPlant} L/plant (${effectiveRainMm}mm root-zone eff. rain)</span>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+          <div class="bg-teal-900/70 border border-teal-800 rounded-lg p-2">
+            <div class="text-[10px] font-bold uppercase text-teal-300">ET₀ (Today)</div>
+            <div class="font-extrabold text-white mt-0.5">${et0Today} mm/d <span class="font-normal text-teal-200">(${tMax}°/${tMin}°C)</span></div>
+          </div>
+          <div class="bg-teal-900/70 border border-teal-800 rounded-lg p-2">
+            <div class="text-[10px] font-bold uppercase text-teal-300">Stage Kc</div>
+            <div class="font-extrabold text-white mt-0.5">${activeDripStage.kc} <span class="font-normal text-teal-200">(Base ${activeDripStage.baseLiters}L → ${grossTodayLiters}L)</span></div>
+          </div>
+          <div class="bg-teal-900/70 border border-teal-800 rounded-lg p-2">
+            <div class="text-[10px] font-bold uppercase text-teal-300">72h VPD (${rh72}% RH)</div>
+            <div class="font-extrabold text-white mt-0.5">${vpdPct === 0 ? "Normal (0%)" : (vpdPct > 0 ? `+${vpdPct}% Dry Boost` : `${vpdPct}% Humid`)}</div>
+          </div>
+          <div class="bg-teal-900/70 border border-teal-800 rounded-lg p-2">
+            <div class="text-[10px] font-bold uppercase text-teal-300">72h Rain Credit</div>
+            <div class="font-extrabold text-white mt-0.5">-${rainCreditLitersPerPlant} L/plant <span class="font-normal text-teal-200">(${effectiveRainMm}mm)</span></div>
+          </div>
         </div>
-        <div class="text-[11px] font-bold text-amber-300 pt-0.5">${splitPulseAdvice}</div>
+        <div class="text-[11px] font-bold text-amber-300 pt-1 border-t border-teal-800/80">${splitPulseAdvice}</div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${dripRowsHtml}</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">${dripRowsHtml}</div>
     </div>
   `;
 
