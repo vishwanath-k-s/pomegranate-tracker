@@ -741,7 +741,7 @@
         </div>
         <div class="flex items-center gap-2">
           <span class="text-slate-600 font-semibold" id="ui_lblNewDate">New Date:</span>
-          <input type="date" id="delayCustomDate" class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 font-bold text-slate-900" />
+          <input type="date" id="delayCustomDate" onchange="updateDelayPreviewText()" class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 font-bold text-slate-900" />
         </div>
       </div>
       <div>
@@ -766,6 +766,7 @@
           <option value="SOURCING_FROM_OTHER_TOWN" id="ui_rsnStore">Chemical Sourcing Delay</option>
         </select>
       </div>
+      <div id="delayMovePreview" class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-950 font-extrabold text-center text-xs"></div>
       <button type="button" onclick="confirmDelayModal()" id="ui_btnConfirmDelay" class="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold py-2.5 rounded-xl shadow-xs text-sm transition">Confirm New Date &amp; Update Schedule</button>
     </div>
   </div>
