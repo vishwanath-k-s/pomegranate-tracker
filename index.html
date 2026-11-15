@@ -37,10 +37,12 @@
 
   /* Auto-fitting numeric inputs with safe min/max bounds (form-fields-automatically-fit-contents) */
   #panel_TASKS input[type="number"],
-  #shopBox input[type="number"] {
+  #shopBox input[type="number"],
+  #panel_MANUAL input[type="number"] {
     field-sizing: content;
-    min-inline-size: 3.2ch;
-    max-inline-size: 9ch;
+    width: auto !important;
+    min-inline-size: 3.8ch;
+    max-inline-size: 10ch;
   }
 
   /* Prevent underlying page scroll chaining on modal backdrops & sheets (prevent-page-scroll-under-modal-dialog) */
@@ -56,73 +58,173 @@
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
 
-  /* Sticky header for 30-Week Master Schedule table (responsive-table) */
-  #allWeeksBody ~ thead th,
-  table:has(#allWeeksBody) thead th {
+  /* Bounded scroll container + sticky header for 30-Week Master Schedule table (responsive-table) */
+  div:has(> table > #allWeeksBody) {
+    overflow: auto;
+    max-inline-size: 100%;
+    max-block-size: min(560px, 74dvh);
+    overscroll-behavior: contain;
+    container-type: inline-size;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+  table:has(#allWeeksBody) {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  table:has(#allWeeksBody) thead {
     position: sticky;
-    top: 0;
-    background-color: #ffffff;
+    inset-block-start: 0;
     z-index: 10;
   }
+  table:has(#allWeeksBody) thead th {
+    position: sticky;
+    inset-block-start: 0;
+    background-color: #f8fafc;
+    box-shadow: inset 0 -1px 0 #cbd5e1;
+    z-index: 10;
+    padding: 0.5rem 0.6rem;
+  }
+
+  /* Connected Underlined Navigation Tabs with Anchor Positioning & Fallback (anchor-positioning-tab-underline) */
+  #hubNavBar {
+    position: relative;
+  }
+  #hubNavBar button[aria-selected="true"] {
+    anchor-name: --active-hub-tab;
+  }
+  @supports (position-anchor: --active-hub-tab) {
+    #hubNavBar::before {
+      content: "";
+      position: absolute;
+      position-anchor: --active-hub-tab;
+      inset-block-end: 0;
+      inset-inline-start: anchor(left);
+      inset-inline-end: anchor(right);
+      border-block-end: 3px solid var(--brand-accent);
+      pointer-events: none;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      #hubNavBar::before {
+        transition: inset 0.2s ease;
+      }
+    }
+  }
+  @supports not (position-anchor: --active-hub-tab) {
+    #hubNavBar button[aria-selected="true"] {
+      border-bottom: 3px solid var(--brand-accent);
+    }
+  }
+
+  /* Remove default disclosure triangle on <details> overflow & dev menus */
+  details.clean-dropdown > summary { list-style: none; }
+  details.clean-dropdown > summary::-webkit-details-marker { display: none; }
 
   @media (max-width: 639px) {
-    #panel_TASKS input[type="number"] { min-width: 3.2rem; }
     .hub-btn-text { font-size: 10px; line-height: 1.15; }
   }
 </style>
 
-<header id="mainHeader" class="bg-emerald-900 text-white sticky top-0 z-30 shadow-md">
-  <div class="max-w-7xl mx-auto px-3 sm:px-6 py-2.5">
+<header id="mainHeader" class="bg-emerald-900 text-white sticky top-0 z-30 shadow-sm border-b border-emerald-800">
+  <div class="max-w-7xl mx-auto px-3 sm:px-6 py-2">
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <div>
-        <div class="flex items-center gap-2 flex-wrap">
-          <h1 id="ui_appTitle" class="text-sm sm:text-lg font-extrabold tracking-tight">🍎 Hosahalli Pomegranate Tracker</h1>
-          <select id="envSelect" onchange="switchEnv(this.value)" class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950 cursor-pointer">
-            <option value="PROD">🟢 PROD (Live)</option>
-            <option value="DEV">🧪 DEV (Test)</option>
-          </select>
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-emerald-800/90 border border-emerald-600/70 flex items-center justify-center text-emerald-200 shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
         </div>
-        <p id="ui_appSub" class="text-[11px] text-emerald-200">3 Acres • 1,500 Plants (10×8) • Wk 1 (Ethrel): 15 Aug 2026</p>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 id="ui_appTitle" class="text-sm sm:text-base font-extrabold tracking-tight">Hosahalli Pomegranate Tracker</h1>
+            <select id="envSelect" onchange="switchEnv(this.value)" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950 cursor-pointer">
+              <option value="PROD">PROD (Live)</option>
+              <option value="DEV">DEV (Test)</option>
+            </select>
+          </div>
+          <p id="ui_appSub" class="text-[11px] text-emerald-200/90">3 Acres • 1,500 Plants (10×8) • Wk 1 (Ethrel): 15 Aug 2026</p>
+        </div>
       </div>
+
       <div class="flex items-center gap-1.5 flex-wrap">
-        <div class="flex items-center bg-emerald-950/90 border border-emerald-600 rounded-lg px-2 py-1 text-xs">
-          <span class="mr-1">👤</span>
+        <div class="flex items-center bg-emerald-950/75 border border-emerald-700 rounded-lg px-2 py-1 text-xs">
+          <svg class="w-3.5 h-3.5 mr-1 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <select id="userSelect" onchange="changeActiveUser(this.value)" class="bg-transparent text-white font-bold focus:outline-none cursor-pointer"></select>
-          <button onclick="openUserModal()" title="Manage Users" class="ml-1.5 text-emerald-300 hover:text-white font-bold">⚙️</button>
+          <button type="button" onclick="openUserModal()" title="Manage Users" aria-label="Manage Users" class="ml-1.5 text-emerald-300 hover:text-white">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
         </div>
-        <button onclick="openNewChemModal()" class="text-[11px] px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold shadow-sm">➕ New Chemical</button>
-        <button onclick="openRainModal()" id="ui_btnLogRain" class="text-[11px] px-2.5 py-1 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold shadow-sm">🌧️ Log Farm Rain</button>
-        <span id="syncBadge" class="text-[10px] px-2 py-1 rounded-full bg-emerald-700 font-bold">🟢 Synced</span>
-        <button onclick="toggleLanguage()" id="langBtn" class="bg-amber-400 text-slate-900 font-extrabold text-xs px-2.5 py-1 rounded-lg">ಕನ್ನಡ</button>
+
+        <button type="button" onclick="openNewChemModal()" class="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 border border-emerald-500/80 text-white font-bold shadow-sm">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span>New Chemical</span>
+        </button>
+
+        <button type="button" onclick="openRainModal()" class="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-emerald-950/80 hover:bg-emerald-950 border border-emerald-700 text-emerald-100 font-bold shadow-sm">
+          <svg class="w-3.5 h-3.5 text-sky-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6M8 14v6M12 16v6"/></svg>
+          <span id="ui_btnLogRain">Log Farm Rain</span>
+        </button>
+
+        <span id="syncBadge" class="text-[10px] px-2 py-1 rounded-full bg-emerald-800 border border-emerald-600 font-bold">Synced</span>
+        <button type="button" onclick="toggleLanguage()" id="langBtn" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-xs px-2.5 py-1 rounded-lg">ಕನ್ನಡ</button>
       </div>
     </div>
 
-  <div class="mt-2 pt-2 border-t border-emerald-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+    <!-- Cohesive Weather Pill + Risk Badge + Collapsible Dev Tools Menu -->
+    <div class="mt-2 pt-2 border-t border-emerald-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
       <div class="flex flex-wrap items-center gap-2">
-        <span id="wTemp">🌡️ --°C</span>
-        <span id="wHum">💧 --%</span>
-        <span id="wRain">🌧️ --mm</span>
-        <span id="wRiskBadge" onclick="showHub('PEST_HUB','RISK_RADAR')" class="cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-700">Risk: --</span>
-        <span id="wCronBadge" onclick="showHub('AUDIT_HUB','AUDIT_LOG')" class="cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-800/90 text-emerald-100 border border-emerald-600">⚙️ Cron: 05:30 IST</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <span id="wUpdatedTime" class="text-[10px] text-emerald-200"></span>
-        <button onclick="loadWeather().then(render)" class="underline text-emerald-200 text-[11px]">🔄</button>
-        <div id="devToolsBar" class="hidden flex items-center gap-1.5">
-          <button onclick="document.getElementById('simBox').classList.toggle('hidden')" class="underline text-amber-300 text-[11px]">⚙️ Sim</button>
-          <button onclick="runEnterpriseQASuite()" class="bg-emerald-600 text-white font-bold px-2 py-0.5 rounded text-[11px]">🧪 QA Suite</button>
-          <button onclick="resetEntireScheduleToBaseline()" class="bg-rose-700 text-white font-bold px-2 py-0.5 rounded text-[11px]">🧪 Reset DEV</button>
+        <!-- Grouped Weather Telemetry Pill -->
+        <div class="inline-flex flex-wrap items-center gap-2.5 bg-emerald-950/75 border border-emerald-700/80 rounded-full px-3 py-1 text-[11px] text-emerald-100 shadow-inner">
+          <span id="wTemp" class="inline-flex items-center gap-1 font-semibold">--°C</span>
+          <span class="text-emerald-700">•</span>
+          <span id="wHum" class="inline-flex items-center gap-1 font-semibold">--%</span>
+          <span class="text-emerald-700">•</span>
+          <span id="wRain" class="inline-flex items-center gap-1 font-semibold">--mm</span>
+          <span id="wUpdatedTime" class="text-[10px] text-emerald-300/80 hidden sm:inline"></span>
+          <button type="button" onclick="loadWeather().then(render)" title="Refresh Weather" aria-label="Refresh Weather" class="text-emerald-300 hover:text-white ml-0.5">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+          </button>
         </div>
+
+        <span id="wRiskBadge" onclick="showHub('PEST_HUB','RISK_RADAR')" class="cursor-pointer px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-800 border border-emerald-600">Risk: --</span>
+      </div>
+
+      <!-- Single Collapsible Dev & System Tools Dropdown (Decluttered from top bar) -->
+      <div class="flex items-center gap-2">
+        <details class="relative clean-dropdown">
+          <summary class="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/70 hover:bg-emerald-950 border border-emerald-700/80 text-[11px] font-semibold text-emerald-200 select-none">
+            <svg class="w-3.5 h-3.5 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            <span>Dev Tools</span>
+            <svg class="w-3 h-3 opacity-75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <div class="absolute right-0 mt-1.5 w-60 bg-white text-slate-800 rounded-xl shadow-xl border border-slate-200 p-2.5 z-50 space-y-2 text-xs">
+            <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-1">System &amp; Cron Telemetry</div>
+            <div id="wCronBadge" onclick="showHub('AUDIT_HUB','AUDIT_LOG');this.closest('details').removeAttribute('open');" class="cursor-pointer w-full px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 block">Cron: 05:30 IST</div>
+            <div id="devToolsBar" class="pt-1.5 border-t border-slate-100 flex flex-col gap-1.5">
+              <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-1">Developer Suite</div>
+              <button type="button" onclick="document.getElementById('simBox').classList.toggle('hidden');this.closest('details').removeAttribute('open');" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-100 font-semibold text-slate-700 flex items-center justify-between">
+                <span>Weather Simulator Bar</span>
+                <span class="text-[10px] font-mono bg-slate-200 px-1.5 py-0.5 rounded">Sim</span>
+              </button>
+              <button type="button" onclick="runEnterpriseQASuite();this.closest('details').removeAttribute('open');" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 font-bold text-emerald-800 flex items-center justify-between">
+                <span>Run 30-Test QA Suite</span>
+                <span class="text-[10px] font-mono bg-emerald-100 px-1.5 py-0.5 rounded">QA</span>
+              </button>
+              <button type="button" onclick="resetEntireScheduleToBaseline();this.closest('details').removeAttribute('open');" class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-red-50 font-bold text-red-700 flex items-center justify-between">
+                <span>Reset &amp; Clone PROD → DEV</span>
+                <span class="text-[10px] font-mono bg-red-100 px-1.5 py-0.5 rounded">Reset</span>
+              </button>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
 
-    <div id="simBox" class="hidden mt-2 p-2 bg-indigo-950 rounded-lg text-xs flex flex-wrap gap-1.5 items-center">
-      <span class="font-bold text-amber-300">DEV Weather Sim:</span>
-      <button onclick="setWeather('LIVE')" class="px-2 py-1 bg-emerald-700 rounded">📡 Live</button>
-      <button onclick="setWeather('RAIN')" class="px-2 py-1 bg-blue-700 rounded">🌧️ 24mm Rain</button>
-      <button onclick="setWeather('HIGH_BLIGHT')" class="px-2 py-1 bg-rose-700 rounded">🦠 High Blight</button>
-      <button onclick="setWeather('DRY_PEST')" class="px-2 py-1 bg-amber-700 rounded">🦗 Dry Thrips/Mite</button>
-      <button onclick="setWeather('PAST_BLIGHT_NOW_SUNNY')" class="px-2 py-1 bg-purple-700 rounded font-bold">🧬 Rain 2d Ago → Sunny Today</button>
+    <div id="simBox" class="hidden mt-2 p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs flex flex-wrap gap-1.5 items-center">
+      <span class="font-bold text-amber-300 mr-1">Weather Sim:</span>
+      <button type="button" onclick="setWeather('LIVE')" class="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 rounded-lg font-semibold">Live API</button>
+      <button type="button" onclick="setWeather('RAIN')" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold">24mm Rain</button>
+      <button type="button" onclick="setWeather('HIGH_BLIGHT')" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold">High Blight</button>
+      <button type="button" onclick="setWeather('DRY_PEST')" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold">Dry Thrips/Mite</button>
+      <button type="button" onclick="setWeather('PAST_BLIGHT_NOW_SUNNY')" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold">Rain 2d Ago → Sunny</button>
     </div>
   </div>
 </header>
@@ -131,23 +233,30 @@
   <div id="sameDayMergeBanner" class="space-y-2"></div>
   <div id="alertsBox" class="space-y-2"></div>
 
-  <!-- 1. PRIMARY 5-DOMAIN HUB BAR -->
-  <div id="hubNavBar" class="grid grid-cols-5 gap-1 sm:gap-1.5 bg-slate-200/90 p-1.5 rounded-2xl shadow-inner text-center"></div>
-
-  <!-- 2. AUTO-VISIBLE SUB-PILL BAR (+ Desktop Split-View Toggle) -->
-  <div id="subPillBar" class="flex flex-wrap items-center justify-between gap-2 bg-white border border-slate-200 rounded-xl px-2.5 py-2 shadow-sm"></div>
+  <!-- 1 & 2. CONNECTED UNDERLINED NAVIGATION TABS + SUB-NAVIGATION BAR -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <div id="hubNavBar" role="tablist" aria-label="Orchard Management Domains" class="grid grid-cols-5 border-b border-slate-200 bg-white text-center"></div>
+    <div id="subPillBar" class="flex flex-wrap items-center justify-between gap-2 bg-slate-50/80 px-3 py-2"></div>
+  </div>
 
   <!-- 3. CONTEXTUAL WEEK SELECTOR BAR (Shown on Weekly Tasks & Weekly Store List) -->
-  <div id="weekNavCard" class="bg-white rounded-2xl p-3 shadow-sm border flex flex-col sm:flex-row items-center justify-between gap-2">
+  <div id="weekNavCard" class="bg-white rounded-xl p-3 shadow-sm border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2">
     <div class="text-center sm:text-left">
       <div id="wkTitle" class="text-sm sm:text-base font-extrabold text-slate-900">Week 11</div>
       <div id="dadTitle" class="text-xs text-emerald-700 font-bold"></div>
     </div>
     <div class="flex items-center gap-1.5 w-full sm:w-auto justify-center flex-wrap">
-      <button onclick="stepWeek(-1)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-xs">◀</button>
-      <select id="wkSelect" onchange="goWeek(this.value)" class="border rounded-xl px-2.5 py-1.5 text-xs font-bold bg-slate-50 flex-1 sm:flex-initial"></select>
-      <button onclick="stepWeek(1)" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-xs">▶</button>
-      <button onclick="showHub('TASKS_HUB','LOG_MANUAL')" class="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-sm">➕ Add Card</button>
+      <button type="button" onclick="stepWeek(-1)" aria-label="Previous Week" class="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <select id="wkSelect" onchange="goWeek(this.value)" class="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-slate-50 text-slate-800 flex-1 sm:flex-initial"></select>
+      <button type="button" onclick="stepWeek(1)" aria-label="Next Week" class="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+      <button type="button" onclick="showHub('TASKS_HUB','LOG_MANUAL')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-sm">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>Add Card</span>
+      </button>
     </div>
   </div>
 
@@ -2935,11 +3044,28 @@ async function loadWeather() {
   }
   updateWBar();
 }
+const UI_SVGS = {
+  thermometer: `<svg class="w-3.5 h-3.5 text-amber-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg>`,
+  droplet:     `<svg class="w-3.5 h-3.5 text-sky-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>`,
+  cloudRain:   `<svg class="w-3.5 h-3.5 text-sky-200 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6M8 14v6M12 16v6"/></svg>`,
+  alert:       `<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`,
+  shieldCheck: `<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>`,
+  flask:       `<svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg>`,
+  calendar:    `<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>`,
+  check:       `<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`,
+  clock:       `<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  skip:        `<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
+  swap:        `<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>`,
+  moreVert:    `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>`,
+  rotateCcw:   `<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`,
+  trash:       `<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`
+};
+
 function updateWBar() {
-  const srcTag = wState.mode === "FARM_LOGGED" ? (LANG === "KN" ? " (🏡 ತೋಟ)" : " (🏡 Farm)") : "";
-  document.getElementById("wTemp").textContent = LANG === "KN" ? `🌡️ ಈಗ: ${wState.tempNow}°C (${wState.tMax}°/${wState.tMin}°)` : `🌡️ Now: ${wState.tempNow}°C (${wState.tMax}°/${wState.tMin}°)`;
-  document.getElementById("wHum").textContent = LANG === "KN" ? `💧 ತೇವಾಂಶ: ${wState.humidity}%` : `💧 RH: ${wState.humidity}%`;
-  document.getElementById("wRain").textContent = LANG === "KN" ? `🌧️ ಮಳೆ: ${wState.rain24}mm${srcTag}` : `🌧️ Rain: ${wState.rain24}mm${srcTag}`;
+  const srcTag = wState.mode === "FARM_LOGGED" ? (LANG === "KN" ? " (ತೋಟ)" : " (Farm)") : "";
+  document.getElementById("wTemp").innerHTML = `${UI_SVGS.thermometer}<span>${LANG === "KN" ? `ಈಗ: ${wState.tempNow}°C (${wState.tMax}°/${wState.tMin}°)` : `${wState.tempNow}°C (${wState.tMax}°/${wState.tMin}°)`}</span>`;
+  document.getElementById("wHum").innerHTML = `${UI_SVGS.droplet}<span>${LANG === "KN" ? `ತೇವಾಂಶ: ${wState.humidity}%` : `RH ${wState.humidity}%`}</span>`;
+  document.getElementById("wRain").innerHTML = `${UI_SVGS.cloudRain}<span>${LANG === "KN" ? `ಮಳೆ: ${wState.rain24}mm${srcTag}` : `${wState.rain24}mm${srcTag}`}</span>`;
 
   const risks = computeAllSixRisks();
   let topIss = SCOUT_ISSUES[0], topScore = 0;
@@ -2951,14 +3077,14 @@ function updateWBar() {
   const rb = document.getElementById("wRiskBadge");
   const topName = LANG === "KN" ? topIss.shortKn : topIss.shortEn;
   if (topScore >= 65) {
-    rb.textContent = LANG === "KN" ? `🚨 ಗರಿಷ್ಠ ಅಪಾಯ: ${topName} (${topScore}%)` : `🚨 Top Risk: ${topName} (${topScore}%)`;
-    rb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-600 text-white animate-pulse";
+    rb.innerHTML = `${UI_SVGS.alert}<span>${LANG === "KN" ? `ಗರಿಷ್ಠ ಅಪಾಯ: ${topName} (${topScore}%)` : `Top Risk: ${topName} (${topScore}%)`}</span>`;
+    rb.className = "cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-red-600 text-white shadow-sm";
   } else if (topScore >= 40) {
-    rb.textContent = LANG === "KN" ? `⚠️ ಮಧ್ಯಮ ಅಪಾಯ: ${topName} (${topScore}%)` : `⚠️ Top Risk: ${topName} (${topScore}%)`;
-    rb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950";
+    rb.innerHTML = `${UI_SVGS.alert}<span>${LANG === "KN" ? `ಮಧ್ಯಮ ಅಪಾಯ: ${topName} (${topScore}%)` : `Mod Risk: ${topName} (${topScore}%)`}</span>`;
+    rb.className = "cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-400 text-slate-950";
   } else {
-    rb.textContent = LANG === "KN" ? `🟢 ಅಪಾಯ ಕಡಿಮೆ (${topName} ${topScore}%)` : `🟢 Low Risk (${topName} ${topScore}%)`;
-    rb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-700 text-white";
+    rb.innerHTML = `${UI_SVGS.shieldCheck}<span>${LANG === "KN" ? `ಅಪಾಯ ಕಡಿಮೆ (${topName} ${topScore}%)` : `Low Risk (${topName} ${topScore}%)`}</span>`;
+    rb.className = "cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-800 border border-emerald-600 text-emerald-100";
   }
 
   const cb = document.getElementById("wCronBadge");
@@ -2967,17 +3093,17 @@ function updateWBar() {
     const cs = wState.cronSummary;
     const actionsCount = cs ? (Number(cs.shifted_drips || 0) + Number(cs.injected_sprays || 0)) : 0;
     if (epi.active) {
-      cb.textContent = LANG === "KN" ? `🦠 72ಗಂ ಸೂಕ್ಷ್ಮ-ಹವೆ: 4 ದಿನದ ಸಿಂಪಡಣೆ ಅಂತರ` : `🦠 72h Epi Window: 4d Spray Interval`;
-      cb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500 text-white";
+      cb.textContent = LANG === "KN" ? `72ಗಂ ಸೂಕ್ಷ್ಮ-ಹವೆ: 4 ದಿನದ ಸಿಂಪಡಣೆ ಅಂತರ` : `72h Epi Window: 4d Spray Interval`;
+      cb.className = "cursor-pointer w-full px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-red-50 text-red-900 border border-red-200 block";
     } else if (actionsCount > 0) {
-      cb.textContent = LANG === "KN" ? `⚙️ 05:30 ಕ್ರಾನ್: ${actionsCount} ವೇಳಾಪಟ್ಟಿ ಹೊಂದಾಣಿಕೆ` : `⚙️ 05:30 Cron: ${actionsCount} Auto-Adjusted`;
-      cb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950";
+      cb.textContent = LANG === "KN" ? `05:30 ಕ್ರಾನ್: ${actionsCount} ವೇಳಾಪಟ್ಟಿ ಹೊಂದಾಣಿಕೆ` : `05:30 Cron: ${actionsCount} Auto-Adjusted`;
+      cb.className = "cursor-pointer w-full px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-amber-50 text-amber-900 border border-amber-200 block";
     } else {
-      cb.textContent = LANG === "KN" ? `⚙️ 05:30 ಕ್ರಾನ್ ಸಕ್ರಿಯ (72h RH: ${wState.rh72Avg || 60}%)` : `⚙️ 05:30 Cron OK (72h RH: ${wState.rh72Avg || 60}%)`;
-      cb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-800/90 text-emerald-100 border border-emerald-600";
+      cb.textContent = LANG === "KN" ? `05:30 ಕ್ರಾನ್ ಸಕ್ರಿಯ (72h RH: ${wState.rh72Avg || 60}%)` : `05:30 Cron OK (72h RH: ${wState.rh72Avg || 60}%)`;
+      cb.className = "cursor-pointer w-full px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 block";
     }
   }
-  document.getElementById("wUpdatedTime").textContent = `🔄 ${wState.updatedAt || ""}`;
+  document.getElementById("wUpdatedTime").textContent = wState.updatedAt ? `(${wState.updatedAt})` : "";
 }
 
 function setWeather(m) {
@@ -4859,13 +4985,17 @@ function render() {
   const pendingWkFoliars = wkTasks.filter(t => t.status === "PENDING" && t.task_type === "FOLIAR_SPRAY");
   const mergeBanners = [];
   if (pendingWkFoliars.length >= 2) {
-    mergeBanners.push(`<div class="p-3 rounded-xl bg-indigo-50 border-2 border-indigo-300 text-indigo-950 text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm">
-      <div>
-        <div class="font-extrabold">🔗 ${LANG === "KN" ? `${pendingWkFoliars.length} ಪ್ರತ್ಯೇಕ ಎಲೆ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್‌ಗಳಿವೆ — ಒಂದೇ ಡ್ರಮ್ ಮಿಶ್ರಣಕ್ಕೆ ಸೇರಿಸಿ!` : `${pendingWkFoliars.length} Separate Pending Foliar Sprays Found in This Week!`}</div>
-        <div class="text-[11px] text-indigo-800">${LANG === "KN" ? "ಅವುಗಳನ್ನು ಒಂದೇ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್ ಆಗಿ ವಿಲೀನಗೊಳಿಸಿ." : "Tap Merge to combine compatible chemicals into 1 single tank-mix card."}</div>
+    mergeBanners.push(`<div class="p-3.5 sm:p-4 rounded-xl bg-emerald-50/90 border border-emerald-300 border-l-4 border-l-emerald-700 text-emerald-950 text-xs flex flex-wrap items-center justify-between gap-3 shadow-sm">
+      <div class="space-y-0.5">
+        <div class="font-extrabold flex items-center gap-1.5 text-emerald-950">
+          <svg class="w-4 h-4 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <span>${LANG === "KN" ? `${pendingWkFoliars.length} ಪ್ರತ್ಯೇಕ ಎಲೆ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್‌ಗಳಿವೆ — ಒಂದೇ ಡ್ರಮ್ ಮಿಶ್ರಣಕ್ಕೆ ಸೇರಿಸಿ!` : `${pendingWkFoliars.length} Separate Pending Foliar Sprays Found in This Week!`}</span>
+        </div>
+        <div class="text-[11px] text-emerald-800">${LANG === "KN" ? "ಅವುಗಳನ್ನು ಒಂದೇ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್ ಆಗಿ ವಿಲೀನಗೊಳಿಸಿ." : "Tap Merge to combine compatible chemicals into 1 single tank-mix card."}</div>
       </div>
-      <button onclick="mergeDuplicateSpraysInCurrentWeek()" class="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold px-3 py-2 rounded-lg shadow shrink-0">
-        🔗 ${LANG === "KN" ? "ಸಿಂಪಡಣೆಗಳನ್ನು ಒಂದೇ ಕಾರ್ಡ್ ಮಾಡಿ" : "Merge Sprays Into 1 Card"}
+      <button type="button" onclick="mergeDuplicateSpraysInCurrentWeek()" class="bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold px-3.5 py-2 rounded-lg shadow-sm shrink-0 inline-flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m8 6 4-4 4 4"/><path d="M12 2v10.3a4 4 0 0 1-1.172 2.828L4 22"/><path d="m20 22-5-5"/></svg>
+        <span>${LANG === "KN" ? "ಸಿಂಪಡಣೆಗಳನ್ನು ಒಂದೇ ಕಾರ್ಡ್ ಮಾಡಿ" : "Merge Sprays Into 1 Card"}</span>
       </button>
     </div>`);
   }
@@ -4881,54 +5011,73 @@ function render() {
 
     let actionBtnHtml = "";
     if (unqueuedHigh.length === 0 && firstQueuedTask) {
-      actionBtnHtml = `<button onclick="goWeek(${firstQueuedTask.week_number});showTab('TASKS');" class="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold px-3 py-1.5 rounded-lg shadow shrink-0">
-        ✅ ${LANG === "KN" ? `${firstQueuedTask.current_scheduled_date} ಕ್ಕೆ ಸಿಂಪಡಣೆ ಸೇರಿಸಲಾಗಿದೆ (ನೋಡಿ)` : `Spray Queued for ${firstQueuedTask.current_scheduled_date} (View Card)`}
+      actionBtnHtml = `<button type="button" onclick="goWeek(${firstQueuedTask.week_number});showTab('TASKS');" class="bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold px-3.5 py-2 rounded-lg shadow-sm shrink-0 inline-flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>${LANG === "KN" ? `${firstQueuedTask.current_scheduled_date} ಕ್ಕೆ ಸಿಂಪಡಣೆ ಸೇರಿಸಲಾಗಿದೆ (ನೋಡಿ)` : `Spray Queued for ${firstQueuedTask.current_scheduled_date} (View Card)`}</span>
       </button>`;
     } else {
       const codesArrStr = JSON.stringify(unqueuedHigh.map(x => x.code)).replace(/"/g, "'");
-      actionBtnHtml = `<button onclick="queueCombinedSelectedRisks(${codesArrStr})" class="bg-rose-700 hover:bg-rose-800 text-white font-extrabold px-3 py-1.5 rounded-lg shadow shrink-0">
-        🧪 ${LANG === "KN" ? "ಸಂಯೋಜಿತ ಸಿಂಪಡಣೆ ಸೇರಿಸಿ" : `Combine & Queue 1 Spray (${unqueuedHigh.length})`}
+      actionBtnHtml = `<button type="button" onclick="queueCombinedSelectedRisks(${codesArrStr})" class="bg-red-800 hover:bg-red-900 text-white font-extrabold px-3.5 py-2 rounded-lg shadow-sm shrink-0 inline-flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg>
+        <span>${LANG === "KN" ? "ಸಂಯೋಜಿತ ಸಿಂಪಡಣೆ ಸೇರಿಸಿ" : `Combine & Queue 1 Spray (${unqueuedHigh.length})`}</span>
       </button>`;
     }
 
     al.push({
-      c: unqueuedHigh.length === 0 ? "bg-emerald-50 border-emerald-300 text-emerald-950" : "bg-rose-50 border-rose-300 text-rose-950",
-      t: LANG === "KN" ? `🚨 ಹೆಚ್ಚಿನ ಅಪಾಯ ಎಚ್ಚರಿಕೆ (${highRiskIssues.length}): ${names}` : `🚨 High Risk Alerts (${highRiskIssues.length}): ${names}`,
-      d: `<div class="flex flex-wrap items-center justify-between gap-2 mt-1">
-            <span>${unqueuedHigh.length === 0
+      c: unqueuedHigh.length === 0
+        ? "bg-emerald-50/90 border-emerald-200 border-l-4 border-l-emerald-700 text-emerald-950"
+        : "bg-red-50/80 border-red-200/90 border-l-4 border-l-red-600 text-red-950",
+      t: `<span class="inline-flex items-center gap-1.5">
+            <svg class="w-4 h-4 shrink-0 ${unqueuedHigh.length === 0 ? 'text-emerald-700' : 'text-red-700'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            <span>${LANG === "KN" ? `ಹೆಚ್ಚಿನ ಅಪಾಯ ಎಚ್ಚರಿಕೆ (${highRiskIssues.length}): ${names}` : `High Risk Alerts (${highRiskIssues.length}): ${names}`}</span>
+          </span>`,
+      d: `<div class="flex flex-wrap items-center justify-between gap-3 mt-1.5">
+            <span class="text-xs font-medium opacity-90">${unqueuedHigh.length === 0
               ? (LANG === "KN" ? "ಈ ಅಪಾಯಗಳಿಗೆ ಈಗಾಗಲೇ ತುರ್ತು ಸಿಂಪಡಣೆಯನ್ನು ವೇಳಾಪಟ್ಟಿಗೆ ಸೇರಿಸಲಾಗಿದೆ." : "A curative spray covering these threats is already queued in your schedule.")
               : (LANG === "KN" ? "ಸೂಕ್ತ ಔಷಧಿಗಳನ್ನು ಒಳಗೊಂಡ ಒಂದೇ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್ ಸೇರಿಸಿ." : "Combine into a single synergistic spray (supports up to 2 Insecticides + 1 Fungicide).")}</span>
             ${actionBtnHtml}
           </div>`
     });
   }
-  if (wState.rain24 > 15) al.push({ c: "bg-red-50 border-red-300 text-red-900", t: LANG === "KN" ? `🌧️ ತುರ್ತು ಮಳೆ ಎಚ್ಚರಿಕೆ (${wState.rain24} ಮಿ.ಮೀ ಮಳೆ)` : `🌧️ Heavy Rain Override (${wState.rain24}mm in 24h)`, d: LANG === "KN" ? "ಮುಂದಿನ 48 ಗಂಟೆ ಡ್ರಿಪ್ ಗೊಬ್ಬರ ನಿಲ್ಲಿಸಿ. ಎಲೆ ಒಣಗಿದ ತಕ್ಷಣ ಪ್ರತ್ಯೇಕ ಕಾಪರ್ + ಬ್ರೊನೊಪಾಲ್ ಸಿಂಪಡಿಸಿ." : "Pause drip fertigation for 48 hrs. Spray Standalone Copper (300g/drum) + Bronopol (100g/drum) once foliage dries." });
-  if (wState.prob4 > 60) al.push({ c: "bg-amber-50 border-amber-300 text-amber-900", t: LANG === "KN" ? "⛈️ ಸಿಂಪಡಣೆ ತಡೆಹಿಡಿಯಿರಿ (4 ಗಂಟೆಯಲ್ಲಿ ಮಳೆ ಸಾಧ್ಯತೆ >60%)" : "⛈️ Spray Hold (>60% Rain Prob in next 4h)", d: LANG === "KN" ? "ಈಗ ಎಲೆ ಸಿಂಪಡಣೆ ಮಾಡಬೇಡಿ. ಮುಂದಿನ ಶುಭ್ರ ಬೆಳಿಗ್ಗೆ ಸಿಂಪಡಿಸಿ." : "Hold foliar spray now to prevent wash-off; shift to next clear morning." });
-  document.getElementById("alertsBox").innerHTML = al.map(a => `<div class="p-3 rounded-xl border ${a.c} text-xs"><div class="font-bold">${a.t}</div><div>${a.d}</div></div>`).join("");
+  if (wState.rain24 > 15) al.push({ c: "bg-amber-50/90 border-amber-300 border-l-4 border-l-amber-600 text-amber-950", t: LANG === "KN" ? `ತುರ್ತು ಮಳೆ ಎಚ್ಚರಿಕೆ (${wState.rain24} ಮಿ.ಮೀ ಮಳೆ)` : `Heavy Rain Override (${wState.rain24}mm in 24h)`, d: LANG === "KN" ? "ಮುಂದಿನ 48 ಗಂಟೆ ಡ್ರಿಪ್ ಗೊಬ್ಬರ ನಿಲ್ಲಿಸಿ. ಎಲೆ ಒಣಗಿದ ತಕ್ಷಣ ಪ್ರತ್ಯೇಕ ಕಾಪರ್ + ಬ್ರೊನೊಪಾಲ್ ಸಿಂಪಡಿಸಿ." : "Pause drip fertigation for 48 hrs. Spray Standalone Copper (300g/drum) + Bronopol (100g/drum) once foliage dries." });
+  if (wState.prob4 > 60) al.push({ c: "bg-amber-50/90 border-amber-300 border-l-4 border-l-amber-600 text-amber-950", t: LANG === "KN" ? "ಸಿಂಪಡಣೆ ತಡೆಹಿಡಿಯಿರಿ (4 ಗಂಟೆಯಲ್ಲಿ ಮಳೆ ಸಾಧ್ಯತೆ >60%)" : "Spray Hold (>60% Rain Prob in next 4h)", d: LANG === "KN" ? "ಈಗ ಎಲೆ ಸಿಂಪಡಣೆ ಮಾಡಬೇಡಿ. ಮುಂದಿನ ಶುಭ್ರ ಬೆಳಿಗ್ಗೆ ಸಿಂಪಡಿಸಿ." : "Hold foliar spray now to prevent wash-off; shift to next clear morning." });
+  document.getElementById("alertsBox").innerHTML = al.map(a => `<div class="p-3.5 sm:p-4 rounded-xl border ${a.c} text-xs shadow-sm"><div class="font-extrabold text-xs sm:text-sm">${a.t}</div><div>${a.d}</div></div>`).join("");
 
   const sopMult = (dad1 >= 140 && wState.tMin > 18) ? 1.15 : 1.0, pTasks = document.getElementById("panel_TASKS");
   if (!wkTasks.length) {
-    pTasks.innerHTML = `<div class="bg-white p-5 rounded-xl text-center text-xs text-slate-500 col-span-full">${LANG === "KN" ? "ಈ ವಾರದಲ್ಲಿ ಯಾವುದೇ ಕೆಲಸಗಳು ಇಲ್ಲ." : "No tasks scheduled in this week window."}</div>`;
+    pTasks.innerHTML = `<div class="bg-white p-5 rounded-xl text-center text-xs text-slate-500 col-span-full border border-slate-200">${LANG === "KN" ? "ಈ ವಾರದಲ್ಲಿ ಯಾವುದೇ ಕೆಲಸಗಳು ಇಲ್ಲ." : "No tasks scheduled in this week window."}</div>`;
   } else {
     pTasks.innerHTML = wkTasks.map(tk => {
       const isScout = tk.trigger_source === "SCOUTING_CURATIVE", isManual = tk.trigger_source === "MANUAL_ENTRY" || tk.trigger_source === "SPLIT_REMAINDER", isKeep = tk.trigger_source === "KEEP_NOTE_HISTORY";
       const canDelete = isScout || isManual, isSkipped = tk.status === "SKIPPED";
       const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER";
+      const isCopperOrAlert = tk.task_type === "STANDALONE_COPPER" || isScout;
       const defaultDrumLForCard = isFoliarCard ? CFG.drumL : (Number(localStorage.getItem("h_default_drip_drum_liters")) || 200);
       const defaultDrumsForCard = isFoliarCard ? CFG.drums : (Number(localStorage.getItem("h_default_drip_drums_count")) || 1);
       const drumsCount = Number(tk.drums_count) || defaultDrumsForCard;
       const drumLiters = Number(tk.drum_liters) || defaultDrumLForCard;
 
-      let hdr = tk.task_type === "STANDALONE_COPPER" ? "bg-red-700 text-white" : tk.task_type === "FOLIAR_SPRAY" ? "bg-emerald-700 text-white" : "bg-sky-700 text-white";
-      if (isScout) hdr = "bg-rose-700 text-white"; if (isKeep) hdr = "bg-slate-700 text-white";
+      // Standardized Agricultural Brand Palette (Emerald/Teal for routine tasks; Warm Red-Amber strictly for Copper/Curative alerts; Slate for Keep History)
+      let hdr = isCopperOrAlert
+        ? "bg-red-900 text-white border-b border-red-800"
+        : isFoliarCard
+          ? "bg-emerald-900 text-white border-b border-emerald-800"
+          : "bg-teal-900 text-white border-b border-teal-800";
+      if (isKeep) hdr = "bg-slate-800 text-white border-b border-slate-700";
+
+      const typeSvg = isCopperOrAlert
+        ? `<svg class="w-4 h-4 text-amber-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`
+        : isFoliarCard
+          ? `<svg class="w-4 h-4 text-emerald-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>`
+          : `<svg class="w-4 h-4 text-teal-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>`;
 
       const baseTypeTitle = isScout
-        ? (LANG === "KN" ? "🚨 ತುರ್ತು ರೋಗ/ಕೀಟ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ" : "🚨 Curative Scouting Spray")
+        ? (LANG === "KN" ? "ತುರ್ತು ರೋಗ/ಕೀಟ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ" : "Curative Scouting Spray")
         : isFoliarCard
           ? (tk.task_type === "STANDALONE_COPPER"
-              ? (LANG === "KN" ? "⚠️ ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ (ಬೇರೆ ಬೆರೆಸಬೇಡಿ)" : "⚠️ Standalone Copper Spray (Do NOT Mix)")
-              : (LANG === "KN" ? "🌿 ಎಲೆ ಸಿಂಪಡಣೆ" : "🌿 Foliar Spray"))
-          : (L[`type_${tk.task_type}`] || tk.task_type);
+              ? (LANG === "KN" ? "ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ (ಬೇರೆ ಬೆರೆಸಬೇಡಿ)" : "Standalone Copper Spray (Do NOT Mix)")
+              : (LANG === "KN" ? "ಎಲೆ ಸಿಂಪಡಣೆ" : "Foliar Spray"))
+          : (L[`type_${tk.task_type}`] || tk.task_type).replace(/^[💧🌿⚠️🚨]\s*/, "");
 
       const descText = getSimpleTaskDescription(tk, LANG === "KN");
 
@@ -4936,16 +5085,21 @@ function render() {
       const doneCount = recipeArr.filter(r => r.item_status === "COMPLETED").length, pendingCount = recipeArr.filter(r => !r.item_status || r.item_status === "PENDING").length;
       const hasPartialDone = recipeArr.length > 1 && doneCount > 0 && pendingCount > 0;
       const statusText = hasPartialDone ? `${L.status_PARTIAL} (${doneCount}/${recipeArr.length})` : (L[`status_${tk.status}`] || tk.status);
+      const statusBadgeCls = tk.status === "COMPLETED"
+        ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+        : tk.status === "DELAYED"
+          ? "bg-amber-100 text-amber-900 border border-amber-300"
+          : "bg-slate-100 text-slate-700 border border-slate-300";
       const wasShifted = tk.originally_scheduled_date && tk.originally_scheduled_date !== tk.current_scheduled_date;
       const walesGuide = getWalesMixingGuide(recipeArr, drumLiters, isFoliarCard);
 
-      // Show Drum Volume (L) x Drums ONLY on Foliar Spray cards (hidden on Drip cards)
+      // Show Drum Volume (L) x Drums ONLY on Foliar Spray cards (with auto-fitting numeric inputs)
       const inlineDrumSpecHtml = (isFoliarCard && !isKeep) ? `
-        <div class="inline-flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-lg px-2 py-0.5 text-[11px] font-bold text-slate-700" title="Edit Drum Size (L) or Drum Count">
-          <span>🪣</span>
-          <input type="number" step="10" min="10" value="${drumLiters}" onchange="setCardTankSpec('${tk.id}', this.value, ${drumsCount})" class="w-12 bg-white border border-slate-300 rounded px-1 text-center font-extrabold text-slate-900" />
+        <div class="inline-flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700" title="Edit Drum Size (L) or Drum Count">
+          <svg class="w-3.5 h-3.5 text-slate-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/></svg>
+          <input type="number" step="10" min="10" value="${drumLiters}" onchange="setCardTankSpec('${tk.id}', this.value, ${drumsCount})" style="field-sizing:content;width:auto;min-inline-size:3.2ch;max-inline-size:6ch" class="bg-white border border-slate-300 rounded px-1 text-center font-extrabold text-slate-900" />
           <span>L ×</span>
-          <input type="number" step="0.5" min="1" value="${drumsCount}" onchange="setCardTankSpec('${tk.id}', ${drumLiters}, this.value)" class="w-9 bg-white border border-slate-300 rounded px-1 text-center font-extrabold text-slate-900" />
+          <input type="number" step="0.5" min="1" value="${drumsCount}" onchange="setCardTankSpec('${tk.id}', ${drumLiters}, this.value)" style="field-sizing:content;width:auto;min-inline-size:2.5ch;max-inline-size:5ch" class="bg-white border border-slate-300 rounded px-1 text-center font-extrabold text-slate-900" />
           <span>${LANG === "KN" ? "ಡ್ರಮ್" : "drums"} (${drumLiters * drumsCount}L)</span>
         </div>` : "";
 
@@ -4961,122 +5115,200 @@ function render() {
         const suggestedTotal3Ac = metrics.suggestedTotal3Ac;
         const currentTotal3Ac = metrics.actualTotal3Ac;
         const isCrit = cat.procurement_criticality === "CRITICAL_MUST_SOURCE";
-        const rowBg = itemSt === "COMPLETED" ? "bg-emerald-50/80 border-emerald-300" : itemSt === "SKIPPED" ? "bg-slate-100 border-slate-200 opacity-60 line-through" : "bg-slate-50 border-slate-200";
+        const rowBg = itemSt === "COMPLETED"
+          ? "bg-emerald-50/70 border-emerald-300"
+          : itemSt === "SKIPPED"
+            ? "bg-slate-100 border-slate-200 opacity-60 line-through"
+            : "bg-slate-50/90 border-slate-200";
 
         const dripBounds = !metrics.isFoliar ? getDripStageDoseBounds(cat, tk.effective_dad, it) : null;
-        const dosePillsHtml = metrics.isFoliar
-          ? `<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
-               <span class="inline-flex items-center gap-1 bg-slate-100 border border-slate-300 rounded px-2 py-0.5 text-slate-800" title="${LANG === 'KN' ? 'ಸಿಂಪಡಣೆ ಪ್ರಮಾಣವನ್ನು ಶಿಫಾರಸು ಮಾಡಿದ ಮಿತಿಯಲ್ಲಿ ಲಾಕ್ ಮಾಡಲಾಗಿದೆ' : 'Foliar chemical rate is locked to recommended dose'}">
-                 🔒 <b>${LANG === "KN" ? "ನಿಗದಿತ ಪ್ರಮಾಣ:" : "Rec. Rate:"}</b>
-                 <input type="number" readonly value="${metrics.ratePerL}" onclick=" updateItemRate('${tk.id}',${idx},this.value)" class="w-12 bg-transparent font-extrabold text-emerald-900 text-right cursor-not-allowed focus:outline-none" />
-                 <b>${metrics.rateUnit}/L</b>
-               </span>
-               <span class="bg-emerald-100/80 border border-emerald-300 rounded px-2 py-0.5 text-emerald-950">🪣 <b>${LANG === "KN" ? `ಪ್ರತಿ ${metrics.drumLiters}L ಡ್ರಮ್‌ಗೆ:` : `Per ${metrics.drumLiters}L Drum:`}</b> ${metrics.perDrumQty} ${metrics.rateUnit}</span>
-             </div>`
-          : `<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
-               <span class="inline-flex items-center gap-1 bg-sky-100/80 border border-sky-300 rounded px-2 py-0.5 text-sky-950" title="Rec: ${dripBounds.recPerAcre} ${metrics.displayUnit || cat.unit}/ac | Stage Max: ${dripBounds.maxPerAcre} ${metrics.displayUnit || cat.unit}/ac">
-                 💧 <b>${LANG === "KN" ? "ಪ್ರತಿ ಎಕರೆಗೆ:" : "Per Acre:"}</b>
-                 <input type="number" step="0.25" min="${dripBounds.minPerAcre}" max="${dripBounds.maxPerAcre}" value="${metrics.perAcreQty}" onchange="updateItemRate('${tk.id}',${idx},this.value)" class="w-12 bg-white rounded px-1 font-extrabold text-sky-950 text-right border border-sky-300 focus:outline-none" />
-                 <b>${metrics.displayUnit || cat.unit}</b>
-                 <span class="text-[10px] text-sky-800 font-semibold">(Max ${dripBounds.maxPerAcre})</span>
-               </span>
-               <span class="bg-white border border-slate-200 rounded px-2 py-0.5 text-slate-700">🌱 <b>${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ:" : "Per Plant:"}</b> ${metrics.perPlantGrams} g</span>
-               ${it.compensated_from_date ? `<span class="bg-amber-100 border border-amber-300 text-amber-950 rounded px-1.5 py-0.5 text-[10px] font-extrabold">⚖️ +Make-Up (${it.compensated_from_date})</span>` : ""}
-             </div>`;
-
         const qtyLabel = itemSt === "COMPLETED"
-          ? (LANG === "KN" ? "ಬಳಸಿದ್ದು:" : "Used:")
-          : (LANG === "KN" ? "ಒಟ್ಟು:" : "Total:");
+          ? (LANG === "KN" ? "ಬಳಸಿದ್ದು (3 ಎಕರೆ)" : "USED (3 ACRES)")
+          : (LANG === "KN" ? "ಒಟ್ಟು (3 ಎಕರೆ)" : "TOTAL (3 ACRES)");
+
+        // Structured 3-Column Stat-Block Grid (Label on top, bold value/input underneath)
+        const statBlocksGridHtml = metrics.isFoliar
+          ? `<div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-200/80 text-left">
+               <div class="bg-white border border-slate-200/90 rounded-lg px-2.5 py-1.5">
+                 <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                   <svg class="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                   <span>${LANG === "KN" ? "ನಿಗದಿತ ಪ್ರಮಾಣ" : "REC. RATE"}</span>
+                 </div>
+                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900 flex items-baseline gap-0.5">
+                   <input type="number" readonly value="${metrics.ratePerL}" onclick="updateItemRate('${tk.id}',${idx},this.value)" style="field-sizing:content;width:auto;min-inline-size:2.8ch;max-inline-size:6ch" class="bg-transparent font-extrabold text-emerald-900 cursor-not-allowed focus:outline-none" />
+                   <span class="text-xs text-slate-600">${metrics.rateUnit}/L</span>
+                 </div>
+               </div>
+               <div class="bg-white border border-slate-200/90 rounded-lg px-2.5 py-1.5">
+                 <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? `ಪ್ರತಿ ${metrics.drumLiters}L ಡ್ರಮ್‌ಗೆ` : `PER ${metrics.drumLiters}L DRUM`}</div>
+                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-emerald-900">${metrics.perDrumQty} <span class="text-xs font-bold text-slate-600">${metrics.rateUnit}</span></div>
+               </div>
+               <div class="bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 shadow-2xs">
+                 <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-800">${qtyLabel}</div>
+                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900 flex items-baseline gap-1">
+                   <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" style="field-sizing:content;width:auto;min-inline-size:3.2ch;max-inline-size:8ch" class="font-extrabold text-slate-900 bg-slate-50 border border-slate-300 rounded px-1 text-right focus:outline-none focus:border-emerald-600" />
+                   <span class="text-xs font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
+                 </div>
+               </div>
+             </div>`
+          : `<div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-200/80 text-left">
+               <div class="bg-white border border-slate-200/90 rounded-lg px-2.5 py-1.5" title="Rec: ${dripBounds.recPerAcre} ${metrics.displayUnit || cat.unit}/ac | Stage Max: ${dripBounds.maxPerAcre} ${metrics.displayUnit || cat.unit}/ac">
+                 <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಪ್ರತಿ ಎಕರೆಗೆ" : "PER ACRE"} <span class="text-teal-700">(≤${dripBounds.maxPerAcre})</span></div>
+                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900 flex items-baseline gap-1">
+                   <input type="number" step="0.25" min="${dripBounds.minPerAcre}" max="${dripBounds.maxPerAcre}" value="${metrics.perAcreQty}" onchange="updateItemRate('${tk.id}',${idx},this.value)" style="field-sizing:content;width:auto;min-inline-size:3ch;max-inline-size:6ch" class="bg-slate-50 rounded px-1 font-extrabold text-teal-950 text-right border border-slate-300 focus:outline-none focus:border-teal-600" />
+                   <span class="text-xs font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
+                 </div>
+               </div>
+               <div class="bg-white border border-slate-200/90 rounded-lg px-2.5 py-1.5">
+                 <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ" : "PER PLANT"}</div>
+                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900">${metrics.perPlantGrams} <span class="text-xs font-bold text-slate-600">g</span></div>
+               </div>
+               <div class="bg-white border border-teal-300 rounded-lg px-2.5 py-1.5 shadow-2xs">
+                 <div class="text-[10px] font-bold uppercase tracking-wider text-teal-800">${qtyLabel}</div>
+                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900 flex items-baseline gap-1">
+                   <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" style="field-sizing:content;width:auto;min-inline-size:3.2ch;max-inline-size:8ch" class="font-extrabold text-slate-900 bg-slate-50 border border-slate-300 rounded px-1 text-right focus:outline-none focus:border-teal-600" />
+                   <span class="text-xs font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
+                 </div>
+               </div>
+             </div>`;
 
         const cardResWarn = itemSt !== "SKIPPED" ? checkRecentSprayResistance(cat.id, tk.current_scheduled_date, tk.id) : null;
         const repeatWarnHtml = cardResWarn
-          ? `<div class="mt-1.5 px-2.5 py-1 rounded-lg bg-amber-100/90 border border-amber-300 text-[11px] font-bold text-amber-950">${LANG === "KN" ? cardResWarn.msgKn : cardResWarn.msgEn}</div>`
+          ? `<div class="mt-2 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-300 text-[11px] font-bold text-amber-950">${LANG === "KN" ? cardResWarn.msgKn : cardResWarn.msgEn}</div>`
           : "";
 
-        return `<div class="p-2.5 rounded-xl border ${rowBg} space-y-1.5">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-            <div>
-              <div class="font-extrabold text-sm text-slate-900 flex items-center gap-1.5 flex-wrap">
-                <span>🧪 ${saltTitle}</span>
+        return `<div class="p-3 rounded-xl border ${rowBg} space-y-1.5">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="font-extrabold text-xs sm:text-sm text-slate-900 flex items-center gap-1.5 flex-wrap">
+                <svg class="w-3.5 h-3.5 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/></svg>
+                <span>${saltTitle}</span>
                 ${groupBadge}
-                <span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${isCrit ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'}">${isCrit ? L.mustSource : L.flexible}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${isCrit ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-200/80 text-slate-700'}">${isCrit ? L.mustSource.replace(/^🔴\s*/, '') : L.flexible.replace(/^🟢\s*/, '')}</span>
+                ${it.compensated_from_date ? `<span class="bg-amber-100 border border-amber-300 text-amber-950 rounded px-1.5 py-0.5 text-[10px] font-extrabold">+Make-Up (${it.compensated_from_date})</span>` : ""}
               </div>
-              ${dosePillsHtml}
-              <div class="text-[11px] text-slate-500 mt-1">🏷️ <b>${LANG === "KN" ? "ಮಾರುಕಟ್ಟೆ ಹೆಸರು (Brands):" : "Store Brands:"}</b> ${brandsSubtitle}</div>
-              ${repeatWarnHtml}
+              <div class="text-[11px] text-slate-500 mt-0.5 truncate"><b>${LANG === "KN" ? "ಮಾರುಕಟ್ಟೆ ಹೆಸರು:" : "Brands:"}</b> ${brandsSubtitle}</div>
             </div>
-            <div class="flex flex-wrap items-center gap-1.5 pt-1 sm:pt-0">
-              <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
-                <span class="text-slate-500 text-[11px] font-semibold">${qtyLabel}</span>
-                <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" class="w-14 font-extrabold text-slate-900 focus:outline-none text-right" />
-                <span class="font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
-              </div>
-              <button onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'COMPLETED' ? 'PENDING' : 'COMPLETED'}',${suggestedTotal3Ac})" class="${itemSt === 'COMPLETED' ? 'bg-emerald-800' : 'bg-emerald-600'} text-white text-xs font-bold px-2.5 py-1.5 rounded-lg">✅</button>
-              <button onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'SKIPPED' ? 'PENDING' : 'SKIPPED'}',${suggestedTotal3Ac})" class="bg-slate-200 text-slate-800 text-xs font-bold px-2.5 py-1.5 rounded-lg">⏭️</button>
-              <button onclick="openSwap('${tk.id}',${idx},'${cat.id}')" class="bg-indigo-50 border border-indigo-300 text-indigo-900 text-xs font-bold px-2 py-1.5 rounded-lg">${L.storeOutBtn}</button>
-              ${recipeArr.length > 1 ? `<button onclick="removeItemFromTaskCard('${tk.id}',${idx})" title="${LANG === 'KN' ? 'ಈ ಔಷಧಿಯನ್ನು ಕಾರ್ಡ್‌ನಿಂದ ತೆಗೆದುಹಾಕಿ' : 'Remove this item from card'}" class="bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-700 text-xs font-extrabold px-2 py-1.5 rounded-lg">✕</button>` : ""}
+            <!-- Streamlined Icon-First Line-Item Approvals -->
+            <div class="flex items-center gap-1 shrink-0">
+              <button type="button" onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'COMPLETED' ? 'PENDING' : 'COMPLETED'}',${suggestedTotal3Ac})" title="${LANG === 'KN' ? 'ಈ ಔಷಧಿ ಪೂರ್ಣಗೊಂಡಿದೆ' : 'Mark item completed'}" aria-label="Mark item completed" class="p-1.5 rounded-lg border transition ${itemSt === 'COMPLETED' ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs' : 'bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-800 border-slate-300'}">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <button type="button" onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'SKIPPED' ? 'PENDING' : 'SKIPPED'}',${suggestedTotal3Ac})" title="${LANG === 'KN' ? 'ಈ ಔಷಧಿ ಬಿಟ್ಟುಬಿಡಿ' : 'Skip item'}" aria-label="Skip item" class="p-1.5 rounded-lg border transition ${itemSt === 'SKIPPED' ? 'bg-slate-700 text-white border-slate-800' : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-300'}">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
+              </button>
+              <button type="button" onclick="openSwap('${tk.id}',${idx},'${cat.id}')" title="${L.storeOutBtn}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-bold transition">
+                <svg class="w-3 h-3 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+                <span>${LANG === "KN" ? "ಬದಲಿಸಿ" : "Swap"}</span>
+              </button>
+              ${recipeArr.length > 1 ? `<button type="button" onclick="removeItemFromTaskCard('${tk.id}',${idx})" title="${LANG === 'KN' ? 'ಈ ಔಷಧಿಯನ್ನು ಕಾರ್ಡ್‌ನಿಂದ ತೆಗೆದುಹಾಕಿ' : 'Remove this item from card'}" aria-label="Remove item" class="p-1.5 rounded-lg bg-white hover:bg-red-50 border border-slate-300 hover:border-red-300 text-slate-400 hover:text-red-700 transition">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>` : ""}
             </div>
           </div>
+          ${statBlocksGridHtml}
+          ${repeatWarnHtml}
         </div>`;
       }).join("");
 
       const addableChems = Object.values(catalog).filter(c => isFoliarCard ? (c.application_method === "FOLIAR" || c.base_dose_per_liter) : (c.application_method === "DRIP" || c.base_dose_per_acre));
       const addItemBarHtml = !isKeep ? `
-        <div class="pt-1">
-          <button onclick="document.getElementById('addBox_${tk.id}').classList.toggle('hidden')" class="text-[11px] font-extrabold text-indigo-700 hover:text-indigo-900 flex items-center gap-1">
-            <span>➕ ${LANG === "KN" ? "ಈ ಕಾರ್ಡ್‌ಗೆ ಇನ್ನೊಂದು ಔಷಧಿ / ಪೋಷಕಾಂಶ ಸೇರಿಸಿ" : "Add Another Line Item (Chemical / Brand) to This Card"}</span>
+        <div class="pt-0.5">
+          <button type="button" onclick="document.getElementById('addBox_${tk.id}').classList.toggle('hidden')" class="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 inline-flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            <span>${LANG === "KN" ? "ಈ ಕಾರ್ಡ್‌ಗೆ ಇನ್ನೊಂದು ಔಷಧಿ / ಪೋಷಕಾಂಶ ಸೇರಿಸಿ" : "Add Another Line Item to This Card"}</span>
           </button>
-          <div id="addBox_${tk.id}" class="hidden mt-1.5 p-2.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1.5 text-xs">
-            <input type="text" id="addSearch_${tk.id}" oninput="filterCardAddDropdown('${tk.id}', this.value, ${isFoliarCard})" placeholder="🔎 ${LANG === 'KN' ? 'ಕಂಪನಿ ಅಥವಾ ಲವಣಾಂಶ ಹುಡುಕಿ (ಉದಾ: Agadi, Custodia, TAG Ride)...' : 'Type brand or salt to filter dropdown below (e.g. Agadi, Custodia, TAG Ride)...'}" class="w-full border border-indigo-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-slate-900" />
+          <div id="addBox_${tk.id}" class="hidden mt-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs">
+            <input type="text" id="addSearch_${tk.id}" oninput="filterCardAddDropdown('${tk.id}', this.value, ${isFoliarCard})" placeholder="${LANG === 'KN' ? 'ಕಂಪನಿ ಅಥವಾ ಲವಣಾಂಶ ಹುಡುಕಿ (ಉದಾ: Agadi, Custodia, TAG Ride)...' : 'Filter by brand or salt (e.g. Agadi, Custodia, TAG Ride)...'}" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-slate-900" />
             <div class="flex flex-wrap items-center gap-1.5">
-              <select id="addSel_${tk.id}" class="flex-1 min-w-[180px] border border-indigo-300 rounded-lg px-2 py-1.5 font-bold bg-white text-slate-900">
+              <select id="addSel_${tk.id}" class="flex-1 min-w-[180px] border border-slate-300 rounded-lg px-2 py-1.5 font-bold bg-white text-slate-900">
                 <option value="">-- ${LANG === "KN" ? `ಪಟ್ಟಿಯಿಂದ ಆರಿಸಿ (${addableChems.length})` : `Select Input (${addableChems.length} matches)`} --</option>
-                ${addableChems.map(c => `<option value="${c.id}">🧪 ${getSaltOnlyTitle(c)} — [🏷️ ${getBrandOnlySubtitle(c)}]</option>`).join("")}
+                ${addableChems.map(c => `<option value="${c.id}">${getSaltOnlyTitle(c)} — [${getBrandOnlySubtitle(c)}]</option>`).join("")}
               </select>
-              <button onclick="addItemToTaskCard('${tk.id}')" class="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold px-3 py-1.5 rounded-lg shadow">
-                ➕ ${LANG === "KN" ? "ಕಾರ್ಡ್‌ಗೆ ಸೇರಿಸಿ" : "Add Line Item"}
+              <button type="button" onclick="addItemToTaskCard('${tk.id}')" class="bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold px-3 py-1.5 rounded-lg shadow-2xs">
+                + ${LANG === "KN" ? "ಕಾರ್ಡ್‌ಗೆ ಸೇರಿಸಿ" : "Add Item"}
               </button>
             </div>
           </div>
         </div>` : "";
 
       const updTime = tk.updated_at ? new Date(tk.updated_at).toLocaleString(loc, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
-      return `<div class="bg-white rounded-xl shadow-sm border overflow-hidden ${isSkipped ? 'opacity-60' : ''}">
-        <div class="px-3 py-2 ${hdr} flex flex-wrap justify-between items-center gap-1 text-xs font-bold">
-          <span>${baseTypeTitle}</span>
-          <span>📅 ${formatDateWithWeekday(tk.current_scheduled_date)} • ${tk.effective_dad} ${L.dadWord}</span>
-        </div>
-        <div class="p-3 space-y-2.5">
+
+      return `<article class="bg-white rounded-xl shadow-xs border border-slate-200/90 overflow-visible flex flex-col justify-between ${isSkipped ? 'opacity-60' : ''}">
+        <!-- Card Header with Top-Right Three-Dot (⋮) Overflow Menu -->
+        <header class="px-3.5 py-2.5 ${hdr} rounded-t-xl flex items-center justify-between gap-2 text-xs font-bold relative">
+          <div class="flex items-center gap-1.5 min-w-0">
+            ${typeSvg}
+            <span class="truncate">${baseTypeTitle}</span>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="inline-flex items-center gap-1 text-[11px] font-semibold opacity-95">
+              <svg class="w-3.5 h-3.5 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+              <span>${formatDateWithWeekday(tk.current_scheduled_date)} • ${tk.effective_dad} ${L.dadWord}</span>
+            </span>
+            <div class="relative">
+              <button type="button" onclick="toggleCardActionMenu(event, '${tk.id}')" aria-haspopup="menu" aria-expanded="false" aria-label="More card actions" title="${LANG === 'KN' ? 'ಇನ್ನಷ್ಟು ಆಯ್ಕೆಗಳು' : 'More card actions'}" class="p-1 rounded-lg hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/40 transition">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+              </button>
+              <div id="cardMenu_${tk.id}" role="menu" class="card-overflow-menu hidden absolute right-0 mt-1.5 w-44 bg-white border border-slate-200 rounded-xl shadow-lg py-1 z-40 text-slate-800 text-xs font-semibold">
+                <button type="button" role="menuitem" onclick="closeAllCardActionMenus();resetCardWithCascade('${tk.id}')" class="w-full px-3 py-2 text-left hover:bg-slate-100 flex items-center gap-2 text-slate-700">
+                  <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                  <span>${L.resetBtn.replace(/^↺\s*/, "")}</span>
+                </button>
+                ${canDelete ? `
+                <hr class="my-1 border-slate-100" />
+                <button type="button" role="menuitem" onclick="closeAllCardActionMenus();deleteCustomTask('${tk.id}')" class="w-full px-3 py-2 text-left hover:bg-red-50 flex items-center gap-2 text-red-700 font-bold">
+                  <svg class="w-3.5 h-3.5 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  <span>${L.deleteBtn.replace(/^🗑️\s*/, "")}</span>
+                </button>` : ""}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Card Body -->
+        <div class="p-3.5 space-y-2.5">
           <div class="flex flex-wrap justify-between items-start gap-2">
             <div>
-              <div class="font-bold text-xs sm:text-sm">${descText}</div>
-              ${wasShifted ? `<div class="text-[11px] text-amber-700 font-semibold">↪ ${LANG === "KN" ? "ಮೂಲ ದಿನಾಂಕ:" : "Original date:"} ${tk.originally_scheduled_date}</div>` : ""}
+              <div class="font-bold text-xs sm:text-sm text-slate-900">${descText}</div>
+              ${wasShifted ? `<div class="text-[11px] text-amber-800 font-semibold mt-0.5">↪ ${LANG === "KN" ? "ಮೂಲ ದಿನಾಂಕ:" : "Original date:"} ${tk.originally_scheduled_date}</div>` : ""}
             </div>
             <div class="flex items-center gap-1.5 flex-wrap">
               ${inlineDrumSpecHtml}
-              <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 shrink-0">${statusText}</span>
+              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0 ${statusBadgeCls}">${statusText}</span>
             </div>
           </div>
           ${itemsHtml ? `<div class="space-y-2">${itemsHtml}</div>` : ""}
           ${addItemBarHtml}
-          ${walesGuide ? `<div class="p-2 bg-emerald-50/70 border border-emerald-200 rounded-lg text-[11px] text-emerald-950">${walesGuide}</div>` : ""}
-          ${hasPartialDone ? `<button onclick="splitRemainingItemsToTomorrow('${tk.id}')" class="w-full bg-indigo-600 text-white font-bold text-xs py-2 px-3 rounded-lg shadow">${L.splitRemainingBtn}</button>` : ""}
-          <div class="flex flex-wrap gap-1.5 pt-2 border-t text-xs font-bold items-center">
-            <button onclick="markWholeCard('${tk.id}','COMPLETED')" class="flex-1 bg-emerald-600 text-white py-2 px-2 rounded-lg">${L.doneBtn}</button>
-            <button onclick="openDelayModal('${tk.id}')" class="flex-1 bg-amber-500 text-white py-2 px-2 rounded-lg">${L.delayBtn}</button>
-            <button onclick="markWholeCard('${tk.id}','SKIPPED')" class="bg-slate-600 text-white py-2 px-2 rounded-lg">${L.skipBtn}</button>
-            <button onclick="resetCardWithCascade('${tk.id}')" class="bg-slate-200 text-slate-700 px-2.5 py-2 rounded-lg">${L.resetBtn}</button>
-            ${canDelete ? `<button onclick="deleteCustomTask('${tk.id}')" class="bg-red-600 text-white px-2.5 py-2 rounded-lg">${L.deleteBtn}</button>` : ""}
+          ${walesGuide ? `<div class="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-lg text-[11px] text-emerald-950">${walesGuide}</div>` : ""}
+          ${hasPartialDone ? `<button type="button" onclick="splitRemainingItemsToTomorrow('${tk.id}')" class="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs py-2 px-3 rounded-lg shadow-2xs">${L.splitRemainingBtn}</button>` : ""}
+        </div>
+
+        <!-- Clean Card Footer: Primary 'All Done' CTA + Neutral Secondary Controls + Auto-Fitting Cost Input -->
+        <footer class="px-3.5 py-2.5 bg-slate-50/80 border-t border-slate-200/80 rounded-b-xl space-y-2">
+          <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+            <button type="button" onclick="markWholeCard('${tk.id}','COMPLETED')" class="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white py-2 px-3 rounded-lg shadow-2xs inline-flex items-center justify-center gap-1.5 transition">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>${L.doneBtn.replace(/^✅\s*/, "")}</span>
+            </button>
+            <button type="button" onclick="openDelayModal('${tk.id}')" class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 py-2 px-3 rounded-lg inline-flex items-center justify-center gap-1.5 transition">
+              <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>${L.delayBtn.replace(/^⏳\s*/, "")}</span>
+            </button>
+            <button type="button" onclick="markWholeCard('${tk.id}','SKIPPED')" class="bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 py-2 px-2.5 rounded-lg inline-flex items-center justify-center gap-1 transition">
+              <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
+              <span>${L.skipBtn.replace(/^⏭️\s*/, "")}</span>
+            </button>
           </div>
-          <div class="text-[11px] text-slate-500 flex flex-wrap justify-between items-center pt-1 gap-2">
-            <span>👤 ${L.updatedBy}: <b>${tk.updated_by || "System"}</b> ${updTime ? `(${updTime})` : ""}</span>
-            <div class="flex items-center gap-1 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
-              <span class="font-bold text-amber-900">₹ ${LANG === "KN" ? "ಖರ್ಚು:" : "Cost:"}</span>
-              <input type="number" step="10" min="0" value="${tk.cost_rs || 0}" onchange="saveTaskCost('${tk.id}',this.value)" class="w-16 bg-transparent font-extrabold text-slate-900 text-right focus:outline-none" />
+          <div class="text-[11px] text-slate-500 flex flex-wrap justify-between items-center gap-2 pt-0.5">
+            <span>${L.updatedBy}: <b class="text-slate-700">${tk.updated_by || "System"}</b> ${updTime ? `(${updTime})` : ""}</span>
+            <div class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-0.5">
+              <span class="font-bold text-slate-600">₹ ${LANG === "KN" ? "ಖರ್ಚು:" : "Cost:"}</span>
+              <input type="number" step="10" min="0" value="${tk.cost_rs || 0}" onchange="saveTaskCost('${tk.id}',this.value)" style="field-sizing:content;width:auto;min-inline-size:3.5ch;max-inline-size:9ch" class="bg-transparent font-extrabold text-slate-900 text-right focus:outline-none" />
             </div>
           </div>
-        </div>
-      </div>`;
+        </footer>
+      </article>`;
     }).join("");
   }
 
@@ -5134,9 +5366,17 @@ let ACTIVE_HUB = "TASKS_HUB";
 let ACTIVE_SUB = "WEEKLY_TASKS";
 let DESKTOP_SPLIT_VIEW = false;
 
+const HUB_SVGS = {
+  TASKS_HUB: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>`,
+  PEST_HUB:  `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>`,
+  CROP_HUB:  `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/></svg>`,
+  STORE_HUB: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg>`,
+  AUDIT_HUB: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>`
+};
+
 const HUB_CONFIG = {
   TASKS_HUB: {
-    icon: "📋", en: "Tasks & Plan", kn: "ಕೆಲಸ & ವೇಳಾಪಟ್ಟಿ",
+    icon: HUB_SVGS.TASKS_HUB, en: "Tasks & Plan", kn: "ಕೆಲಸ & ವೇಳಾಪಟ್ಟಿ",
     subs: [
       { key: "WEEKLY_TASKS", icon: "🗓️", en: "This Week's Tasks", kn: "ಈ ವಾರದ ಕೆಲಸಗಳು" },
       { key: "LOG_MANUAL",   icon: "➕", en: "Log Manual Work",   kn: "ಮಾಡಿದ ಕೆಲಸ ದಾಖಲಿಸಿ" },
@@ -5144,14 +5384,14 @@ const HUB_CONFIG = {
     ]
   },
   PEST_HUB: {
-    icon: "🛡️", en: "Pest & Disease", kn: "ರೋಗ & ಕೀಟ ರಕ್ಷಣೆ",
+    icon: HUB_SVGS.PEST_HUB, en: "Pest & Disease", kn: "ರೋಗ & ಕೀಟ ರಕ್ಷಣೆ",
     subs: [
       { key: "RISK_RADAR",    icon: "🚨", en: "6-Threat Risk Radar & Queue", kn: "6-ರೋಗ ಅಪಾಯ ರೇಡಾರ್" },
       { key: "SPRAY_COUNTER", icon: "🧪", en: "Seasonal Spray Counter",      kn: "ಔಷಧಿ ಬಳಕೆ ಮಿತಿ ಲೆಕ್ಕ" }
     ]
   },
   CROP_HUB: {
-    icon: "🌱", en: "GDD, NPK & Water", kn: "GDD, ಪೋಷಕಾಂಶ & ನೀರು",
+    icon: HUB_SVGS.CROP_HUB, en: "GDD, NPK & Water", kn: "GDD, ಪೋಷಕಾಂಶ & ನೀರು",
     subs: [
       { key: "GDD_STAGES", icon: "☀️", en: "Thermal GDD & Stages", kn: "ಉಷ್ಣಾಂಶ (GDD) ಹಂತಗಳು" },
       { key: "NPK_LEDGER", icon: "⚖️", en: "NPK-Ca-Mg Ledger",     kn: "ಪೋಷಕಾಂಶಗಳ ಲೆಕ್ಕ (NPK)" },
@@ -5159,7 +5399,7 @@ const HUB_CONFIG = {
     ]
   },
   STORE_HUB: {
-    icon: "🏪", en: "Store & ₹", kn: "ಅಂಗಡಿ & ಖರ್ಚು",
+    icon: HUB_SVGS.STORE_HUB, en: "Store & ₹", kn: "ಅಂಗಡಿ & ಖರ್ಚು",
     subs: [
       { key: "SHOP_LIST",     icon: "🛒", en: "Weekly Shopping List",     kn: "ಖರೀದಿ ಪಟ್ಟಿ & ಶೆಡ್ ಉಳಿಕೆ" },
       { key: "BRAND_CHECKER", icon: "🔍", en: "Brand & Tank-Mix Checker", kn: "ಕಂಪನಿ ಹೆಸರು & ಮಿಶ್ರಣ ಪರೀಕ್ಷಕ" },
@@ -5167,12 +5407,75 @@ const HUB_CONFIG = {
     ]
   },
   AUDIT_HUB: {
-    icon: "👤", en: "Activity Log", kn: "ದಾಖಲೆ ಪಟ್ಟಿ",
+    icon: HUB_SVGS.AUDIT_HUB, en: "Activity Log", kn: "ದಾಖಲೆ ಪಟ್ಟಿ",
     subs: [
       { key: "AUDIT_LOG", icon: "🕒", en: "User Activity & Audit Log", kn: "ಬದಲಾವಣೆಗಳ ದಾಖಲೆ ಪಟ್ಟಿ" }
     ]
   }
 };
+
+function closeAllCardActionMenus() {
+  document.querySelectorAll(".card-overflow-menu").forEach(el => el.classList.add("hidden"));
+  document.querySelectorAll("[aria-haspopup='menu']").forEach(btn => btn.setAttribute("aria-expanded", "false"));
+}
+
+function toggleCardActionMenu(ev, taskId) {
+  if (ev) ev.stopPropagation();
+  const menuEl = document.getElementById(`cardMenu_${taskId}`);
+  if (!menuEl) return;
+  const wasHidden = menuEl.classList.contains("hidden");
+  closeAllCardActionMenus();
+  if (wasHidden) {
+    menuEl.classList.remove("hidden");
+    if (ev?.currentTarget) ev.currentTarget.setAttribute("aria-expanded", "true");
+  }
+}
+
+// Inject high-priority CSS rules for Auto-Fitting Inputs, Sticky 30-Week Table Header, and Underlined Connected Tabs
+function ensureModernWebGuidanceStyles() {
+  if (document.getElementById("mwg-enforced-styles")) return;
+  const st = document.createElement("style");
+  st.id = "mwg-enforced-styles";
+  st.textContent = `
+    /* 1. Force Auto-Fitting Numeric Inputs (overrides Tailwind .w-9 / .w-12 / .w-14 / .w-16) */
+    #panel_TASKS input[type="number"],
+    #shopBox input[type="number"],
+    #panel_MANUAL input[type="number"] {
+      field-sizing: content !important;
+      width: auto !important;
+      min-inline-size: 3.5ch !important;
+      max-inline-size: 10ch !important;
+    }
+    /* 2. Bounded vertical scroll container + sticky header for 30-Week Master Schedule table */
+    div:has(> table > #allWeeksBody) {
+      overflow: auto !important;
+      max-block-size: min(560px, 74dvh) !important;
+      overscroll-behavior: contain;
+    }
+    table:has(#allWeeksBody) thead,
+    table:has(#allWeeksBody) thead th {
+      position: sticky !important;
+      inset-block-start: 0 !important;
+      top: 0 !important;
+      background-color: #f8fafc !important;
+      box-shadow: inset 0 -1px 0 #cbd5e1;
+      z-index: 15 !important;
+    }
+    /* 3. Connected Underlined Tab Bar (WCAG 1.4.1 shape indicator via border-block-end) */
+    .mwg-tab-btn {
+      position: relative;
+      flex: 1 0 auto;
+    }
+    .mwg-tab-btn[aria-selected="true"]::after {
+      content: "";
+      position: absolute;
+      inset-inline: 0;
+      inset-block-end: 0;
+      border-block-end: 3px solid #047857;
+    }
+  `;
+  document.head.appendChild(st);
+}
 
 // Runs a DOM state update inside document.startViewTransition when supported and reduced-motion is not enabled
 function runWithViewTransition(updateFn) {
@@ -5197,8 +5500,9 @@ function toggleDesktopSplitView() {
   runWithViewTransition(() => applyHubAndSubPillRouting());
 }
 
-// Enable Light-Dismiss (clicking backdrop outside modal sheet) & Escape key dismissal on all 5 modals
+// Enable Light-Dismiss (clicking backdrop outside modal sheet / card menu) & Escape key dismissal
 window.addEventListener("DOMContentLoaded", () => {
+  ensureModernWebGuidanceStyles();
   const modalIds = ["rainModal", "newChemModal", "delayModal", "swapModal", "userModal"];
   modalIds.forEach(mId => {
     const mEl = document.getElementById(mId);
@@ -5207,8 +5511,14 @@ window.addEventListener("DOMContentLoaded", () => {
       if (e.target === mEl) mEl.classList.add("hidden");
     });
   });
+  document.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest(".card-overflow-menu") && !e.target.closest("[aria-haspopup='menu']")) {
+      closeAllCardActionMenus();
+    }
+  });
   window.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    closeAllCardActionMenus();
     modalIds.forEach(mId => {
       const mEl = document.getElementById(mId);
       if (mEl && !mEl.classList.contains("hidden")) mEl.classList.add("hidden");
@@ -5216,25 +5526,26 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-function toggleDesktopSplitView() {
-  DESKTOP_SPLIT_VIEW = !DESKTOP_SPLIT_VIEW;
-  applyHubAndSubPillRouting();
-}
-
 function applyHubAndSubPillRouting() {
+  ensureModernWebGuidanceStyles();
   const hubBar = document.getElementById("hubNavBar");
   const subBar = document.getElementById("subPillBar");
   if (!hubBar || !subBar) return;
 
-  // 1. Render 5 Main Hub Buttons
+  // 1. Render 5 Connected, Grounded Underlined Tabs (Single Row Scroller on Mobile, Full-Width Connected Bar on PC)
+  hubBar.className = "flex items-stretch overflow-x-auto bg-white border border-slate-200 border-b-2 border-b-slate-200 rounded-t-2xl px-1 sm:px-2 shadow-2xs";
+  hubBar.setAttribute("focusgroup", "tablist nomemory");
+  hubBar.setAttribute("role", "tablist");
+  hubBar.setAttribute("aria-label", "Orchard Management Domains");
+
   hubBar.innerHTML = Object.entries(HUB_CONFIG).map(([hKey, cfg]) => {
     const isAct = hKey === ACTIVE_HUB;
     const btnCls = isAct
-      ? "bg-emerald-800 text-white shadow-md font-extrabold"
-      : "bg-transparent text-slate-700 hover:bg-white/70 font-bold";
-    return `<button onclick="showHub('${hKey}')" class="py-2 px-1 sm:px-3 rounded-xl transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${btnCls}">
-      <span class="text-sm sm:text-base">${cfg.icon}</span>
-      <span class="hub-btn-text text-[11px] sm:text-xs">${LANG === "KN" ? cfg.kn : cfg.en}</span>
+      ? "text-emerald-800 bg-emerald-50/40 font-extrabold"
+      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-semibold";
+    return `<button type="button" role="tab" aria-selected="${isAct}" ${isAct ? "focusgroupstart" : ""} onclick="showHub('${hKey}')" class="mwg-tab-btn py-2.5 sm:py-3 px-2.5 sm:px-4 transition flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap text-xs sm:text-sm ${btnCls}">
+      ${cfg.icon}
+      <span class="hub-btn-text">${LANG === "KN" ? cfg.kn : cfg.en}</span>
     </button>`;
   }).join("");
 
@@ -5244,19 +5555,20 @@ function applyHubAndSubPillRouting() {
     subBar.classList.add("hidden");
   } else {
     subBar.classList.remove("hidden");
+    subBar.className = "flex flex-wrap items-center justify-between gap-2 bg-slate-50/90 border-x border-b border-slate-200 rounded-b-xl px-3 py-2 shadow-2xs -mt-3";
     const pillsHtml = curHubCfg.subs.map(s => {
       const isSubAct = !DESKTOP_SPLIT_VIEW && s.key === ACTIVE_SUB;
       const pillCls = isSubAct
-        ? "bg-emerald-700 text-white font-extrabold shadow-sm"
-        : "bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold";
-      return `<button onclick="DESKTOP_SPLIT_VIEW=false;showHub('${ACTIVE_HUB}','${s.key}')" class="px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 ${pillCls}">
-        <span>${s.icon}</span>
+        ? "bg-emerald-800 text-white font-extrabold shadow-2xs"
+        : "bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/90 font-semibold";
+      return `<button type="button" onclick="DESKTOP_SPLIT_VIEW=false;showHub('${ACTIVE_HUB}','${s.key}')" class="px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 ${pillCls}">
         <span>${LANG === "KN" ? s.kn : s.en}</span>
       </button>`;
     }).join("");
 
-    const splitBtnHtml = `<button onclick="toggleDesktopSplitView()" class="hidden lg:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-extrabold border ${DESKTOP_SPLIT_VIEW ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-slate-50 text-slate-700 border-slate-300'}">
-      🖥️ ${DESKTOP_SPLIT_VIEW ? (LANG === "KN" ? "ಒಂದೊಂದಾಗಿ ನೋಡಿ" : "Single View") : (LANG === "KN" ? "ಎಲ್ಲವನ್ನೂ ಒಟ್ಟಿಗೆ ನೋಡಿ" : "Show All in Hub")}
+    const splitBtnHtml = `<button type="button" onclick="toggleDesktopSplitView()" class="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${DESKTOP_SPLIT_VIEW ? 'bg-emerald-900 text-white border-emerald-900' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'}">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg>
+      <span>${DESKTOP_SPLIT_VIEW ? (LANG === "KN" ? "ಒಂದೊಂದಾಗಿ ನೋಡಿ" : "Single View") : (LANG === "KN" ? "ಎಲ್ಲವನ್ನೂ ಒಟ್ಟಿಗೆ ನೋಡಿ" : "Show All in Hub")}</span>
     </button>`;
 
     subBar.innerHTML = `<div class="flex flex-wrap items-center gap-1.5">${pillsHtml}</div>${splitBtnHtml}`;
