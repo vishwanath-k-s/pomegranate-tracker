@@ -246,23 +246,23 @@
     <div id="subPillBar" class="flex flex-wrap items-center justify-between gap-2 bg-slate-50/80 px-3 py-2"></div>
   </div>
 
-  <!-- 3. CONTEXTUAL WEEK SELECTOR BAR (Shown on Weekly Tasks & Weekly Store List) -->
-  <div id="weekNavCard" class="bg-white rounded-xl p-3 shadow-xs border border-slate-200/90 flex flex-col sm:flex-row items-center justify-between gap-2">
-    <div class="text-center sm:text-left">
-      <div id="wkTitle" class="text-sm sm:text-base font-extrabold text-slate-900">Week 11</div>
-      <div id="dadTitle" class="text-xs text-emerald-800 font-bold"></div>
+  <!-- 3. CONTEXTUAL WEEK SELECTOR BAR (Never overflows mobile width) -->
+  <div id="weekNavCard" class="bg-white rounded-xl p-3 shadow-xs border border-slate-200/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+    <div class="text-left min-w-0">
+      <div id="wkTitle" class="text-xs sm:text-base font-extrabold text-slate-900 truncate">Week 11</div>
+      <div id="dadTitle" class="text-[11px] text-emerald-800 font-bold leading-snug"></div>
     </div>
-    <div class="flex items-center gap-1.5 w-full sm:w-auto justify-center flex-wrap">
-      <button type="button" onclick="stepWeek(-1)" aria-label="Previous week" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">
+    <div class="flex items-center gap-1.5 w-full sm:w-auto min-w-0">
+      <button type="button" onclick="stepWeek(-1)" aria-label="Previous week" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold text-xs shrink-0 transition">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
       </button>
-      <select id="wkSelect" onchange="goWeek(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold bg-slate-50 text-slate-900 flex-1 sm:flex-initial"></select>
-      <button type="button" onclick="stepWeek(1)" aria-label="Next week" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">
+      <select id="wkSelect" onchange="goWeek(this.value)" class="min-w-0 flex-1 sm:flex-initial max-w-full truncate border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold bg-slate-50 text-slate-900"></select>
+      <button type="button" onclick="stepWeek(1)" aria-label="Next week" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold text-xs shrink-0 transition">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
       </button>
-      <button type="button" onclick="showHub('TASKS_HUB','LOG_MANUAL')" class="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xs shadow-2xs inline-flex items-center gap-1.5 transition">
+      <button type="button" onclick="showHub('TASKS_HUB','LOG_MANUAL')" class="hidden sm:inline-flex px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xs shadow-2xs items-center gap-1.5 shrink-0 transition">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-        <span>Add Card</span>
+        <span id="ui_btnAddCardWk">Add Card</span>
       </button>
     </div>
   </div>
@@ -572,14 +572,14 @@
         </div>
         <datalist id="knownSaltsList"></datalist>
 
-        <!-- Component 1 (Primary) -->
-        <div class="grid grid-cols-12 gap-2 items-center">
+        <!-- Component 1 (Primary — items-end keeps inputs aligned even if label wraps) -->
+        <div class="grid grid-cols-12 gap-2 items-end">
           <div class="col-span-8">
-            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Component 1 (Primary Salt or Element)</label>
-            <input type="text" id="ncSaltBase" list="knownSaltsList" oninput="onSaltOrPctChange(1)" placeholder="e.g., Calcium (or Copper Hydroxide)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900" />
+            <label class="text-[10px] font-bold text-slate-600 uppercase block mb-0.5 leading-tight">1st Salt / Element (Primary)</label>
+            <input type="text" id="ncSaltBase" list="knownSaltsList" oninput="onSaltOrPctChange(1)" placeholder="e.g., Calcium / Copper" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900" />
           </div>
           <div class="col-span-4">
-            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Comp 1 (%)</label>
+            <label class="text-[10px] font-bold text-slate-600 uppercase block mb-0.5 leading-tight">Comp 1 (%)</label>
             <div class="flex items-center border border-slate-300 rounded-lg bg-white px-2 py-1.5">
               <input type="number" step="0.01" min="0" max="100" id="ncSaltPct" oninput="onSaltOrPctChange(1)" placeholder="11" class="w-full font-extrabold focus:outline-none text-right text-slate-900" />
               <span class="font-bold text-slate-500 ml-1">%</span>
@@ -588,13 +588,13 @@
         </div>
 
         <!-- Component 2 -->
-        <div class="grid grid-cols-12 gap-2 items-center">
+        <div class="grid grid-cols-12 gap-2 items-end">
           <div class="col-span-8">
-            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Component 2 (2nd Salt / Element — Optional)</label>
-            <input type="text" id="ncSaltBase2" list="knownSaltsList" oninput="onSaltOrPctChange(2)" placeholder="e.g., Boron (or Tebuconazole)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900" />
+            <label class="text-[10px] font-bold text-slate-600 uppercase block mb-0.5 leading-tight">2nd Salt / Element (Optional)</label>
+            <input type="text" id="ncSaltBase2" list="knownSaltsList" oninput="onSaltOrPctChange(2)" placeholder="e.g., Boron / Tebuconazole" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900" />
           </div>
           <div class="col-span-4">
-            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Comp 2 (%)</label>
+            <label class="text-[10px] font-bold text-slate-600 uppercase block mb-0.5 leading-tight">Comp 2 (%)</label>
             <div class="flex items-center border border-slate-300 rounded-lg bg-white px-2 py-1.5">
               <input type="number" step="0.01" min="0" max="100" id="ncSaltPct2" oninput="onSaltOrPctChange(2)" placeholder="2" class="w-full font-extrabold focus:outline-none text-right text-slate-900" />
               <span class="font-bold text-slate-500 ml-1">%</span>
@@ -603,13 +603,13 @@
         </div>
 
         <!-- Component 3 -->
-        <div id="ncComp3Row" class="hidden grid grid-cols-12 gap-2 items-center">
+        <div id="ncComp3Row" class="hidden grid grid-cols-12 gap-2 items-end">
           <div class="col-span-8">
-            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Component 3 (3rd Salt / Element — Optional)</label>
+            <label class="text-[10px] font-bold text-slate-600 uppercase block mb-0.5 leading-tight">3rd Salt / Element (Optional)</label>
             <input type="text" id="ncSaltBase3" list="knownSaltsList" oninput="onSaltOrPctChange(3)" placeholder="e.g., Zinc / Magnesium" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold bg-white text-slate-900" />
           </div>
           <div class="col-span-4">
-            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">Comp 3 (%)</label>
+            <label class="text-[10px] font-bold text-slate-600 uppercase block mb-0.5 leading-tight">Comp 3 (%)</label>
             <div class="flex items-center border border-slate-300 rounded-lg bg-white px-2 py-1.5">
               <input type="number" step="0.01" min="0" max="100" id="ncSaltPct3" oninput="onSaltOrPctChange(3)" placeholder="1.5" class="w-full font-extrabold focus:outline-none text-right text-slate-900" />
               <span class="font-bold text-slate-500 ml-1">%</span>
@@ -622,7 +622,7 @@
             + Add / Toggle 3rd Component
           </button>
           <div class="flex items-center gap-1.5">
-            <span class="text-[11px] font-semibold text-slate-600">Formulation (W-A-L-E-S):</span>
+            <span class="text-[11px] font-semibold text-slate-600">W-A-L-E-S:</span>
             <select id="ncFormulation" onchange="previewSmartChem()" class="border border-slate-300 rounded-lg px-2 py-1 font-bold bg-white text-slate-900">
               <option value="SL">SL / L (Soluble Liquid — Mix 3rd)</option>
               <option value="SC">SC (Suspension Liquid — Mix 3rd)</option>
@@ -641,9 +641,9 @@
       </div>
 
       <!-- 3. CATEGORY & 4. APPLICATION MODE -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div>
-          <label class="font-bold block mb-1 text-slate-700">3. Function / Category:</label>
+          <label class="font-bold block mb-0.5 text-slate-700">3. Function / Category:</label>
           <select id="ncCat" onchange="onNewChemCatOrMethodChange()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 font-semibold bg-white text-slate-900">
             <option value="BIOSTIMULANT">Micronutrient / Ca-B / Bio (ಲಘು ಪೋಷಕಾಂಶ)</option>
             <option value="FERTIGATION">Macro WSF Fertilizer (ಡ್ರಿಪ್ ಗೊಬ್ಬರ)</option>
@@ -653,7 +653,7 @@
           </select>
         </div>
         <div>
-          <label class="font-bold block mb-1 text-slate-700">4. Application Mode:</label>
+          <label class="font-bold block mb-0.5 text-slate-700">4. Application Mode:</label>
           <select id="ncMethod" onchange="onNewChemCatOrMethodChange()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 font-semibold bg-white text-slate-900">
             <option value="BOTH">Both Foliar &amp; Drip (ಎರಡಕ್ಕೂ)</option>
             <option value="FOLIAR">Foliar Spray Only (per Liter)</option>
@@ -661,34 +661,34 @@
           </select>
         </div>
         <div>
-          <label class="font-bold block mb-1 text-slate-700">IRAC / FRAC Group (Optional):</label>
+          <label class="font-bold block mb-0.5 text-slate-700">IRAC / FRAC Group (Optional):</label>
           <input type="text" id="ncGroup" oninput="previewSmartChem()" placeholder="e.g., FRAC-11+3 or IRAC-5" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 font-mono font-bold text-slate-900" />
         </div>
       </div>
 
-      <!-- 5. DOSAGE SPECIFICATION (Stat-Block Layout) -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+      <!-- 5. DOSAGE SPECIFICATION (Compact 3-Column Row on Mobile & Desktop) -->
+      <div class="grid grid-cols-3 gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl items-end">
         <div id="ncFoliarDoseBox" class="bg-white border border-slate-200 rounded-lg p-2">
-          <label class="text-[10px] uppercase tracking-wider font-extrabold block mb-1 text-emerald-900" id="ncDoseLabel">5A. Foliar Dose (per L)</label>
+          <label class="text-[10px] uppercase tracking-wider font-extrabold block mb-1 text-emerald-900 truncate" id="ncDoseLabel">5A. Foliar (/L)</label>
           <div class="flex items-center gap-1">
-            <input type="number" step="0.05" min="0.05" id="ncDose" oninput="previewSmartChem()" value="2.0" class="w-full border border-slate-300 rounded px-2 py-1 font-extrabold text-emerald-900 bg-slate-50" />
-            <span class="text-[11px] font-bold text-slate-600">/L</span>
+            <input type="number" step="0.05" min="0.05" id="ncDose" oninput="previewSmartChem()" value="2.0" class="w-full border border-slate-300 rounded px-1.5 py-1 font-extrabold text-emerald-900 bg-slate-50 text-right" />
+            <span class="text-[10px] font-bold text-slate-600">/L</span>
           </div>
         </div>
         <div id="ncDripDoseBox" class="bg-white border border-slate-200 rounded-lg p-2">
-          <label class="text-[10px] uppercase tracking-wider font-extrabold block mb-1 text-teal-900">5B. Drip Dose (per Acre)</label>
+          <label class="text-[10px] uppercase tracking-wider font-extrabold block mb-1 text-teal-900 truncate">5B. Drip (/Ac)</label>
           <div class="flex items-center gap-1">
-            <input type="number" step="0.1" min="0.1" id="ncDoseAcre" oninput="previewSmartChem()" value="1.0" class="w-full border border-slate-300 rounded px-2 py-1 font-extrabold text-teal-900 bg-slate-50" />
-            <span class="text-[11px] font-bold text-slate-600">/Ac</span>
+            <input type="number" step="0.1" min="0.1" id="ncDoseAcre" oninput="previewSmartChem()" value="1.0" class="w-full border border-slate-300 rounded px-1.5 py-1 font-extrabold text-teal-900 bg-slate-50 text-right" />
+            <span class="text-[10px] font-bold text-slate-600">/Ac</span>
           </div>
         </div>
         <div class="bg-white border border-slate-200 rounded-lg p-2">
-          <label class="text-[10px] uppercase tracking-wider font-extrabold block mb-1 text-slate-600">Base Unit</label>
-          <select id="ncUnit" onchange="previewSmartChem()" class="w-full border border-slate-300 rounded px-2 py-1 font-bold bg-slate-50 text-slate-900">
-            <option value="ml">ml (ಮಿ.ಲೀ — Liquids)</option>
-            <option value="g">g (ಗ್ರಾಂ — Powders)</option>
-            <option value="L">L (ಲೀಟರ್ — Bulk Liquid)</option>
-            <option value="kg">kg (ಕೆ.ಜಿ — Bags)</option>
+          <label class="text-[10px] uppercase tracking-wider font-extrabold block mb-1 text-slate-600 truncate">Unit</label>
+          <select id="ncUnit" onchange="previewSmartChem()" class="w-full border border-slate-300 rounded px-1 py-1 font-bold bg-slate-50 text-slate-900 text-[11px]">
+            <option value="ml">ml (ಮಿ.ಲೀ)</option>
+            <option value="g">g (ಗ್ರಾಂ)</option>
+            <option value="L">L (ಲೀಟರ್)</option>
+            <option value="kg">kg (ಕೆ.ಜಿ)</option>
           </select>
         </div>
       </div>
@@ -3119,9 +3119,9 @@ const UI_SVGS = {
 
 function updateWBar() {
   const srcTag = wState.mode === "FARM_LOGGED" ? (LANG === "KN" ? " (ತೋಟ)" : " (Farm)") : "";
-  document.getElementById("wTemp").innerHTML = `${UI_SVGS.thermometer}<span>${LANG === "KN" ? `ಈಗ: ${wState.tempNow}°C (${wState.tMax}°/${wState.tMin}°)` : `${wState.tempNow}°C (${wState.tMax}°/${wState.tMin}°)`}</span>`;
-  document.getElementById("wHum").innerHTML = `${UI_SVGS.droplet}<span>${LANG === "KN" ? `ತೇವಾಂಶ: ${wState.humidity}%` : `RH ${wState.humidity}%`}</span>`;
-  document.getElementById("wRain").innerHTML = `${UI_SVGS.cloudRain}<span>${LANG === "KN" ? `ಮಳೆ: ${wState.rain24}mm${srcTag}` : `${wState.rain24}mm${srcTag}`}</span>`;
+  document.getElementById("wTemp").textContent = `${wState.tempNow}°C (${Math.round(wState.tMax)}°/${Math.round(wState.tMin)}°)`;
+  document.getElementById("wHum").textContent = `RH ${wState.humidity}%`;
+  document.getElementById("wRain").textContent = `${wState.rain24}mm${srcTag}`;
 
   const risks = computeAllSixRisks();
   let topIss = SCOUT_ISSUES[0], topScore = 0;
@@ -3133,14 +3133,14 @@ function updateWBar() {
   const rb = document.getElementById("wRiskBadge");
   const topName = LANG === "KN" ? topIss.shortKn : topIss.shortEn;
   if (topScore >= 65) {
-    rb.innerHTML = `${UI_SVGS.alert}<span>${LANG === "KN" ? `ಗರಿಷ್ಠ ಅಪಾಯ: ${topName} (${topScore}%)` : `Top Risk: ${topName} (${topScore}%)`}</span>`;
-    rb.className = "cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-red-600 text-white shadow-sm";
+    rb.textContent = LANG === "KN" ? `ಗರಿಷ್ಠ ಅಪಾಯ: ${topName} (${topScore}%)` : `High Risk: ${topName} (${topScore}%)`;
+    rb.className = "cursor-pointer px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-red-600 text-white whitespace-nowrap shrink-0 shadow-2xs";
   } else if (topScore >= 40) {
-    rb.innerHTML = `${UI_SVGS.alert}<span>${LANG === "KN" ? `ಮಧ್ಯಮ ಅಪಾಯ: ${topName} (${topScore}%)` : `Mod Risk: ${topName} (${topScore}%)`}</span>`;
-    rb.className = "cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-400 text-slate-950";
+    rb.textContent = LANG === "KN" ? `ಮಧ್ಯಮ: ${topName} (${topScore}%)` : `Mod Risk: ${topName} (${topScore}%)`;
+    rb.className = "cursor-pointer px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950 whitespace-nowrap shrink-0";
   } else {
-    rb.innerHTML = `${UI_SVGS.shieldCheck}<span>${LANG === "KN" ? `ಅಪಾಯ ಕಡಿಮೆ (${topName} ${topScore}%)` : `Low Risk (${topName} ${topScore}%)`}</span>`;
-    rb.className = "cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-800 border border-emerald-600 text-emerald-100";
+    rb.textContent = LANG === "KN" ? `ಅಪಾಯ ಕಡಿಮೆ (${topScore}%)` : `Low Risk (${topScore}%)`;
+    rb.className = "cursor-pointer px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-700 text-white whitespace-nowrap shrink-0";
   }
 
   const cb = document.getElementById("wCronBadge");
@@ -3149,17 +3149,17 @@ function updateWBar() {
     const cs = wState.cronSummary;
     const actionsCount = cs ? (Number(cs.shifted_drips || 0) + Number(cs.injected_sprays || 0)) : 0;
     if (epi.active) {
-      cb.textContent = LANG === "KN" ? `72ಗಂ ಸೂಕ್ಷ್ಮ-ಹವೆ: 4 ದಿನದ ಸಿಂಪಡಣೆ ಅಂತರ` : `72h Epi Window: 4d Spray Interval`;
-      cb.className = "cursor-pointer w-full px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-red-50 text-red-900 border border-red-200 block";
+      cb.textContent = LANG === "KN" ? `72ಗಂ ಸೂಕ್ಷ್ಮ-ಹವೆ: 4d ಅಂತರ` : `72h Epi Window: 4d Interval`;
+      cb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-600 text-white";
     } else if (actionsCount > 0) {
-      cb.textContent = LANG === "KN" ? `05:30 ಕ್ರಾನ್: ${actionsCount} ವೇಳಾಪಟ್ಟಿ ಹೊಂದಾಣಿಕೆ` : `05:30 Cron: ${actionsCount} Auto-Adjusted`;
-      cb.className = "cursor-pointer w-full px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-amber-50 text-amber-900 border border-amber-200 block";
+      cb.textContent = LANG === "KN" ? `05:30 ಕ್ರಾನ್: ${actionsCount} ಹೊಂದಾಣಿಕೆ` : `05:30 Cron: ${actionsCount} Adjusted`;
+      cb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950";
     } else {
-      cb.textContent = LANG === "KN" ? `05:30 ಕ್ರಾನ್ ಸಕ್ರಿಯ (72h RH: ${wState.rh72Avg || 60}%)` : `05:30 Cron OK (72h RH: ${wState.rh72Avg || 60}%)`;
-      cb.className = "cursor-pointer w-full px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 block";
+      cb.textContent = LANG === "KN" ? `05:30 ಕ್ರಾನ್ ಸಕ್ರಿಯ (RH: ${wState.rh72Avg || 60}%)` : `05:30 Cron OK (RH: ${wState.rh72Avg || 60}%)`;
+      cb.className = "cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-900 text-emerald-100 border border-emerald-700";
     }
   }
-  document.getElementById("wUpdatedTime").textContent = wState.updatedAt ? `(${wState.updatedAt})` : "";
+  document.getElementById("wUpdatedTime").textContent = wState.updatedAt ? `Sync: ${wState.updatedAt}` : "";
 }
 
 function setWeather(m) {
@@ -4575,8 +4575,19 @@ function populateManualSelects(queryStr = "") {
     return hay.includes(q);
   });
 
+  // Localize remaining Log Work labels & placeholders dynamically
+  if (document.getElementById("ui_manSub")) document.getElementById("ui_manSub").textContent = LANG === "KN" ? "ಕೆಲಸದ ವಿಧ, ದಿನಾಂಕ ಮತ್ತು ಗರಿಷ್ಠ 3 ಔಷಧಿ/ಗೊಬ್ಬರಗಳನ್ನು ಆರಿಸಿ (3-ಗೇಟ್ ಸುರಕ್ಷತೆ ಮತ್ತು ದಿನಾಂಕದ ಅಂತರ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಪರೀಕ್ಷಿಸಲಾಗುತ್ತದೆ)." : "Pick application mode, date, and up to 3 inputs. Card title is auto-generated and validated for 3-Gate safety & safe date gaps.";
+  if (document.getElementById("ui_lblManStatus")) document.getElementById("ui_lblManStatus").textContent = LANG === "KN" ? "3. ಕಾರ್ಡ್ ಸ್ಥಿತಿ:" : "3. Card Status:";
+  if (document.getElementById("ui_lblManChem3")) document.getElementById("ui_lblManChem3").textContent = LANG === "KN" ? "3ನೇ ಔಷಧಿ / ಗೊಬ್ಬರ (ಐಚ್ಛಿಕ):" : "3rd Input (Optional):";
+  if (document.getElementById("manFilterSearch")) document.getElementById("manFilterSearch").placeholder = LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರು ಅಥವಾ ಲವಣಾಂಶದ ಮೂಲಕ ಹುಡುಕಿ (ಉದಾ: Agadi, Custodia, MKP, SOP)..." : "Filter inputs by Brand Name or Active Salt (e.g. Agadi, Custodia, Delegate, MKP, SOP)...";
+  const stSel = document.getElementById("manStatus");
+  if (stSel && stSel.options.length >= 2) {
+    stSel.options[0].text = LANG === "KN" ? "ಬಾಕಿ ಕಾರ್ಡ್ ಆಗಿ ನಿಗದಿಪಡಿಸಿ (Pending)" : "Schedule as Pending Card";
+    stSel.options[1].text = LANG === "KN" ? "ಪೂರ್ಣಗೊಂಡ ಕೆಲಸವಾಗಿ ದಾಖಲಿಸಿ (Completed)" : "Log as Completed Card";
+  }
+
   const noneOpt = `<option value="">-- ${LANG === "KN" ? "ಯಾವುದೂ ಇಲ್ಲ (ಐಚ್ಛಿಕ)" : "None (Optional)"} --</option>`;
-  const opts = pool.map(c => `<option value="${c.id}">🧪 ${getSaltOnlyTitle(c)} — [🏷️ ${getBrandOnlySubtitle(c)}]</option>`).join("");
+  const opts = pool.map(c => `<option value="${c.id}">${getSaltOnlyTitle(c)} — [${getBrandOnlySubtitle(c)}]</option>`).join("");
 
   s1.innerHTML = opts || noneOpt;
   s2.innerHTML = noneOpt + opts;
@@ -4596,7 +4607,7 @@ function populateBrandCheckerDropdowns() {
   const opts = list.map(b => {
     const cat = catalog[b.input_id];
     const saltTitle = cat ? getSaltOnlyTitle(cat) : b.primary_use_en;
-    return `<option value="${b.input_id}">🏷️ ${b.brand_name} (${b.company_name}) → ${saltTitle}</option>`;
+    return `<option value="${b.input_id}">${b.brand_name} (${b.company_name}) → ${saltTitle}</option>`;
   }).join("");
   b1.innerHTML = `<option value="">-- ${LANG === "KN" ? "1ನೇ ಕಂಪನಿ ಹೆಸರು ಆರಿಸಿ" : "Select 1st Store Brand"} --</option>` + opts;
   b2.innerHTML = `<option value="">-- ${LANG === "KN" ? "2ನೇ ಕಂಪನಿ ಹೆಸರು (ಬೆರೆಸಲು ಪರಿಶೀಲಿಸಿ)" : "Select 2nd Brand (Check Tank-Mix)"} --</option>` + opts;
@@ -4781,9 +4792,9 @@ function analyzeNewCardDraft() {
   const autoTitleKn = generateAutoCardTitle(resolvedTaskType, selectedIds, true);
 
   titleBox.innerHTML = `
-    <div class="text-[10px] font-extrabold text-slate-500 uppercase">🔒 ${LANG === "KN" ? "ಸ್ವಯಂಚಾಲಿತವಾಗಿ ರಚಿಸಲಾದ ಕಾರ್ಡ್ ಹೆಸರು (ಬದಲಿಸುವಂತಿಲ್ಲ):" : "Auto-Generated Card Title (Locked to Combination):"}</div>
-    <div class="font-extrabold text-slate-900 text-xs sm:text-sm">${LANG === "KN" ? autoTitleKn : autoTitleEn}</div>
-    <div class="text-[11px] text-slate-500">${LANG === "KN" ? autoTitleEn : autoTitleKn}</div>
+    <div class="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">${LANG === "KN" ? "ಸ್ವಯಂಚಾಲಿತವಾಗಿ ರಚಿಸಲಾದ ಕಾರ್ಡ್ ಹೆಸರು:" : "Auto-Generated Card Title:"}</div>
+    <div class="font-extrabold text-slate-900 text-xs sm:text-sm mt-0.5">${LANG === "KN" ? autoTitleKn : autoTitleEn}</div>
+    <div class="text-[11px] text-slate-600">${LANG === "KN" ? autoTitleEn : autoTitleKn}</div>
   `;
 
   if (!slots.length) {
@@ -4921,24 +4932,25 @@ function analyzeNewCardDraft() {
 
   const walesHtml = draftRecipe.length > 1 ? `<div class="p-2 bg-white/90 border border-emerald-200 rounded-lg text-[11px] text-emerald-950">${getWalesMixingGuide(draftRecipe, CFG.drumL, isFoliar)}</div>` : "";
 
+  const cleanMark = (str) => (str || "").replace(/[⏳⚖️🌊🤝📅✅❌⚠️🔬]/g, "").trim();
   analysisBox.innerHTML = `
-    <div class="p-3 rounded-xl border-2 ${errors.length ? 'bg-red-50 border-red-300' : (dateGapConflictMsg || warnings.length) ? 'bg-amber-50/80 border-amber-300' : 'bg-emerald-50/80 border-emerald-300'} space-y-1.5">
-      <div class="font-extrabold text-slate-900 flex items-center justify-between">
-        <span>🔬 ${LANG === "KN" ? "ಸಂಯೋಜನೆ ಮತ್ತು ಸುರಕ್ಷಿತ ದಿನಾಂಕ ಪರೀಕ್ಷೆ (Live 3-Gate & Safe-Gap Analyzer)" : "Live 3-Gate Combination & Safe-Gap Date Analysis"}</span>
-        <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${errors.length ? 'bg-red-600 text-white' : dateGapConflictMsg ? 'bg-amber-500 text-slate-950' : 'bg-emerald-700 text-white'}">
-          ${errors.length ? (LANG === "KN" ? "❌ ಅಸುರಕ್ಷಿತ ಮಿಶ್ರಣ" : "❌ Blocked") : dateGapConflictMsg ? (LANG === "KN" ? "⚠️ ದಿನಾಂಕ ಬದಲಿಸಿ" : "⚠️ Date Gap Alert") : (LANG === "KN" ? "✅ ಸುರಕ್ಷಿತ" : "✅ Verified Safe")}
+    <div class="p-3.5 rounded-xl border ${errors.length ? 'bg-red-50/90 border-red-300 border-l-4 border-l-red-600' : (dateGapConflictMsg || warnings.length) ? 'bg-amber-50/90 border-amber-300 border-l-4 border-l-amber-600' : 'bg-emerald-50/90 border-emerald-300 border-l-4 border-l-emerald-700'} space-y-2">
+      <div class="font-extrabold text-slate-900 flex items-center justify-between gap-2">
+        <span class="text-xs leading-snug">${LANG === "KN" ? "ಸಂಯೋಜನೆ ಮತ್ತು ಸುರಕ್ಷಿತ ದಿನಾಂಕ ಪರೀಕ್ಷೆ (3-Gate Analyzer)" : "Live 3-Gate Combination & Safe-Gap Date Analysis"}</span>
+        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 whitespace-nowrap ${errors.length ? 'bg-red-600 text-white' : dateGapConflictMsg ? 'bg-amber-400 text-slate-950' : 'bg-emerald-700 text-white'}">
+          ${errors.length ? (LANG === "KN" ? "ಅಸುರಕ್ಷಿತ ಮಿಶ್ರಣ" : "Blocked") : dateGapConflictMsg ? (LANG === "KN" ? "ದಿನಾಂಕ ಬದಲಿಸಿ" : "Date Gap Alert") : (LANG === "KN" ? "ಸುರಕ್ಷಿತ" : "Verified Safe")}
         </span>
       </div>
-      ${errors.map(e => `<div class="p-2 rounded-lg bg-red-100 border border-red-300 text-red-950 font-bold">${e}</div>`).join("")}
+      ${errors.map(e => `<div class="p-2.5 rounded-lg bg-red-100/90 border border-red-300 text-red-950 font-bold text-xs">${cleanMark(e)}</div>`).join("")}
       ${dateGapConflictMsg ? `
-        <div class="p-2.5 rounded-lg bg-amber-100 border border-amber-400 text-amber-950 flex flex-wrap items-center justify-between gap-2">
-          <div class="font-semibold">${dateGapConflictMsg}</div>
-          <button type="button" onclick="applySuggestedSafeDateToManual('${suggestedSafeDate}')" class="bg-amber-600 hover:bg-amber-700 text-white font-extrabold px-3 py-1.5 rounded-lg shadow shrink-0">
-            📅 ${LANG === "KN" ? `ಸುರಕ್ಷಿತ ದಿನಾಂಕ ಬಳಸಿ (${suggestedSafeDate})` : `Use Safe Date (${suggestedSafeDate})`}
+        <div class="p-2.5 rounded-lg bg-amber-100/90 border border-amber-300 text-amber-950 space-y-2">
+          <div class="font-semibold text-xs leading-relaxed">${cleanMark(dateGapConflictMsg)}</div>
+          <button type="button" onclick="applySuggestedSafeDateToManual('${suggestedSafeDate}')" class="w-full sm:w-auto bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold px-3.5 py-2 rounded-lg shadow-2xs text-xs transition">
+            ${LANG === "KN" ? `ಸುರಕ್ಷಿತ ದಿನಾಂಕ ಬಳಸಿ (${suggestedSafeDate})` : `Use Safe Date (${suggestedSafeDate})`}
           </button>
         </div>` : ""}
-      ${warnings.map(w => `<div class="p-2 rounded-lg bg-amber-100/80 border border-amber-300 text-amber-950 font-semibold">${w}</div>`).join("")}
-      ${passes.map(p => `<div class="text-emerald-900 font-bold">${p}</div>`).join("")}
+      ${warnings.map(w => `<div class="p-2.5 rounded-lg bg-amber-100/70 border border-amber-300 text-amber-950 font-semibold text-xs leading-relaxed">${cleanMark(w)}</div>`).join("")}
+      ${passes.map(p => `<div class="text-emerald-950 font-bold text-xs flex items-start gap-1.5"><svg class="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg><span>${cleanMark(p)}</span></div>`).join("")}
       ${walesHtml}
     </div>
   `;
@@ -5142,7 +5154,7 @@ function render() {
 
   const sopMult = (dad1 >= 140 && wState.tMin > 18) ? 1.15 : 1.0, pTasks = document.getElementById("panel_TASKS");
   if (!wkTasks.length) {
-    pTasks.innerHTML = `<div class="bg-white p-5 rounded-xl text-center text-xs text-slate-500 col-span-full border border-slate-200">${LANG === "KN" ? "ಈ ವಾರದಲ್ಲಿ ಯಾವುದೇ ಕೆಲಸಗಳು ಇಲ್ಲ." : "No tasks scheduled in this week window."}</div>`;
+    pTasks.innerHTML = `<div class="bg-white p-5 rounded-xl text-center text-xs text-slate-600 col-span-full border border-slate-200">${LANG === "KN" ? "ಈ ವಾರದಲ್ಲಿ ಯಾವುದೇ ಕೆಲಸಗಳು ಇಲ್ಲ." : "No tasks scheduled in this week window."}</div>`;
   } else {
     pTasks.innerHTML = wkTasks.map(tk => {
       const isScout = tk.trigger_source === "SCOUTING_CURATIVE", isManual = tk.trigger_source === "MANUAL_ENTRY" || tk.trigger_source === "SPLIT_REMAINDER", isKeep = tk.trigger_source === "KEEP_NOTE_HISTORY";
@@ -5154,7 +5166,6 @@ function render() {
       const drumsCount = Number(tk.drums_count) || defaultDrumsForCard;
       const drumLiters = Number(tk.drum_liters) || defaultDrumLForCard;
 
-      // Standardized Agricultural Brand Palette (Emerald/Teal for routine tasks; Warm Red-Amber strictly for Copper/Curative alerts; Slate for Keep History)
       let hdr = isCopperOrAlert
         ? "bg-red-900 text-white border-b border-red-800"
         : isFoliarCard
@@ -5169,13 +5180,17 @@ function render() {
           : `<svg class="w-4 h-4 text-teal-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>`;
 
       const baseTypeTitle = isScout
-        ? (LANG === "KN" ? "ತುರ್ತು ರೋಗ/ಕೀಟ ನಿಯಂತ್ರಣ ಸಿಂಪಡಣೆ" : "Curative Scouting Spray")
+        ? (LANG === "KN" ? "ತುರ್ತು ರೋಗ/ಕೀಟ ಸಿಂಪಡಣೆ" : "Curative Scouting Spray")
         : isFoliarCard
           ? (tk.task_type === "STANDALONE_COPPER"
-              ? (LANG === "KN" ? "ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ (ಬೇರೆ ಬೆರೆಸಬೇಡಿ)" : "Standalone Copper Spray (Do NOT Mix)")
+              ? (LANG === "KN" ? "ಪ್ರತ್ಯೇಕ ಕಾಪರ್ ಸಿಂಪಡಣೆ" : "Standalone Copper Spray")
               : (LANG === "KN" ? "ಎಲೆ ಸಿಂಪಡಣೆ" : "Foliar Spray"))
-          : (L[`type_${tk.task_type}`] || tk.task_type).replace(/^[💧🌿⚠️🚨]\s*/, "");
+          : (tk.task_type === "DRIP_SAT"
+              ? (LANG === "KN" ? "ಕ್ಯಾಲ್ಸಿಯಂ / ಲಘು ಡ್ರಿಪ್" : "Calcium / Micro Drip")
+              : (LANG === "KN" ? "ಮುಖ್ಯ P-K ಡ್ರಿಪ್ ಗೊಬ್ಬರ" : "Main P-K Split Drip"));
 
+      const [yy, mm, dd] = (tk.current_scheduled_date || "2026-11-16").split("-").map(Number);
+      const shortDateStr = new Date(yy, mm - 1, dd).toLocaleDateString(loc, { weekday: "short", day: "2-digit", month: "short" });
       const descText = getSimpleTaskDescription(tk, LANG === "KN");
 
       const recipeArr = Array.isArray(tk.resolved_recipe) ? tk.resolved_recipe : [];
@@ -5190,10 +5205,8 @@ function render() {
       const wasShifted = tk.originally_scheduled_date && tk.originally_scheduled_date !== tk.current_scheduled_date;
       const walesGuide = getWalesMixingGuide(recipeArr, drumLiters, isFoliarCard);
 
-      // Show Drum Volume (L) x Drums ONLY on Foliar Spray cards (with auto-fitting numeric inputs)
       const inlineDrumSpecHtml = (isFoliarCard && !isKeep) ? `
-        <div class="inline-flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700" title="Edit Drum Size (L) or Drum Count">
-          <svg class="w-3.5 h-3.5 text-slate-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/></svg>
+        <div class="inline-flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-lg px-2 py-0.5 text-[11px] font-bold text-slate-700">
           <input type="number" step="10" min="10" value="${drumLiters}" onchange="setCardTankSpec('${tk.id}', this.value, ${drumsCount})" style="field-sizing:content;width:auto;min-inline-size:3.2ch;max-inline-size:6ch" class="bg-white border border-slate-300 rounded px-1 text-center font-extrabold text-slate-900" />
           <span>L ×</span>
           <input type="number" step="0.5" min="1" value="${drumsCount}" onchange="setCardTankSpec('${tk.id}', ${drumLiters}, this.value)" style="field-sizing:content;width:auto;min-inline-size:2.5ch;max-inline-size:5ch" class="bg-white border border-slate-300 rounded px-1 text-center font-extrabold text-slate-900" />
@@ -5220,51 +5233,48 @@ function render() {
 
         const dripBounds = !metrics.isFoliar ? getDripStageDoseBounds(cat, tk.effective_dad, it) : null;
         const qtyLabel = itemSt === "COMPLETED"
-          ? (LANG === "KN" ? "ಬಳಸಿದ್ದು (3 ಎಕರೆ)" : "USED (3 ACRES)")
-          : (LANG === "KN" ? "ಒಟ್ಟು (3 ಎಕರೆ)" : "TOTAL (3 ACRES)");
+          ? (LANG === "KN" ? "ಬಳಸಿದ್ದು (3 ಎಕರೆ)" : "USED (3 AC)")
+          : (LANG === "KN" ? "ಒಟ್ಟು (3 ಎಕರೆ)" : "TOTAL (3 AC)");
 
-        // Structured 3-Column Stat-Block Grid (Label on top, bold value/input underneath)
+        // 3-Column Stat-Blocks (Compact single-line headers so all 3 boxes stay equal height on mobile)
         const statBlocksGridHtml = metrics.isFoliar
-          ? `<div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-200/80 text-left">
-               <div class="bg-white border border-slate-200/90 rounded-lg px-2.5 py-1.5">
-                 <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                   <svg class="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                   <span>${LANG === "KN" ? "ನಿಗದಿತ ಪ್ರಮಾಣ" : "REC. RATE"}</span>
-                 </div>
+          ? `<div class="grid grid-cols-3 gap-1.5 mt-2 pt-2 border-t border-slate-200/80 text-left">
+               <div class="bg-white border border-slate-200/90 rounded-lg px-2 py-1.5">
+                 <div class="text-[10px] font-bold uppercase text-slate-600 truncate">${LANG === "KN" ? "ಪ್ರತಿ ಲೀಟರ್‌ಗೆ" : "REC. RATE"}</div>
                  <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900 flex items-baseline gap-0.5">
                    <input type="number" readonly value="${metrics.ratePerL}" onclick="updateItemRate('${tk.id}',${idx},this.value)" style="field-sizing:content;width:auto;min-inline-size:2.8ch;max-inline-size:6ch" class="bg-transparent font-extrabold text-emerald-900 cursor-not-allowed focus:outline-none" />
-                   <span class="text-xs text-slate-600">${metrics.rateUnit}/L</span>
+                   <span class="text-[11px] text-slate-600">${metrics.rateUnit}/L</span>
                  </div>
                </div>
-               <div class="bg-white border border-slate-200/90 rounded-lg px-2.5 py-1.5">
-                 <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? `ಪ್ರತಿ ${metrics.drumLiters}L ಡ್ರಮ್‌ಗೆ` : `PER ${metrics.drumLiters}L DRUM`}</div>
-                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-emerald-900">${metrics.perDrumQty} <span class="text-xs font-bold text-slate-600">${metrics.rateUnit}</span></div>
+               <div class="bg-white border border-slate-200/90 rounded-lg px-2 py-1.5">
+                 <div class="text-[10px] font-bold uppercase text-slate-600 truncate">${LANG === "KN" ? `${metrics.drumLiters}L ಡ್ರಮ್‌ಗೆ` : `PER ${metrics.drumLiters}L`}</div>
+                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-emerald-900">${metrics.perDrumQty} <span class="text-[11px] font-bold text-slate-600">${metrics.rateUnit}</span></div>
                </div>
-               <div class="bg-white border border-emerald-300 rounded-lg px-2.5 py-1.5 shadow-2xs">
-                 <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-800">${qtyLabel}</div>
+               <div class="bg-white border border-emerald-400 rounded-lg px-2 py-1.5 shadow-2xs">
+                 <div class="text-[10px] font-bold uppercase text-emerald-900 truncate">${qtyLabel}</div>
                  <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900 flex items-baseline gap-1">
-                   <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" style="field-sizing:content;width:auto;min-inline-size:3.2ch;max-inline-size:8ch" class="font-extrabold text-slate-900 bg-slate-50 border border-slate-300 rounded px-1 text-right focus:outline-none focus:border-emerald-600" />
-                   <span class="text-xs font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
+                   <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" style="field-sizing:content;width:auto;min-inline-size:3.2ch;max-inline-size:7ch" class="font-extrabold text-slate-900 bg-slate-50 border border-slate-300 rounded px-1 text-right focus:outline-none focus:border-emerald-600" />
+                   <span class="text-[11px] font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
                  </div>
                </div>
              </div>`
-          : `<div class="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-200/80 text-left">
-               <div class="bg-white border border-slate-200/90 rounded-lg px-2.5 py-1.5" title="Rec: ${dripBounds.recPerAcre} ${metrics.displayUnit || cat.unit}/ac | Stage Max: ${dripBounds.maxPerAcre} ${metrics.displayUnit || cat.unit}/ac">
-                 <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಪ್ರತಿ ಎಕರೆಗೆ" : "PER ACRE"} <span class="text-teal-700">(≤${dripBounds.maxPerAcre})</span></div>
+          : `<div class="grid grid-cols-3 gap-1.5 mt-2 pt-2 border-t border-slate-200/80 text-left">
+               <div class="bg-white border border-slate-200/90 rounded-lg px-2 py-1.5">
+                 <div class="text-[10px] font-bold uppercase text-slate-600 truncate">${LANG === "KN" ? "ಪ್ರತಿ ಎಕರೆಗೆ" : "PER ACRE"} <span class="text-teal-800">(≤${dripBounds.maxPerAcre})</span></div>
                  <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900 flex items-baseline gap-1">
                    <input type="number" step="0.25" min="${dripBounds.minPerAcre}" max="${dripBounds.maxPerAcre}" value="${metrics.perAcreQty}" onchange="updateItemRate('${tk.id}',${idx},this.value)" style="field-sizing:content;width:auto;min-inline-size:3ch;max-inline-size:6ch" class="bg-slate-50 rounded px-1 font-extrabold text-teal-950 text-right border border-slate-300 focus:outline-none focus:border-teal-600" />
-                   <span class="text-xs font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
+                   <span class="text-[11px] font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
                  </div>
                </div>
-               <div class="bg-white border border-slate-200/90 rounded-lg px-2.5 py-1.5">
-                 <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ" : "PER PLANT"}</div>
-                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900">${metrics.perPlantGrams} <span class="text-xs font-bold text-slate-600">g</span></div>
+               <div class="bg-white border border-slate-200/90 rounded-lg px-2 py-1.5">
+                 <div class="text-[10px] font-bold uppercase text-slate-600 truncate">${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ" : "PER PLANT"}</div>
+                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900">${metrics.perPlantGrams} <span class="text-[11px] font-bold text-slate-600">g</span></div>
                </div>
-               <div class="bg-white border border-teal-300 rounded-lg px-2.5 py-1.5 shadow-2xs">
-                 <div class="text-[10px] font-bold uppercase tracking-wider text-teal-800">${qtyLabel}</div>
+               <div class="bg-white border border-teal-400 rounded-lg px-2 py-1.5 shadow-2xs">
+                 <div class="text-[10px] font-bold uppercase text-teal-900 truncate">${qtyLabel}</div>
                  <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900 flex items-baseline gap-1">
-                   <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" style="field-sizing:content;width:auto;min-inline-size:3.2ch;max-inline-size:8ch" class="font-extrabold text-slate-900 bg-slate-50 border border-slate-300 rounded px-1 text-right focus:outline-none focus:border-teal-600" />
-                   <span class="text-xs font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
+                   <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" style="field-sizing:content;width:auto;min-inline-size:3.2ch;max-inline-size:7ch" class="font-extrabold text-slate-900 bg-slate-50 border border-slate-300 rounded px-1 text-right focus:outline-none focus:border-teal-600" />
+                   <span class="text-[11px] font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
                  </div>
                </div>
              </div>`;
@@ -5274,36 +5284,43 @@ function render() {
           ? `<div class="mt-2 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-300 text-[11px] font-bold text-amber-950">${LANG === "KN" ? cardResWarn.msgKn : cardResWarn.msgEn}</div>`
           : "";
 
-        return `<div class="p-3 rounded-xl border ${rowBg} space-y-1.5">
-          <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-              <div class="font-extrabold text-xs sm:text-sm text-slate-900 flex items-center gap-1.5 flex-wrap">
-                <svg class="w-3.5 h-3.5 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/></svg>
-                <span>${saltTitle}</span>
-                ${groupBadge}
-                <span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${isCrit ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-200/80 text-slate-700'}">${isCrit ? L.mustSource.replace(/^🔴\s*/, '') : L.flexible.replace(/^🟢\s*/, '')}</span>
-                ${it.compensated_from_date ? `<span class="bg-amber-100 border border-amber-300 text-amber-950 rounded px-1.5 py-0.5 text-[10px] font-extrabold">+Make-Up (${it.compensated_from_date})</span>` : ""}
-              </div>
-              <div class="text-[11px] text-slate-500 mt-0.5 truncate"><b>${LANG === "KN" ? "ಮಾರುಕಟ್ಟೆ ಹೆಸರು:" : "Brands:"}</b> ${brandsSubtitle}</div>
+        return `<div class="p-2.5 sm:p-3 rounded-xl border ${rowBg} space-y-1.5">
+          <!-- Full-Width Chemical Title, Badges & Un-Truncated Store Brands -->
+          <div class="w-full space-y-1">
+            <div class="font-extrabold text-xs sm:text-sm text-slate-900 leading-snug flex items-center gap-1.5 flex-wrap">
+              <svg class="w-3.5 h-3.5 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/></svg>
+              <span>${saltTitle}</span>
+              ${groupBadge}
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${isCrit ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-200/80 text-slate-700'}">${isCrit ? L.mustSource.replace(/^🔴\s*/, '') : L.flexible.replace(/^🟢\s*/, '')}</span>
+              ${it.compensated_from_date ? `<span class="bg-amber-100 border border-amber-300 text-amber-950 rounded px-1.5 py-0.5 text-[10px] font-extrabold">+Make-Up (${it.compensated_from_date})</span>` : ""}
             </div>
-            <!-- Streamlined Icon-First Line-Item Approvals -->
-            <div class="flex items-center gap-1 shrink-0">
-              <button type="button" onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'COMPLETED' ? 'PENDING' : 'COMPLETED'}',${suggestedTotal3Ac})" title="${LANG === 'KN' ? 'ಈ ಔಷಧಿ ಪೂರ್ಣಗೊಂಡಿದೆ' : 'Mark item completed'}" aria-label="Mark item completed" class="p-1.5 rounded-lg border transition ${itemSt === 'COMPLETED' ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs' : 'bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-800 border-slate-300'}">
+            <div class="text-[11px] text-slate-700 leading-snug break-words"><b>${LANG === "KN" ? "ಮಾರುಕಟ್ಟೆ ಹೆಸರು:" : "Store Brands:"}</b> ${brandsSubtitle}</div>
+          </div>
+
+          ${statBlocksGridHtml}
+
+          <!-- Compact Full-Width Line-Item Action Strip -->
+          <div class="flex items-center justify-between gap-1.5 pt-1.5 border-t border-slate-200/70">
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'COMPLETED' ? 'PENDING' : 'COMPLETED'}',${suggestedTotal3Ac})" class="px-2.5 py-1 rounded-lg border text-[11px] font-bold inline-flex items-center gap-1 transition ${itemSt === 'COMPLETED' ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs' : 'bg-white hover:bg-emerald-50 text-slate-700 border-slate-300'}">
                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>${LANG === "KN" ? "ಪೂರ್ಣ" : "Done"}</span>
               </button>
-              <button type="button" onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'SKIPPED' ? 'PENDING' : 'SKIPPED'}',${suggestedTotal3Ac})" title="${LANG === 'KN' ? 'ಈ ಔಷಧಿ ಬಿಟ್ಟುಬಿಡಿ' : 'Skip item'}" aria-label="Skip item" class="p-1.5 rounded-lg border transition ${itemSt === 'SKIPPED' ? 'bg-slate-700 text-white border-slate-800' : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-300'}">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
+              <button type="button" onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'SKIPPED' ? 'PENDING' : 'SKIPPED'}',${suggestedTotal3Ac})" class="px-2.5 py-1 rounded-lg border text-[11px] font-bold inline-flex items-center gap-1 transition ${itemSt === 'SKIPPED' ? 'bg-slate-700 text-white border-slate-800' : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-300'}">
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
+                <span>${LANG === "KN" ? "ಬಿಡಿ" : "Skip"}</span>
               </button>
-              <button type="button" onclick="openSwap('${tk.id}',${idx},'${cat.id}')" title="${L.storeOutBtn}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-bold transition">
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="openSwap('${tk.id}',${idx},'${cat.id}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-bold transition">
                 <svg class="w-3 h-3 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
-                <span>${LANG === "KN" ? "ಬದಲಿಸಿ" : "Swap"}</span>
+                <span>${LANG === "KN" ? "ಬದಲಿಸಿ / ಕಂಪನಿ" : "Swap / Brand"}</span>
               </button>
-              ${recipeArr.length > 1 ? `<button type="button" onclick="removeItemFromTaskCard('${tk.id}',${idx})" title="${LANG === 'KN' ? 'ಈ ಔಷಧಿಯನ್ನು ಕಾರ್ಡ್‌ನಿಂದ ತೆಗೆದುಹಾಕಿ' : 'Remove this item from card'}" aria-label="Remove item" class="p-1.5 rounded-lg bg-white hover:bg-red-50 border border-slate-300 hover:border-red-300 text-slate-400 hover:text-red-700 transition">
+              ${recipeArr.length > 1 ? `<button type="button" onclick="removeItemFromTaskCard('${tk.id}',${idx})" title="${LANG === 'KN' ? 'ತೆಗೆದುಹಾಕಿ' : 'Remove item'}" aria-label="Remove item" class="p-1 rounded-lg bg-white hover:bg-red-50 border border-slate-300 hover:border-red-300 text-slate-500 hover:text-red-700 transition">
                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
               </button>` : ""}
             </div>
           </div>
-          ${statBlocksGridHtml}
           ${repeatWarnHtml}
         </div>`;
       }).join("");
@@ -5316,14 +5333,14 @@ function render() {
             <span>${LANG === "KN" ? "ಈ ಕಾರ್ಡ್‌ಗೆ ಇನ್ನೊಂದು ಔಷಧಿ / ಪೋಷಕಾಂಶ ಸೇರಿಸಿ" : "Add Another Line Item to This Card"}</span>
           </button>
           <div id="addBox_${tk.id}" class="hidden mt-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs">
-            <input type="text" id="addSearch_${tk.id}" oninput="filterCardAddDropdown('${tk.id}', this.value, ${isFoliarCard})" placeholder="${LANG === 'KN' ? 'ಕಂಪನಿ ಅಥವಾ ಲವಣಾಂಶ ಹುಡುಕಿ (ಉದಾ: Agadi, Custodia, TAG Ride)...' : 'Filter by brand or salt (e.g. Agadi, Custodia, TAG Ride)...'}" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-slate-900" />
+            <input type="text" id="addSearch_${tk.id}" oninput="filterCardAddDropdown('${tk.id}', this.value, ${isFoliarCard})" placeholder="${LANG === 'KN' ? 'ಕಂಪನಿ ಅಥವಾ ಲವಣಾಂಶ ಹುಡುಕಿ...' : 'Filter by brand or salt...'}" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-semibold text-slate-900" />
             <div class="flex flex-wrap items-center gap-1.5">
-              <select id="addSel_${tk.id}" class="flex-1 min-w-[180px] border border-slate-300 rounded-lg px-2 py-1.5 font-bold bg-white text-slate-900">
-                <option value="">-- ${LANG === "KN" ? `ಪಟ್ಟಿಯಿಂದ ಆರಿಸಿ (${addableChems.length})` : `Select Input (${addableChems.length} matches)`} --</option>
+              <select id="addSel_${tk.id}" class="min-w-0 flex-1 border border-slate-300 rounded-lg px-2 py-1.5 font-bold bg-white text-slate-900 truncate">
+                <option value="">-- ${LANG === "KN" ? `ಪಟ್ಟಿಯಿಂದ ಆರಿಸಿ (${addableChems.length})` : `Select Input (${addableChems.length})`} --</option>
                 ${addableChems.map(c => `<option value="${c.id}">${getSaltOnlyTitle(c)} — [${getBrandOnlySubtitle(c)}]</option>`).join("")}
               </select>
-              <button type="button" onclick="addItemToTaskCard('${tk.id}')" class="bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold px-3 py-1.5 rounded-lg shadow-2xs">
-                + ${LANG === "KN" ? "ಕಾರ್ಡ್‌ಗೆ ಸೇರಿಸಿ" : "Add Item"}
+              <button type="button" onclick="addItemToTaskCard('${tk.id}')" class="bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold px-3 py-1.5 rounded-lg shadow-2xs shrink-0">
+                + ${LANG === "KN" ? "ಸೇರಿಸಿ" : "Add"}
               </button>
             </div>
           </div>
@@ -5332,19 +5349,18 @@ function render() {
       const updTime = tk.updated_at ? new Date(tk.updated_at).toLocaleString(loc, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
 
       return `<article class="bg-white rounded-xl shadow-xs border border-slate-200/90 overflow-visible flex flex-col justify-between ${isSkipped ? 'opacity-60' : ''}">
-        <!-- Card Header with Top-Right Three-Dot (⋮) Overflow Menu -->
-        <header class="px-3.5 py-2.5 ${hdr} rounded-t-xl flex items-center justify-between gap-2 text-xs font-bold relative">
+        <!-- Card Header: Full Un-Truncated Type Title + Compact Date Badge + ⋮ Menu -->
+        <header class="px-3 py-2 ${hdr} rounded-t-xl flex items-center justify-between gap-1.5 text-xs font-bold relative">
           <div class="flex items-center gap-1.5 min-w-0">
             ${typeSvg}
-            <span class="truncate">${baseTypeTitle}</span>
+            <span class="leading-tight">${baseTypeTitle}</span>
           </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <span class="inline-flex items-center gap-1 text-[11px] font-semibold opacity-95">
-              <svg class="w-3.5 h-3.5 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
-              <span>${formatDateWithWeekday(tk.current_scheduled_date)} • ${tk.effective_dad} ${L.dadWord}</span>
+          <div class="flex items-center gap-1 shrink-0">
+            <span class="inline-flex items-center gap-1 text-[11px] font-semibold bg-black/20 px-2 py-0.5 rounded-full whitespace-nowrap">
+              <span>${shortDateStr} • ${tk.effective_dad}d</span>
             </span>
             <div class="relative">
-              <button type="button" onclick="toggleCardActionMenu(event, '${tk.id}')" aria-haspopup="menu" aria-expanded="false" aria-label="More card actions" title="${LANG === 'KN' ? 'ಇನ್ನಷ್ಟು ಆಯ್ಕೆಗಳು' : 'More card actions'}" class="p-1 rounded-lg hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/40 transition">
+              <button type="button" onclick="toggleCardActionMenu(event, '${tk.id}')" aria-haspopup="menu" aria-expanded="false" aria-label="More card actions" class="p-1 rounded-lg hover:bg-white/15 focus:outline-none">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
               </button>
               <div id="cardMenu_${tk.id}" role="menu" class="card-overflow-menu hidden absolute right-0 mt-1.5 w-44 bg-white border border-slate-200 rounded-xl shadow-lg py-1 z-40 text-slate-800 text-xs font-semibold">
@@ -5364,43 +5380,43 @@ function render() {
         </header>
 
         <!-- Card Body -->
-        <div class="p-3.5 space-y-2.5">
-          <div class="flex flex-wrap justify-between items-start gap-2">
-            <div>
-              <div class="font-bold text-xs sm:text-sm text-slate-900">${descText}</div>
+        <div class="p-3 space-y-2.5">
+          <div class="flex flex-wrap justify-between items-start gap-1.5">
+            <div class="min-w-0 flex-1">
+              <div class="font-extrabold text-xs sm:text-sm text-slate-900 leading-snug">${descText}</div>
               ${wasShifted ? `<div class="text-[11px] text-amber-800 font-semibold mt-0.5">↪ ${LANG === "KN" ? "ಮೂಲ ದಿನಾಂಕ:" : "Original date:"} ${tk.originally_scheduled_date}</div>` : ""}
             </div>
-            <div class="flex items-center gap-1.5 flex-wrap">
+            <div class="flex items-center gap-1.5 shrink-0">
               ${inlineDrumSpecHtml}
-              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0 ${statusBadgeCls}">${statusText}</span>
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${statusBadgeCls}">${statusText}</span>
             </div>
           </div>
           ${itemsHtml ? `<div class="space-y-2">${itemsHtml}</div>` : ""}
           ${addItemBarHtml}
-          ${walesGuide ? `<div class="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-lg text-[11px] text-emerald-950">${walesGuide}</div>` : ""}
+          ${walesGuide ? `<div class="p-2 bg-emerald-50/70 border border-emerald-200 rounded-lg text-[11px] text-emerald-950 leading-snug">${walesGuide}</div>` : ""}
           ${hasPartialDone ? `<button type="button" onclick="splitRemainingItemsToTomorrow('${tk.id}')" class="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs py-2 px-3 rounded-lg shadow-2xs">${L.splitRemainingBtn}</button>` : ""}
         </div>
 
-        <!-- Clean Card Footer: Primary 'All Done' CTA + Neutral Secondary Controls + Auto-Fitting Cost Input -->
-        <footer class="px-3.5 py-2.5 bg-slate-50/80 border-t border-slate-200/80 rounded-b-xl space-y-2">
-          <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
-            <button type="button" onclick="markWholeCard('${tk.id}','COMPLETED')" class="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white py-2 px-3 rounded-lg shadow-2xs inline-flex items-center justify-center gap-1.5 transition">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-              <span>${L.doneBtn.replace(/^✅\s*/, "")}</span>
+        <!-- Card Footer: Single-Row 3-Button Bar (Never wraps onto 2 rows) -->
+        <footer class="px-3 py-2.5 bg-slate-50/90 border-t border-slate-200/80 rounded-b-xl space-y-2">
+          <div class="grid grid-cols-12 gap-1.5 text-xs font-bold">
+            <button type="button" onclick="markWholeCard('${tk.id}','COMPLETED')" class="col-span-5 bg-emerald-700 hover:bg-emerald-800 text-white py-2 px-2 rounded-lg shadow-2xs inline-flex items-center justify-center gap-1 whitespace-nowrap transition">
+              <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+              <span class="truncate">${L.doneBtn.replace(/^✅\s*/, "")}</span>
             </button>
-            <button type="button" onclick="openDelayModal('${tk.id}')" class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 py-2 px-3 rounded-lg inline-flex items-center justify-center gap-1.5 transition">
-              <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span>${L.delayBtn.replace(/^⏳\s*/, "")}</span>
+            <button type="button" onclick="openDelayModal('${tk.id}')" class="col-span-4 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 py-2 px-2 rounded-lg inline-flex items-center justify-center gap-1 whitespace-nowrap transition">
+              <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span class="truncate">${L.delayBtn.replace(/^⏳\s*/, "")}</span>
             </button>
-            <button type="button" onclick="markWholeCard('${tk.id}','SKIPPED')" class="bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 py-2 px-2.5 rounded-lg inline-flex items-center justify-center gap-1 transition">
-              <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
-              <span>${L.skipBtn.replace(/^⏭️\s*/, "")}</span>
+            <button type="button" onclick="markWholeCard('${tk.id}','SKIPPED')" class="col-span-3 bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 py-2 px-1.5 rounded-lg inline-flex items-center justify-center gap-1 whitespace-nowrap transition">
+              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
+              <span class="truncate">${L.skipBtn.replace(/^⏭️\s*/, "")}</span>
             </button>
           </div>
-          <div class="text-[11px] text-slate-500 flex flex-wrap justify-between items-center gap-2 pt-0.5">
-            <span>${L.updatedBy}: <b class="text-slate-700">${tk.updated_by || "System"}</b> ${updTime ? `(${updTime})` : ""}</span>
+          <div class="text-[11px] text-slate-600 flex flex-wrap justify-between items-center gap-2">
+            <span>${L.updatedBy}: <b class="text-slate-800">${tk.updated_by || "System"}</b> ${updTime ? `(${updTime})` : ""}</span>
             <div class="inline-flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-0.5">
-              <span class="font-bold text-slate-600">₹ ${LANG === "KN" ? "ಖರ್ಚು:" : "Cost:"}</span>
+              <span class="font-bold text-slate-700">₹ ${LANG === "KN" ? "ಖರ್ಚು:" : "Cost:"}</span>
               <input type="number" step="10" min="0" value="${tk.cost_rs || 0}" onchange="saveTaskCost('${tk.id}',this.value)" style="field-sizing:content;width:auto;min-inline-size:3.5ch;max-inline-size:9ch" class="bg-transparent font-extrabold text-slate-900 text-right focus:outline-none" />
             </div>
           </div>
