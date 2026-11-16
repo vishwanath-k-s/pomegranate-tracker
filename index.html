@@ -1387,8 +1387,17 @@ function updateSyncBadge() {
 }
 
 function enqueueOfflineOp(op) {
+  // Never enqueue mock QA test IDs into the real IndexedDB outbox
+  if (op.table === "daily_task_queue" && op.matchCol === "id" && op.matchVal && !/^[0-9a-f-]{36}$/i.test(String(op.matchVal))) {
+    return;
+  }
   const q = [...getOutbox()];
-  const stamped = { ...op, qid: op.qid || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, queuedAt: new Date().toISOString() };
+  const stamped = {
+    ...op,
+    env: op.env || APP_ENV,
+    qid: op.qid || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    queuedAt: new Date().toISOString()
+  };
   // Coalesce consecutive updates to the exact same row & table while offline
   if (stamped.type === "update" && stamped.matchCol && stamped.matchVal) {
     const existingIdx = q.findIndex(x => x.table === stamped.table && x.type === "update" && x.matchCol === stamped.matchCol && x.matchVal === stamped.matchVal);
@@ -1424,7 +1433,10 @@ async function dbMutate(op) {
     updateSyncBadge();
     return { data };
   } catch (err) {
-    enqueueOfflineOp(op);
+    const errCode = String(err?.code || "");
+    if (!/^(22|23|42)/.test(errCode)) {
+      enqueueOfflineOp(op);
+    }
     return { queued: true, data: op.payload };
   }
 }
@@ -1438,18 +1450,27 @@ async function flushOutbox() {
   const remaining = [];
   try {
     for (const op of q) {
+      // Evict any legacy mock/non-UUID task mutations (e.g. "t36-2", "t36-3") immediately
+      if (op.table === "daily_task_queue" && op.matchCol === "id" && op.matchVal && !/^[0-9a-f-]{36}$/i.test(String(op.matchVal))) {
+        continue;
+      }
       try {
-        // Self-heal any non-task insert rows that accidentally had a string UUID attached
         if (op.type === "insert" && Array.isArray(op.payload) && op.table !== "daily_task_queue") {
           op.payload = op.payload.map(r => { const copy = { ...r }; if (typeof copy.id === "string") delete copy.id; return copy; });
         }
         let query = sb.from(op.table);
-        if (op.type === "update") await query.update(op.payload).eq(op.matchCol, op.matchVal);
-        else if (op.type === "insert") await query.insert(op.payload);
-        else if (op.type === "upsert") await query.upsert(op.payload);
-        else if (op.type === "delete") await query.delete().eq(op.matchCol, op.matchVal);
+        let res;
+        if (op.type === "update") res = await query.update(op.payload).eq(op.matchCol, op.matchVal);
+        else if (op.type === "insert") res = await query.insert(op.payload);
+        else if (op.type === "upsert") res = await query.upsert(op.payload);
+        else if (op.type === "delete") res = await query.delete().eq(op.matchCol, op.matchVal);
+        if (res?.error) throw res.error;
       } catch (e) {
-        if (op.table === "daily_task_queue") remaining.push(op);
+        const code = String(e?.code || "");
+        // Keep only transient network/timeout errors; evict permanent PostgreSQL syntax/constraint errors (22xxx, 23xxx, 42xxx)
+        if (!/^(22|23|42)/.test(code)) {
+          remaining.push(op);
+        }
       }
     }
     saveOutbox(remaining);
@@ -1624,6 +1645,7 @@ function getCumulativeNutrientsPerPlant() {
   };
 
   tasks.filter(t => t.current_scheduled_date >= "2026-08-15" && t.status !== "SKIPPED").forEach(tk => {
+    const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER";
     const taskDad = computeDynamicDadAndWeek(tk.current_scheduled_date).dad;
     const sopMult = (taskDad >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
     const drumsUsed = Number(tk.drums_count) || CFG.drums;
@@ -1637,7 +1659,7 @@ function getCumulativeNutrientsPerPlant() {
       const c = catalog[it.input_id]; if (!c) return;
       const pct = getEffectiveNutrientPct(c);
       const m = c.id === "WSF_00_00_50" ? sopMult : 1.0;
-      const metrics = getItemDoseMetrics(c, it, m, drumsUsed, drumLUsed);
+      const metrics = getItemDoseMetrics(c, it, m, drumsUsed, drumLUsed, !isFoliarCard);
       const gPlant = metrics.totalGrams3Ac / CFG.plants;
       const bucket = metrics.isFoliar ? del.foliar : del.drip;
 
@@ -2699,16 +2721,37 @@ async function mergeDuplicateSpraysInCurrentWeek() {
   const safeSlot = getEarliestSafeFoliarDate(false);
   const targetDateStr = safeSlot.dateStr > primary.current_scheduled_date ? safeSlot.dateStr : primary.current_scheduled_date;
 
+  // Trial-merge on a clone first so we never lose an incompatible or overloaded item
+  const mergedRecipe = [...(primary.resolved_recipe || [])];
+  const blockedReasons = [];
+
   others.forEach(o => {
     (o.resolved_recipe || []).forEach(rItem => {
-      if (!primary.resolved_recipe.some(m => m.input_id === rItem.input_id)) {
-        if (primary.resolved_recipe.every(m => checkPairCompatibility(catalog[m.input_id], catalog[rItem.input_id]).ok)) {
-          primary.resolved_recipe.push(rItem);
-        }
+      if (rItem.item_status === "SKIPPED") return;
+      const alreadyPresent = mergedRecipe.some(m => m.input_id === rItem.input_id);
+      if (alreadyPresent) return;
+
+      const candCat = catalog[rItem.input_id];
+      const check = validateCardCombinationRules(mergedRecipe, candCat);
+      if (check.ok) {
+        mergedRecipe.push(rItem);
+      } else {
+        blockedReasons.push(LANG === "KN" ? check.msgKn : check.msgEn);
       }
     });
   });
 
+  if (blockedReasons.length > 0) {
+    alert(
+      (LANG === "KN"
+        ? "⚠️ ಈ ಸಿಂಪಡಣೆ ಕಾರ್ಡ್‌ಗಳನ್ನು ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ವಿಲೀನಗೊಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ (ಕೆಳಗಿನ ಸುರಕ್ಷತಾ ಕಾರಣಗಳಿಂದಾಗಿ ಪ್ರತ್ಯೇಕ ಕಾರ್ಡ್‌ಗಳಾಗಿಯೇ ಉಳಿಸಲಾಗಿದೆ):\n\n• "
+        : "⚠️ Cannot merge these Foliar cards into a single tank-mix (kept as separate cards to prevent chemical incompatibility / drum overload):\n\n• ") +
+      blockedReasons.join("\n• ")
+    );
+    return;
+  }
+
+  primary.resolved_recipe = mergedRecipe;
   const dyn = computeDynamicDadAndWeek(targetDateStr);
   const chemNamesEn = primary.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "EN") || r.input_id).join(" + ");
   const chemNamesKn = primary.resolved_recipe.map(r => getSaltOnlyTitle(catalog[r.input_id], "KN") || r.input_id).join(" + ");
@@ -3091,7 +3134,12 @@ async function loadWeather() {
       telemetryUpserts[telemetryUpserts.length - 1].disease_risk_score = wState.riskScore;
       await sb.from("weather_telemetry_history").upsert(telemetryUpserts);
       const { data: cronRes } = await sb.rpc("run_daily_orchard_engine");
-      if (cronRes) wState.cronSummary = cronRes;
+      if (cronRes) {
+        wState.cronSummary = cronRes;
+        if (Number(cronRes.shifted_drips || 0) > 0 || Number(cronRes.injected_sprays || 0) > 0) {
+          await loadDB();
+        }
+      }
     }
   } catch (e) {
     try {
@@ -3678,6 +3726,7 @@ async function saveNewChemical() {
     k_pct: snap.kVal,
     ca_pct: snap.caVal,
     mg_pct: snap.mgVal,
+    b_pct: snap.bVal,
     procurement_criticality: "FLEXIBLE",
     popular_brands: snap.brand
   };
@@ -4249,10 +4298,12 @@ async function saveFarmRain(mm, label) {
 
   if (val >= 15) {
     const ask = LANG === "KN"
-      ? `🌧️ ${val} ಮಿ.ಮೀ ಮಳೆ ದಾಖಲಾಗಿದೆ! ಮುಂದಿನ ಡ್ರಿಪ್ ಗೊಬ್ಬರವನ್ನು +2 ದಿನ ಮುಂದೂಡಿ, ನಾಳೆಗೆ ತುರ್ತು ಕಾಪರ್ + ಬ್ರೊನೊಪಾಲ್ ಸಿಂಪಡಣೆ ಸೇರಿಸಲೇ?`
-      : `🌧️ ${val} mm heavy rain logged! Shift next pending Drip by +2 days and add a Standalone Copper + Bronopol spray for tomorrow?`;
+      ? `${val} ಮಿ.ಮೀ ಮಳೆ ದಾಖಲಾಗಿದೆ! ಮುಂದಿನ ಡ್ರಿಪ್ ಗೊಬ್ಬರವನ್ನು +2 ದಿನ ಮುಂದೂಡಿ, ನಾಳೆಗೆ ತುರ್ತು ಕಾಪರ್ + ಬ್ರೊನೊಪಾಲ್ ಸಿಂಪಡಣೆ ಸೇರಿಸಲೇ?`
+      : `${val} mm heavy rain logged! Shift next upcoming Drip by +2 days and add a Standalone Copper + Bronopol spray for tomorrow?`;
     if (confirm(ask)) {
-      const nextDrip = tasks.find(t => t.status === "PENDING" && t.task_type.startsWith("DRIP") && t.current_scheduled_date >= tStr);
+      const nextDrip = tasks
+        .filter(t => (t.status === "PENDING" || t.status === "DELAYED") && (t.task_type || "").startsWith("DRIP") && t.current_scheduled_date >= tStr)
+        .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date))[0];
       if (nextDrip) await applyScheduleShift(nextDrip, addDaysYMD(nextDrip.current_scheduled_date, 2), "TRACK", "RAIN");
       await addScoutingTask("BLIGHT_SPOT");
     }
@@ -4993,8 +5044,11 @@ async function resetEntireScheduleToBaseline() {
   if (!confirm(confirmMsg)) return;
 
   try {
-    // 1. Remove any queued DEV mutations from the offline outbox so they don't overwrite the fresh sync
-    const cleanOutbox = getOutbox().filter(op => !(op.table === "daily_task_queue" && op.payload?.env === "DEV"));
+    // 1. Remove any queued DEV mutations (insert arrays, updates, deletes) from the offline outbox so they don't overwrite the fresh sync
+    const cleanOutbox = getOutbox().filter(op => {
+      const isDevOp = op.env === "DEV" || op.payload?.env === "DEV" || (Array.isArray(op.payload) && op.payload.some(r => r?.env === "DEV"));
+      return !(isDevOp && (op.table === "daily_task_queue" || op.table === "activity_audit_log"));
+    });
     saveOutbox(cleanOutbox);
 
     // 2. Fetch ALL current tasks from PROD (Completed, Pending, Delayed, Skipped, Curative, Manual, Split)
@@ -5432,35 +5486,39 @@ function render() {
   document.getElementById("totalSeasonCost").textContent = `₹ ${totalSpend.toLocaleString("en-IN")}`;
   document.getElementById("weekCostSummary").textContent = `${LANG === "KN" ? "ಈ ವಾರದ ಖರ್ಚು" : "This Week Spend"}: ₹ ${weekSpend.toLocaleString("en-IN")}`;
 
-  const tot = {};
-  wkTasks.filter(t => t.status !== "SKIPPED" && t.status !== "COMPLETED").forEach(tk => {
-    const drumsCount = Number(tk.drums_count) || CFG.drums;
-    const drumLiters = Number(tk.drum_liters) || CFG.drumL;
-    (tk.resolved_recipe || []).forEach(it => {
-      if (it.item_status === "COMPLETED" || it.item_status === "SKIPPED") return;
-      const c = catalog[it.input_id];
-      const m = c?.id === "WSF_00_00_50" ? sopMult : 1.0;
-      const metrics = getItemDoseMetrics(c, it, m, drumsCount, drumLiters);
-      tot[it.input_id] = (tot[it.input_id] || 0) + metrics.actualTotal3Ac;
-    });
-  });
-  document.getElementById("shopBox").innerHTML = Object.keys(tot).map(id => {
-    const c = catalog[id] || { name_en: id, active_ingredient: id, unit: "" };
-    const need = Number(tot[id].toFixed(2)), left = Number(leftovers[id] || 0), buy = Math.max(0, Number((need - left).toFixed(2)));
-    return `<div class="py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-      <div>
-        <div class="font-bold text-sm">🧪 ${getSaltOnlyTitle(c)} ${getUniformGroupBadge(c)}</div>
-        <div class="text-[11px] text-slate-500">🏷️ <b>${LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರುಗಳು:" : "Store Brands:"}</b> ${getBrandOnlySubtitle(c)}</div>
-        <div class="mt-0.5">${LANG === "KN" ? "3 ಎಕರೆಗೆ ಬಾಕಿ ಅಗತ್ಯ" : "Pending 3-Acre Need"}: <b>${need} ${c.unit}</b> • <span class="text-emerald-800 font-bold">${LANG === "KN" ? "ಖರೀದಿಸಬೇಕಾದ್ದು" : "Net to Buy"}: ${buy} ${c.unit}</span></div>
+  const shopTotals = computeWeeklyShoppingTotals(wkTasks, sopMult);
+  document.getElementById("shopBox").innerHTML = Object.keys(shopTotals).map(id => {
+    const entry = shopTotals[id];
+    const c = entry.cat;
+    const unitLabel = entry.displayUnit;
+    const need = entry.needQty;
+    const left = Number(leftovers[id] || 0);
+    const buy = Math.max(0, Number((need - left).toFixed(2)));
+    return `<div class="py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="space-y-1 min-w-0 flex-1">
+        <div class="font-extrabold text-xs sm:text-sm text-slate-900 flex items-center gap-1.5 flex-wrap">
+          <svg class="w-3.5 h-3.5 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/></svg>
+          <span>${getSaltOnlyTitle(c)}</span>
+          ${getUniformGroupBadge(c)}
+        </div>
+        <div class="text-[11px] text-slate-600 break-words"><b>${LANG === "KN" ? "ಕಂಪನಿ ಹೆಸರುಗಳು:" : "Store Brands:"}</b> ${getBrandOnlySubtitle(c)}</div>
+        <div class="flex flex-wrap items-center gap-2 pt-0.5">
+          <span class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-800 font-semibold">${LANG === "KN" ? "3 ಎಕರೆಗೆ ಬಾಕಿ ಅಗತ್ಯ" : "Pending 3-Ac Need"}: <b>${need} ${unitLabel}</b></span>
+          <span class="px-2 py-0.5 rounded-md ${buy > 0 ? 'bg-emerald-50 border border-emerald-300 text-emerald-950' : 'bg-slate-100 text-slate-600'} font-extrabold">${LANG === "KN" ? "ಖರೀದಿಸಬೇಕಾದ್ದು" : "Net to Buy"}: ${buy} ${unitLabel}</span>
+        </div>
       </div>
-      <div class="flex items-center gap-1.5"><span>${LANG === "KN" ? "ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದದ್ದು:" : "Shed Leftover:"}</span><input type="number" value="${left}" onchange="saveLeftover('${id}',this.value)" class="w-16 border rounded px-2 py-1 font-bold"/></div>
+      <div class="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 shrink-0">
+        <span class="text-slate-700 font-semibold text-[11px]">${LANG === "KN" ? "ಶೆಡ್‌ನಲ್ಲಿ ಉಳಿದದ್ದು:" : "Shed Leftover:"}</span>
+        <input type="number" step="0.1" min="0" value="${left}" onchange="saveLeftover('${id}',this.value)" class="border border-slate-300 bg-white rounded px-1.5 py-0.5 font-extrabold text-slate-900 text-right focus:outline-none focus:border-emerald-600"/>
+        <span class="font-bold text-slate-600 text-[11px]">${unitLabel}</span>
+      </div>
     </div>`;
-  }).join("") || `<div class="py-3 text-xs text-slate-500">${LANG === "KN" ? "ಈ ವಾರ ಯಾವುದೇ ಖರೀದಿ ಅಗತ್ಯವಿಲ್ಲ." : "No pending inputs needed for this week."}</div>`;
+  }).join("") || `<div class="py-3 text-xs text-slate-600">${LANG === "KN" ? "ಈ ವಾರ ಯಾವುದೇ ಖರೀದಿ ಅಗತ್ಯವಿಲ್ಲ." : "No pending inputs needed for this week."}</div>`;
 
   document.getElementById("auditLogBox").innerHTML = auditLogs.map(a => {
     const dt = new Date(a.created_at).toLocaleString(loc, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-    return `<div class="py-2 flex justify-between gap-2"><div><b>👤 ${a.actor_name}</b> — <span class="font-semibold text-emerald-800">${a.action_type}</span>: ${a.task_summary} <span class="text-slate-500">${a.details || ""}</span></div><div class="text-slate-400 shrink-0">${dt}</div></div>`;
-  }).join("") || `<div class="py-2 text-slate-400">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಬದಲಾವಣೆ ದಾಖಲಾಗಿಲ್ಲ." : "No activity logged yet in this environment."}</div>`;
+    return `<div class="py-2 flex justify-between gap-2"><div><b class="text-slate-900">${a.actor_name}</b> — <span class="font-bold text-emerald-800">${a.action_type}</span>: ${a.task_summary} <span class="text-slate-600">${a.details || ""}</span></div><div class="text-slate-500 shrink-0 text-[11px]">${dt}</div></div>`;
+  }).join("") || `<div class="py-2 text-slate-500">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಬದಲಾವಣೆ ದಾಖಲಾಗಿಲ್ಲ." : "No activity logged yet in this environment."}</div>`;
 
   document.getElementById("allWeeksBody").innerHTML = tasks.map(t => {
     const desc = getSimpleTaskDescription(t, LANG === "KN");
@@ -6283,6 +6341,8 @@ async function updateItemRate(taskId, idx, newRateVal) {
     it.orig_dose_per_acre = bounds.recPerAcre;
   }
   it.dose_per_acre = cleanRate;
+  it.user_manual_edit = true;
+  delete it.compensated_from_date;
   delete it.dose_per_liter;
   delete it.actual_total_3ac;
 
@@ -6693,6 +6753,8 @@ async function updateItemQty(taskId, idx, newVal, suggestedTotal3Ac) {
   if (it.orig_dose_per_acre === undefined) it.orig_dose_per_acre = bounds.recPerAcre;
   it.actual_total_3ac = cleanTotal;
   it.dose_per_acre = Number((cleanTotal / (CFG.acres * sopMult)).toFixed(2));
+  it.user_manual_edit = true;
+  delete it.compensated_from_date;
 
   await syncNextDripDoseForItem(tk, it, it.item_status || "PENDING", recTotal3Ac);
   tk.updated_by = activeUser; tk.updated_at = new Date().toISOString(); render();
@@ -6703,7 +6765,7 @@ async function updateItemQty(taskId, idx, newVal, suggestedTotal3Ac) {
 // 1. Applies retroactively to any cards ALREADY marked SKIPPED or under-dosed in the database.
 // 2. Boosts the 1st upcoming pending Drip card to its Stage Safe Upper Limit (maxPerAcre).
 // 3. If the skipped/under-dosed deficit exceeds what the 1st card can safely absorb, rolls the remaining deficit into the 2nd (and 3rd) upcoming Drip cards!
-async function reconcileAllDripDeficitsAcrossSchedule(filterInputId = null) {
+async function reconcileAllDripDeficitsAcrossSchedule(filterInputId = null, dryRun = false) {
   const tmplMap = {};
   (templates || []).forEach(t => { tmplMap[t.id] = t; });
 
@@ -6713,7 +6775,6 @@ async function reconcileAllDripDeficitsAcrossSchedule(filterInputId = null) {
 
   if (!dripTasks.length) return;
 
-  // Collect all fertilizer input_ids present on Drip cards
   const inputIdsToProcess = new Set();
   dripTasks.forEach(tk => {
     (tk.resolved_recipe || []).forEach(r => {
@@ -6767,11 +6828,9 @@ async function reconcileAllDripDeficitsAcrossSchedule(filterInputId = null) {
         const diffPerAc = Number((appliedPerAc - baseOrigDose).toFixed(2));
 
         if (diffPerAc < -0.08) {
-          // Completed with less than recommended -> add unapplied amount to rolling deficit
           carryDeficitPerAc = Number((carryDeficitPerAc + Math.abs(diffPerAc)).toFixed(2));
           latestDeficitDate = tk.current_scheduled_date;
         } else if (diffPerAc > 0.08) {
-          // Completed with extra (or make-up) dose -> reduce rolling deficit
           carryDeficitPerAc = Math.max(0, Number((carryDeficitPerAc - diffPerAc).toFixed(2)));
           if (carryDeficitPerAc === 0) {
             hasActiveSkipInCarry = false;
@@ -6784,12 +6843,23 @@ async function reconcileAllDripDeficitsAcrossSchedule(filterInputId = null) {
       // CASE 3: Card/Item is PENDING or DELAYED
       const currentDosePerAc = Number(r.dose_per_acre || baseOrigDose);
       const isUserManualUnderDose = !r.compensated_from_date && currentDosePerAc < baseOrigDose - 0.08;
+      const isUserManualOverDose  = !r.compensated_from_date && r.user_manual_edit && currentDosePerAc > baseOrigDose + 0.08;
 
       if (isUserManualUnderDose) {
-        // User manually lowered this pending card below recommended -> keep user's lower dose & roll deficit to next card!
         const underDiff = Number((baseOrigDose - currentDosePerAc).toFixed(2));
         carryDeficitPerAc = Number((carryDeficitPerAc + underDiff).toFixed(2));
         latestDeficitDate = tk.current_scheduled_date;
+        continue;
+      }
+
+      if (isUserManualOverDose) {
+        // Preserve user's manual upward edit on this pending card & let the extra amount absorb any prior carry deficit
+        const extraPlanned = Number((currentDosePerAc - baseOrigDose).toFixed(2));
+        carryDeficitPerAc = Math.max(0, Number((carryDeficitPerAc - extraPlanned).toFixed(2)));
+        if (carryDeficitPerAc <= 0.05) {
+          hasActiveSkipInCarry = false;
+          latestDeficitDate = null;
+        }
         continue;
       }
 
@@ -6801,18 +6871,15 @@ async function reconcileAllDripDeficitsAcrossSchedule(filterInputId = null) {
 
       if (carryDeficitPerAc > 0.05 && stageSafeMax > baseOrigDose) {
         if (hasActiveSkipInCarry) {
-          // When a previous card was SKIPPED, boost this card up to its Stage Safe Upper Limit (stageSafeMax)!
           targetDosePerAc = stageSafeMax;
           const absorbedPerAc = Math.max(0, Number((stageSafeMax - baseOrigDose).toFixed(2)));
           carryDeficitPerAc = Math.max(0, Number((carryDeficitPerAc - absorbedPerAc).toFixed(2)));
           targetCompDate = latestDeficitDate;
-          // If there is still leftover deficit after hitting stageSafeMax, keep hasActiveSkipInCarry = false so subsequent cards absorb the exact remaining deficit up to their stageSafeMax
           if (carryDeficitPerAc <= 0.05) {
             hasActiveSkipInCarry = false;
             latestDeficitDate = null;
           }
         } else {
-          // Under-dose or multi-card rollover remainder: add up to stageSafeMax
           const desired = Number((baseOrigDose + carryDeficitPerAc).toFixed(2));
           targetDosePerAc = Math.min(stageSafeMax, desired);
           const absorbedPerAc = Math.max(0, Number((targetDosePerAc - baseOrigDose).toFixed(2)));
@@ -6846,6 +6913,23 @@ async function reconcileAllDripDeficitsAcrossSchedule(filterInputId = null) {
       }
     }
   }
+
+  if (!dryRun && dirtyTasksMap.size > 0) {
+    await Promise.all(Array.from(dirtyTasksMap.values()).map(u =>
+      dbMutate({
+        table: "daily_task_queue",
+        type: "update",
+        payload: {
+          resolved_recipe: u.resolved_recipe,
+          updated_by: activeUser,
+          updated_at: new Date().toISOString()
+        },
+        matchCol: "id",
+        matchVal: u.id
+      })
+    ));
+  }
+}
 
   if (dirtyTasksMap.size > 0) {
     await Promise.all(Array.from(dirtyTasksMap.values()).map(u =>
@@ -7431,7 +7515,7 @@ function runEnterpriseQASuite() {
   const mockPendCard3 = { id: "t36-3", task_type: "DRIP_MON_THU", status: "PENDING", current_scheduled_date: "2026-11-02", effective_dad: 79, resolved_recipe: [{ input_id: "WSF_00_52_34", dose_per_acre: 2.0, orig_dose_per_acre: 2.0 }] };
   tasks = [mockSkipCard1, mockPendCard2, mockPendCard3];
   if (typeof reconcileAllDripDeficitsAcrossSchedule === "function") {
-    reconcileAllDripDeficitsAcrossSchedule("WSF_00_52_34");
+    reconcileAllDripDeficitsAcrossSchedule("WSF_00_52_34", true);
   }
   const c2Dose = mockPendCard2.resolved_recipe[0].dose_per_acre;
   const c3Dose = mockPendCard3.resolved_recipe[0].dose_per_acre;
@@ -7500,7 +7584,7 @@ async function resetCardWithCascade(taskId) {
     tk.resolved_recipe = (tk.resolved_recipe || []).map(r => {
       const c = { ...r };
       if (c.orig_dose_per_acre !== undefined) c.dose_per_acre = c.orig_dose_per_acre;
-      delete c.item_status; delete c.actual_total_3ac; delete c.applied_delta_per_acre; delete c.compensated_from_date;
+      delete c.item_status; delete c.actual_total_3ac; delete c.applied_delta_per_acre; delete c.compensated_from_date; delete c.user_manual_edit;
       return c;
     });
   }
@@ -7637,6 +7721,11 @@ async function deleteCustomTask(id) {
     }
   }
 
+  // If a Drip card was deleted, reconcile rolling Drip deficits so downstream cards don't keep stale make-up boosts
+  if (tk && (tk.task_type || "").startsWith("DRIP")) {
+    await reconcileAllDripDeficitsAcrossSchedule();
+  }
+
   refreshDynamicTaskWeeks();
   render();
   if (tk) await logAudit("DELETED_TASK", tk.target_description, "");
@@ -7764,25 +7853,51 @@ async function saveLeftover(id, v) {
   await dbMutate({ table: "shed_leftovers", type: "upsert", payload: { input_id: id, leftover_qty: leftovers[id] } });
 }
 
-function copyList() {
-  const wkTasks = tasks.filter(t => Number(t.week_number) === curWk && t.status !== "SKIPPED" && t.status !== "COMPLETED"), tot = {};
-  const dad1 = curWk === 0 ? -10 : (curWk - 1) * 7;
-  const sopMult = (dad1 >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
-  wkTasks.forEach(tk => {
-    const drumsCount = Number(tk.drums_count) || CFG.drums;
-    const drumLiters = Number(tk.drum_liters) || CFG.drumL;
+// Normalizes weekly shopping quantities across Foliar (g/ml) and Drip (kg/L) cards so dual-use inputs never suffer 1,000x unit mismatches
+function computeWeeklyShoppingTotals(wkTasksArr, sopMult = 1.0) {
+  const raw = {};
+  (wkTasksArr || []).filter(t => t.status !== "SKIPPED" && t.status !== "COMPLETED").forEach(tk => {
+    const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER";
+    const drumsCount = Number(tk.drums_count) || (isFoliarCard ? CFG.drums : 1);
+    const drumLiters = Number(tk.drum_liters) || (isFoliarCard ? CFG.drumL : 200);
     (tk.resolved_recipe || []).forEach(it => {
       if (it.item_status === "COMPLETED" || it.item_status === "SKIPPED") return;
-      const c = catalog[it.input_id];
-      const m = c?.id === "WSF_00_00_50" ? sopMult : 1.0;
-      const metrics = getItemDoseMetrics(c, it, m, drumsCount, drumLiters);
-      tot[it.input_id] = (tot[it.input_id] || 0) + metrics.actualTotal3Ac;
+      const c = catalog[it.input_id] || { id: it.input_id, name_en: it.input_id, active_ingredient: it.input_id, unit: isFoliarCard ? "ml" : "kg" };
+      const m = c.id === "WSF_00_00_50" ? sopMult : 1.0;
+      const metrics = getItemDoseMetrics(c, it, m, drumsCount, drumLiters, !isFoliarCard);
+      if (!raw[it.input_id]) {
+        raw[it.input_id] = { cat: c, totalGramsOrMl: 0, usedInMacroMode: false };
+      }
+      raw[it.input_id].totalGramsOrMl += Number(metrics.totalGrams3Ac || 0);
+      if (metrics.displayUnit === "kg" || metrics.displayUnit === "L") {
+        raw[it.input_id].usedInMacroMode = true;
+      }
     });
   });
-  const lines = [`🍎 Hosahalli Orchard Week ${curWk} Store List (3 Acres):`];
-  Object.keys(tot).forEach(id => {
-    const c = catalog[id], net = Math.max(0, Number((tot[id] - (leftovers[id] || 0)).toFixed(2)));
-    if (net > 0) lines.push(`• ${getSaltOnlyTitle(c)} [Brands: ${getBrandOnlySubtitle(c)}]: ${net} ${c.unit}`);
+
+  const out = {};
+  Object.keys(raw).forEach(id => {
+    const r = raw[id];
+    const baseU = r.cat.unit || "g";
+    const useMacro = r.usedInMacroMode || baseU === "kg" || baseU === "L";
+    const displayUnit = useMacro ? ((baseU === "ml" || baseU === "L") ? "L" : "kg") : baseU;
+    const needQty = useMacro ? Number((r.totalGramsOrMl / 1000).toFixed(2)) : Math.round(r.totalGramsOrMl);
+    out[id] = { cat: r.cat, displayUnit, needQty };
+  });
+  return out;
+}
+
+function copyList() {
+  const wkTasks = tasks.filter(t => Number(t.week_number) === curWk && t.status !== "SKIPPED" && t.status !== "COMPLETED");
+  const dad1 = curWk === 0 ? -10 : (curWk - 1) * 7;
+  const sopMult = (dad1 >= 140 && wState.tMin > 18) ? 1.15 : 1.0;
+  const shopTotals = computeWeeklyShoppingTotals(wkTasks, sopMult);
+  const lines = [`Hosahalli Orchard Week ${curWk} Store List (3 Acres):`];
+  Object.keys(shopTotals).forEach(id => {
+    const entry = shopTotals[id];
+    const c = entry.cat;
+    const net = Math.max(0, Number((entry.needQty - (leftovers[id] || 0)).toFixed(2)));
+    if (net > 0) lines.push(`• ${getSaltOnlyTitle(c)} [Brands: ${getBrandOnlySubtitle(c)}]: ${net} ${entry.displayUnit}`);
   });
   navigator.clipboard.writeText(lines.join("\n"));
   alert(LANG === "KN" ? "ಖರೀದಿ ಪಟ್ಟಿಯನ್ನು ಕಾಪಿ ಮಾಡಲಾಗಿದೆ!" : "Shopping list copied to clipboard!");
