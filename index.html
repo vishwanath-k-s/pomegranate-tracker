@@ -6924,23 +6924,6 @@ async function reconcileAllDripDeficitsAcrossSchedule(filterInputId = null, dryR
   }
 }
 
-  if (dirtyTasksMap.size > 0) {
-    await Promise.all(Array.from(dirtyTasksMap.values()).map(u =>
-      dbMutate({
-        table: "daily_task_queue",
-        type: "update",
-        payload: {
-          resolved_recipe: u.resolved_recipe,
-          updated_by: activeUser,
-          updated_at: new Date().toISOString()
-        },
-        matchCol: "id",
-        matchVal: u.id
-      })
-    ));
-  }
-}
-
 async function syncNextDripDoseForItem(tk, item, newStatus, suggestedTotal3Ac) {
   if (!tk || !item) return;
   const isDripCard = (tk.task_type || "").startsWith("DRIP");
