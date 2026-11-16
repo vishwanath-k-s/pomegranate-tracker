@@ -1495,11 +1495,11 @@ function computeDynamicDadAndWeek(dateStr) {
 }
 
 function getWeekStartAndEndDates(w) {
-  const dadStart = (w - 1) * 7 + 1;
+  const dadStart = w === 1 ? 0 : (w - 1) * 7 + 1;
   const dadEnd = w * 7;
   const start = new Date(2026, 7, 15 + dadStart); // Month 7 = August (0-indexed)
   const end = new Date(2026, 7, 15 + dadEnd);
-  return { start, end, dadStart: w === 1 ? 0 : dadStart, dadEnd };
+  return { start, end, dadStart, dadEnd };
 }
 function formatDateWithWeekday(s) {
   const [y, m, d] = (s || "2026-10-18").split("-").map(Number);
@@ -2938,6 +2938,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   applyEnvStyling();
   const todayDad = diffDaysYMD("2026-08-15", tStr);
   curWk = (todayDad >= 0 && todayDad <= 220) ? Math.floor(todayDad / 7) + 1 : 11;
+  if (typeof applyHubAndSubPillRouting === "function") applyHubAndSubPillRouting();
   await flushOutbox();
   await loadDB();
   await loadWeather();
@@ -3017,7 +3018,8 @@ async function loadWeather() {
     farmRainToday = (rainRes?.data || []).find(row => row.log_date === tStr) || null;
 
     const datesArr = d.daily?.time || [];
-    const todayIdx = Math.max(0, datesArr.indexOf(tStr));
+    const rawTodayIdx = datesArr.indexOf(tStr);
+    const todayIdx = rawTodayIdx >= 0 ? rawTodayIdx : Math.max(0, datesArr.filter(dt => dt <= tStr).length - 1);
     const hrPrecipAll = d.hourly?.precipitation || [];
 
     // Returns sanitized daily rain (mm):
@@ -3128,7 +3130,10 @@ async function loadWeather() {
 
     const allRisks = computeAllSixRisks();
     wState.riskScore = allRisks.BLIGHT_SPOT.score;
-    try { localStorage.setItem("h_weather_state_cache_v1", JSON.stringify(wState)); } catch {}
+    try {
+      localStorage.setItem("h_weather_state_cache_v1", JSON.stringify(wState));
+      localStorage.removeItem(`h_drip_daily_lock_${tStr}`);
+    } catch {}
 
     if (navigator.onLine && telemetryUpserts.length > 0) {
       telemetryUpserts[telemetryUpserts.length - 1].disease_risk_score = wState.riskScore;
@@ -3300,9 +3305,6 @@ function getSimpleTaskDescription(tk, isKn) {
   }
   if (tk.trigger_source === "MANUAL_ENTRY") {
     return generateAutoCardTitle(tk.task_type, activeIds, isKn);
-  }
-  if (tk.trigger_source === "MANUAL_ENTRY") {
-    return isKn ? `ದಾಖಲಿಸಿದ ಕೆಲಸ: ${saltNamesList}` : `Manual Entry: ${saltNamesList}`;
   }
 
   // 3. Auto-Deduplicated Baseline Foliar Sprays
@@ -3858,63 +3860,6 @@ function formatShortStageDate(ymdStr) {
   return new Date(y, m - 1, d).toLocaleDateString(LANG === "KN" ? "kn-IN" : "en-IN", { day: "2-digit", month: "short", year: "2-digit" });
 }
 
-// ============================================================================
-// FAO-56 / ICAR-NRCP DAILY DRIP IRRIGATION WATER SCHEDULE ENGINE
-// ============================================================================
-let emitterLitersPerHourPerPlant = Number(localStorage.getItem("h_emitter_lph") || 16);
-function setDripEmitterRate(val) {
-  emitterLitersPerHourPerPlant = Math.max(2, sanitizeNonNegativeNumber(val, 16, 100));
-  localStorage.setItem("h_emitter_lph", emitterLitersPerHourPerPlant);
-  renderAnalyticsTab();
-}
-
-function computeDailyDripIrrigationPlan(actualGdd) {
-  // Stage-specific base water demand (L/plant/day) for 2.5–3 yr Super Bhagwa (10x8 ft)
-  const STAGE_WATER = [
-    { maxGdd: 950,  baseL: 18, kc: 0.55, split: "1 Session (Morning)", knSplit: "1 ಬಾರಿ (ಬೆಳಿಗ್ಗೆ)" },
-    { maxGdd: 1450, baseL: 26, kc: 0.75, split: "1 Session (Morning)", knSplit: "1 ಬಾರಿ (ಬೆಳಿಗ್ಗೆ)" },
-    { maxGdd: 2150, baseL: 34, kc: 0.95, split: "2 Sessions (60% AM / 40% PM)", knSplit: "2 ಬಾರಿ (ಬೆಳಿಗ್ಗೆ 60% / ಸಂಜೆ 40%)" },
-    { maxGdd: 2500, baseL: 30, kc: 0.85, split: "2 Sessions (Morning + Evening)", knSplit: "2 ಬಾರಿ (ಬೆಳಿಗ್ಗೆ ಮತ್ತು ಸಂಜೆ)" },
-    { maxGdd: 2800, baseL: 24, kc: 0.70, split: "2 Pulsed Sessions (Anti-Crack)", knSplit: "2 ಬಾರಿ ಕಡಿಮೆ ನೀರು (ಹಣ್ಣು ಸೀಳುವಿಕೆ ತಡೆಗೆ)" },
-    { maxGdd: 9999, baseL: 16, kc: 0.50, split: "2 Pulsed Sessions (Pre-Harvest)", knSplit: "2 ಬಾರಿ ಕಡಿಮೆ ನೀರು (ಕಟಾವು ಹಂತ)" }
-  ];
-  const stg = STAGE_WATER.find(s => actualGdd < s.maxGdd) || STAGE_WATER[STAGE_WATER.length - 1];
-
-  // Weather ETc adjustment (Temperature, RH, and Rain Pause)
-  let mult = 1.0;
-  let noteEn = `Normal ETc (Kc=${stg.kc} at ${wState.tMax}°C)`;
-  let noteKn = `ಸಾಮಾನ್ಯ ನೀರಿನ ಅಗತ್ಯ (Kc=${stg.kc}, ${wState.tMax}°C)`;
-
-  if (wState.rain24 >= 15) {
-    mult = 0;
-    noteEn = `🌧️ PAUSE DRIP FOR 48 HOURS (${wState.rain24}mm rain recharged root zone)`;
-    noteKn = `🌧️ 48 ಗಂಟೆ ಡ್ರಿಪ್ ನಿಲ್ಲಿಸಿ (${wState.rain24}mm ಮಳೆಯಿಂದ ಭೂಮಿ ಹಸಿಯಾಗಿದೆ)`;
-  } else if (wState.rain24 >= 5) {
-    mult = 0.5;
-    noteEn = `🌦️ 50% Rain Reduction (${wState.rain24}mm rain recorded)`;
-    noteKn = `🌦️ ಶೇ. 50 ರಷ್ಟು ನೀರು ಕಡಿಮೆ ಮಾಡಿ (${wState.rain24}mm ಮಳೆ ಆಗಿದೆ)`;
-  } else {
-    if (wState.tMax > 32) {
-      const boost = Math.min(0.25, (wState.tMax - 32) * 0.04);
-      mult += boost;
-      noteEn = `☀️ Heat ETc Boost (+${Math.round(boost * 100)}% for ${wState.tMax}°C)`;
-      noteKn = `☀️ ಬಿಸಿಲಿನ ಕಾರಣ +${Math.round(boost * 100)}% ಹೆಚ್ಚು ನೀರು (${wState.tMax}°C)`;
-    } else if (wState.tMax < 27 || wState.rh72Avg > 78) {
-      mult -= 0.15;
-      noteEn = `☁️ Cool/Humid Reduction (-15% at ${wState.rh72Avg}% RH)`;
-      noteKn = `☁️ ತಂಪು/ಮೋಡ ಹವೆ (-15% ಕಡಿಮೆ ನೀರು)`;
-    }
-  }
-
-  const litersPerPlant = Number((stg.baseL * mult).toFixed(1));
-  const totalLiters3Ac = Math.round(litersPerPlant * CFG.plants);
-  const runtimeMinutes = Math.round((litersPerPlant / emitterLitersPerHourPerPlant) * 60);
-  const hrs = Math.floor(runtimeMinutes / 60), mins = runtimeMinutes % 60;
-  const runtimeStr = runtimeMinutes === 0 ? "0 mins (OFF)" : (hrs > 0 ? `${hrs} hr ${mins} min` : `${mins} mins`);
-
-  return { litersPerPlant, totalLiters3Ac, runtimeMinutes, runtimeStr, splitEn: stg.split, splitKn: stg.knSplit, noteEn, noteKn };
-}
-
 function renderAnalyticsTab() {
   const gModel = getGddStageModel();
   const { tStr, todayDad, actualGdd, realDailyMeanGdd, futureDailyGddRate, currentStage, getDateForGdd } = gModel;
@@ -4405,38 +4350,10 @@ function ensureBuiltInStoreBrands() {
     });
   }
 
-  // 2. Pre-register Onziim (Kingdao Agrochem: Zinc 3.0% + Iron 0.5% + Manganese 0.2% + Boron 0.5% SP, Foliar 1.25 g/L & Drip 2.5 kg/Acre)
-  if (!catalog["MIC_ONZIIM"]) {
-    catalog["MIC_ONZIIM"] = {
-      id: "MIC_ONZIIM",
-      name_en: "Onziim (Zinc 3.0% + Iron 0.5% + Manganese 0.2% + Boron 0.5% SP)",
-      name_kn: "ಆನ್‌ಜಿಮ್ ಲಘು ಪೋಷಕಾಂಶ ಮಿಶ್ರಣ (Zn 3% + Fe 0.5% + Mn 0.2% + B 0.5% SP)",
-      category: "BIOSTIMULANT",
-      active_ingredient: "Zinc 3.0% + Iron 0.5% + Manganese 0.2% + Boron 0.5% SP",
-      irac_frac_group: null,
-      formulation_type: "SP",
-      application_method: "BOTH",
-      base_dose_per_liter: 1.25,
-      base_dose_per_acre: 2.5,
-      unit: "g",
-      phi_days: 0,
-      is_copper_compound: false,
-      incompatible_with_copper: true,
-      incompatible_with_calcium: false,
-      contains_nitrogen: false,
-      n_pct: 0, p_pct: 0, k_pct: 0, ca_pct: 0, mg_pct: 0, b_pct: 0.5,
-      procurement_criticality: "FLEXIBLE",
-      popular_brands: "Onziim (Kingdao Agrochem)"
-    };
-  }
-  KN_SALT_ONLY_MAP["MIC_ONZIIM"] = "ಆನ್‌ಜಿಮ್ ಲಘು ಪೋಷಕಾಂಶ ಮಿಶ್ರಣ (Zn 3% + Fe 0.5% + Mn 0.2% + B 0.5% SP)";
-  if (!CURATED_APPROVED_SUBS["MIC_CHELATED_MIX"]) CURATED_APPROVED_SUBS["MIC_CHELATED_MIX"] = [];
-  if (!CURATED_APPROVED_SUBS["MIC_CHELATED_MIX"].some(x => x.id === "MIC_ONZIIM")) {
-    CURATED_APPROVED_SUBS["MIC_CHELATED_MIX"].unshift({
-      id: "MIC_ONZIIM",
-      noteEn: "Onziim (Zn 3% + Fe 0.5% + Mn 0.2% + B 0.5% SP — use 1.25 g/L = 250 g/200L drum foliar, or 2.5 kg/acre drip).",
-      noteKn: "ಆನ್‌ಜಿಮ್ (Zn 3% + Fe 0.5% + Mn 0.2% + B 0.5% — ಪ್ರತಿ 200L ಡ್ರಮ್‌ಗೆ 250 ಗ್ರಾಂ ಸಿಂಪಡಣೆ ಅಥವಾ ಎಕರೆಗೆ 2.5 ಕೆ.ಜಿ ಡ್ರಿಪ್)."
-    });
+  // 2. Clean up any legacy duplicate MIC_ONZIIM entry so MIC_ONZIIM_MIX is the single canonical catalog ID
+  if (catalog["MIC_ONZIIM"]) delete catalog["MIC_ONZIIM"];
+  if (Array.isArray(CURATED_APPROVED_SUBS["MIC_CHELATED_MIX"])) {
+    CURATED_APPROVED_SUBS["MIC_CHELATED_MIX"] = CURATED_APPROVED_SUBS["MIC_CHELATED_MIX"].filter(x => x.id !== "MIC_ONZIIM");
   }
 
   // 3. Deduplicate any accidental duplicate recipe_items inside baseline templates in memory
@@ -4538,7 +4455,7 @@ function ensureBuiltInStoreBrands() {
     { brand_name: "Merger", company_name: "Indofil", input_id: "FUN_TRICYCLA_MANCO" },
     { brand_name: "Avtar", company_name: "Indofil", input_id: "FUN_ZINEB_HEXA" },
     { brand_name: "Saaf", company_name: "UPL", input_id: "FUN_CARBENDAZIM_MANCO" },
-    { brand_name: "Onziim", company_name: "Kingdao Agrochem", input_id: "MIC_ONZIIM" },
+    { brand_name: "Onziim", company_name: "Kingdao Agrochem", input_id: "MIC_ONZIIM_MIX" },
     { brand_name: "Yab-CalciB", company_name: "Yabam International", input_id: "MIC_YAB_CALCIB" },
     { brand_name: "Custodia Prime", company_name: "Adama", input_id: "FUN_AZOXY_TEBU" },
     { brand_name: "TAG Ride", company_name: "Tropical Agro", input_id: "INS_ACETAMIPRID" },
@@ -4679,7 +4596,10 @@ function checkRecentSprayResistance(inputId, refDateStr, excludeTaskId = null) {
   const MULTI_SITE_EXEMPT = new Set(["FRAC-M01", "FRAC-M02", "FRAC-M03", "FRAC-M04", "FRAC-M05", "FRAC-P01", "BM02", "BACTERICIDE", "UN", "IRAC-UN"]);
 
   for (const t of recentCompleted) {
-    const daysAgo = Math.abs(diffDaysYMD(t.current_scheduled_date, refDateStr));
+    const rawDiff = diffDaysYMD(t.current_scheduled_date, refDateStr);
+    const daysAgo = Math.abs(rawDiff);
+    const relEn = rawDiff >= 0 ? `${daysAgo}d ago` : `${daysAgo}d later`;
+    const relKn = rawDiff >= 0 ? `${daysAgo} ದಿನಗಳ ಹಿಂದೆ` : `${daysAgo} ದಿನಗಳ ನಂತರ`;
     for (const r of (t.resolved_recipe || [])) {
       if (r.item_status === "SKIPPED") continue;
       const pastCat = catalog[r.input_id]; if (!pastCat) continue;
@@ -4688,14 +4608,14 @@ function checkRecentSprayResistance(inputId, refDateStr, excludeTaskId = null) {
 
       if (isSameBaseSalt && cat.category !== "FERTIGATION" && cat.category !== "BIOSTIMULANT") {
         return {
-          msgEn: `⚠️ DUPLICATE SALT WARNING: You already sprayed this active salt (${getSaltOnlyTitle(pastCat)}) on ${t.current_scheduled_date} (${daysAgo}d ago). Repeating within 21 days builds resistance!`,
-          msgKn: `⚠️ ಒಂದೇ ಲವಣಾಂಶ ಎಚ್ಚರಿಕೆ: ನೀವು ಇದೇ ಲವಣಾಂಶವನ್ನು (${getSaltOnlyTitle(pastCat)}) ${t.current_scheduled_date} ರಂದು (${daysAgo} ದಿನಗಳ ಹಿಂದೆ) ಸಿಂಪಡಿಸಿದ್ದೀರಿ!`
+          msgEn: `Duplicate Salt Warning: You already sprayed this active salt (${getSaltOnlyTitle(pastCat)}) on ${t.current_scheduled_date} (${relEn}). Repeating within 21 days builds resistance!`,
+          msgKn: `ಒಂದೇ ಲವಣಾಂಶ ಎಚ್ಚರಿಕೆ: ನೀವು ಇದೇ ಲವಣಾಂಶವನ್ನು (${getSaltOnlyTitle(pastCat)}) ${t.current_scheduled_date} ರಂದು (${relKn}) ಸಿಂಪಡಿಸಿದ್ದೀರಿ!`
         };
       }
       if (cat.irac_frac_group && pastCat.irac_frac_group === cat.irac_frac_group && !MULTI_SITE_EXEMPT.has(cat.irac_frac_group)) {
         return {
-          msgEn: `⚠️ RESISTANCE GROUP ROTATION ALERT: ${getSaltOnlyTitle(cat)} is in group ${cat.irac_frac_group}, recently sprayed on ${t.current_scheduled_date} (${daysAgo}d ago — ${getSaltOnlyTitle(pastCat)}).`,
-          msgKn: `⚠️ ಗುಂಪು ಬದಲಾವಣೆ ಸಲಹೆ: ಇದು ${cat.irac_frac_group} ಗುಂಪಿಗೆ ಸೇರಿದೆ (${t.current_scheduled_date} ರಂದು ಬಳಸಲಾಗಿದೆ).`
+          msgEn: `Resistance Group Rotation Alert: ${getSaltOnlyTitle(cat)} is in group ${cat.irac_frac_group}, sprayed on ${t.current_scheduled_date} (${relEn} — ${getSaltOnlyTitle(pastCat)}).`,
+          msgKn: `ಗುಂಪು ಬದಲಾವಣೆ ಸಲಹೆ: ಇದು ${cat.irac_frac_group} ಗುಂಪಿಗೆ ಸೇರಿದೆ (${t.current_scheduled_date} ರಂದು ಬಳಸಲಾಗಿದೆ).`
         };
       }
     }
@@ -6975,18 +6895,61 @@ async function setItemStatus(taskId, idx, newStatus, suggestedTotal3Ac) {
 async function splitRemainingItemsToTomorrow(taskId) {
   const tk = tasks.find(x => x.id === taskId); if (!tk) return;
   const doneItems = tk.resolved_recipe.filter(r => r.item_status === "COMPLETED" || r.item_status === "SKIPPED");
-  const pendingItems = tk.resolved_recipe.filter(r => !r.item_status || r.item_status === "PENDING");
+  const pendingItems = tk.resolved_recipe
+    .filter(r => !r.item_status || r.item_status === "PENDING")
+    .map(r => ({ ...r, item_status: "PENDING" }));
   if (!pendingItems.length || !doneItems.length) return;
-  tk.resolved_recipe = doneItems; tk.status = "COMPLETED"; tk.updated_by = activeUser; tk.updated_at = new Date().toISOString();
-  await dbMutate({ table: "daily_task_queue", type: "update", payload: { status: "COMPLETED", resolved_recipe: doneItems, updated_by: activeUser, updated_at: tk.updated_at }, matchCol: "id", matchVal: taskId });
 
-  const nextDateStr = addDaysYMD(tk.current_scheduled_date, 1), dyn = computeDynamicDadAndWeek(nextDateStr);
+  tk.resolved_recipe = doneItems;
+  tk.status = "COMPLETED";
+  tk.updated_by = activeUser;
+  tk.updated_at = new Date().toISOString();
+  await dbMutate({
+    table: "daily_task_queue",
+    type: "update",
+    payload: { status: "COMPLETED", resolved_recipe: doneItems, updated_by: activeUser, updated_at: tk.updated_at },
+    matchCol: "id",
+    matchVal: taskId
+  });
+
+  const isFoliarCard = tk.task_type === "FOLIAR_SPRAY" || tk.task_type === "STANDALONE_COPPER";
+  const nextDateStr = addDaysYMD(tk.current_scheduled_date, 1);
+  const dyn = computeDynamicDadAndWeek(nextDateStr);
   const remEn = pendingItems.map(r => getSaltOnlyTitle(catalog[r.input_id], "EN") || r.input_id).join(" + ");
   const remKn = pendingItems.map(r => getSaltOnlyTitle(catalog[r.input_id], "KN") || r.input_id).join(" + ");
   const newId = genUUID();
-  const payload = { id: newId, env: APP_ENV, originally_scheduled_date: nextDateStr, current_scheduled_date: nextDateStr, effective_dad: dyn.dad, task_type: tk.task_type, trigger_source: "SPLIT_REMAINDER", status: "PENDING", resolved_recipe: pendingItems, custom_title_en: `Remaining Split Task: ${remEn}`, custom_title_kn: `ಬಾಕಿ ಉಳಿದ ಕೆಲಸ: ${remKn}`, updated_by: activeUser, updated_at: new Date().toISOString() };
+  const payload = {
+    id: newId,
+    env: APP_ENV,
+    originally_scheduled_date: nextDateStr,
+    current_scheduled_date: nextDateStr,
+    effective_dad: dyn.dad,
+    task_type: tk.task_type,
+    trigger_source: "SPLIT_REMAINDER",
+    status: "PENDING",
+    drum_liters: Number(tk.drum_liters) || (isFoliarCard ? CFG.drumL : 200),
+    drums_count: Number(tk.drums_count) || (isFoliarCard ? CFG.drums : 1),
+    resolved_recipe: pendingItems,
+    custom_title_en: `Remaining Split Task: ${remEn}`,
+    custom_title_kn: `ಬಾಕಿ ಉಳಿದ ಕೆಲಸ: ${remKn}`,
+    updated_by: activeUser,
+    updated_at: new Date().toISOString()
+  };
   const res = await dbMutate({ table: "daily_task_queue", type: "insert", payload: [payload] });
-  tasks.push({ ...(res.data?.[0] || payload), week_number: dyn.week, stage_name: tk.stage_name, target_description: payload.custom_title_en, target_description_kn: payload.custom_title_kn });
+  const insertedCard = {
+    ...(res.data?.[0] || payload),
+    week_number: dyn.week,
+    stage_name: tk.stage_name,
+    target_description: payload.custom_title_en,
+    target_description_kn: payload.custom_title_kn
+  };
+  tasks.push(insertedCard);
+
+  // Enforce safe-gap spacing (5d Foliar / 2d Drip) for the newly split remainder card and ripple downstream cards if needed
+  await applyScheduleShift(insertedCard, nextDateStr, "TRACK", "SPLIT_REMAINDER", true, true);
+  if ((tk.task_type || "").startsWith("DRIP")) {
+    await reconcileAllDripDeficitsAcrossSchedule();
+  }
   render();
 }
 
