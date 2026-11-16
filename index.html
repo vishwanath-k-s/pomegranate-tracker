@@ -1686,16 +1686,28 @@ function getCumulativeNutrientsPerPlant() {
 
 // Guild-Specific Threat Matcher: Separates Sap-Feeding Mealybug/Scale Insects (MEALYBUG) from Arachnid Mites (MITES)
 // Splits compound IRAC/FRAC strings like "IRAC-3A+4A" or "FRAC-11+3" into normalized tokens ["IRAC-3A", "IRAC-4A"]
-function hasMatchingModeGroup(rawGrpStr, targetGroupsArr) {
-  if (!rawGrpStr || !Array.isArray(targetGroupsArr)) return false;
+function extractModeTokens(rawGrpStr) {
+  if (!rawGrpStr || typeof rawGrpStr !== "string") return [];
   const prefixMatch = rawGrpStr.match(/^(IRAC|FRAC)-/i);
   const prefix = prefixMatch ? prefixMatch[1].toUpperCase() + "-" : "";
-  const tokens = rawGrpStr.split(/[+,\/&\s]+/).map(t => {
+  return rawGrpStr.split(/[+,\/&\s]+/).map(t => {
     const clean = t.trim().toUpperCase();
     if (!clean) return "";
     if (clean.startsWith("IRAC-") || clean.startsWith("FRAC-")) return clean;
     return prefix ? `${prefix}${clean}` : clean;
   }).filter(Boolean);
+}
+
+function getSharedModeTokens(grpA, grpB, excludeMultiSite = false) {
+  const MULTI_SITE = new Set(["FRAC-M01", "FRAC-M02", "FRAC-M03", "FRAC-M04", "FRAC-M05", "FRAC-P01", "BM02", "BACTERICIDE", "UN", "IRAC-UN"]);
+  const tokensA = extractModeTokens(grpA).filter(t => !excludeMultiSite || !MULTI_SITE.has(t));
+  const tokensB = new Set(extractModeTokens(grpB).filter(t => !excludeMultiSite || !MULTI_SITE.has(t)));
+  return tokensA.filter(t => tokensB.has(t));
+}
+
+function hasMatchingModeGroup(rawGrpStr, targetGroupsArr) {
+  if (!rawGrpStr || !Array.isArray(targetGroupsArr)) return false;
+  const tokens = extractModeTokens(rawGrpStr);
   return targetGroupsArr.some(tg => tokens.includes(tg.toUpperCase()));
 }
 
@@ -2002,30 +2014,74 @@ function computeAllSixRisks() {
   };
 }
 
-const WALES_ORDER = { WSF: 1, DF: 1, WG: 1, WP: 1, SP: 2, SC: 3, OD: 3, SL: 3, EC: 4 };
+const WALES_ORDER = { DF: 1, WG: 1, WP: 1, SP: 2, WSF: 2, SC: 3, SL: 4, OD: 5, EC: 5 };
+
+function isLiveMicrobialInput(cat) {
+  if (!cat) return false;
+  if (["BIO_BACILLUS", "BIO_PSEUDOMONAS", "BIO_TRICHODERMA", "BIO_ASPERGILLUS_AN27"].includes(cat.id)) return true;
+  if (cat.irac_frac_group === "BM02") return true;
+  return /bacillus|pseudomonas|trichoderma|aspergillus/i.test(`${cat.active_ingredient || ""} ${cat.name_en || ""}`);
+}
+
+function isUnchelatedCalciumInput(cat) {
+  if (!cat) return false;
+  if (cat.id === "WSF_CALCIUM_NITRATE" || cat.id === "MIC_YAB_CALCIB" || cat.id === "WSF_C_PHOS") return true;
+  const txt = `${cat.active_ingredient || ""} ${cat.name_en || ""}`;
+  if (/edta|chelat/i.test(txt)) return false;
+  return (Number(cat.ca_pct) || 0) > 0 || /\bcalcium\b/i.test(txt);
+}
+
 function checkPairCompatibility(catA, catB) {
   if (!catA || !catB || catA.id === catB.id) return { ok: true };
+
+  // 1. Copper Incompatibility Lock
   if ((catA.is_copper_compound && catB.incompatible_with_copper) || (catB.is_copper_compound && catA.incompatible_with_copper)) {
     return {
       ok: false,
-      reasonEn: `❌ INCOMPATIBLE MIX: ${getSaltOnlyTitle(catA)} and ${getSaltOnlyTitle(catB)} cannot be mixed in the same drum! Copper reacts with Captan, insecticides, chelates, and bio-sprays.`,
-      reasonKn: `❌ ಬೆರೆಸಬೇಡಿ: ${getSaltOnlyTitle(catA)} ಮತ್ತು ${getSaltOnlyTitle(catB)} ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ಬೆರೆಸಬಾರದು (ಸಿಪ್ಪೆ ಸುಡುತ್ತದೆ).`
+      reasonEn: `Incompatible Mix: ${getSaltOnlyTitle(catA)} and ${getSaltOnlyTitle(catB)} cannot be mixed in the same drum! Copper reacts with Captan, insecticides, chelates, and bio-sprays.`,
+      reasonKn: `ಬೆರೆಸಬೇಡಿ: ${getSaltOnlyTitle(catA)} ಮತ್ತು ${getSaltOnlyTitle(catB)} ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ಬೆರೆಸಬಾರದು (ಸಿಪ್ಪೆ ಸುಡುತ್ತದೆ).`
     };
   }
-  const isCaA = catA.id === "WSF_CALCIUM_NITRATE", isCaB = catB.id === "WSF_CALCIUM_NITRATE";
+
+  // 2. Live Microbial Biopesticide vs. Chemical Bactericide / Peroxide / Chemical Fungicide Lock
+  const bioA = isLiveMicrobialInput(catA), bioB = isLiveMicrobialInput(catB);
+  if (bioA !== bioB) {
+    const bioCat = bioA ? catA : catB;
+    const chemCat = bioA ? catB : catA;
+    const isLethalPartner =
+      chemCat.is_copper_compound ||
+      chemCat.category === "BACTERICIDE" ||
+      chemCat.category === "FUNGICIDE" ||
+      ["BAC_BRONOPOL", "BAC_NANO_SILVER_H2O2", "BAC_H2O2", "BAC_STREPTOMYCIN", "BAC_KASUGAMYCIN"].includes(chemCat.id) ||
+      /peroxide|bronopol|silver|copper|streptomycin/i.test(chemCat.active_ingredient || "");
+    if (isLethalPartner && chemCat.id !== "BIO_SALICYLIC_ACID") {
+      return {
+        ok: false,
+        reasonEn: `Live Microbe Lock: ${getSaltOnlyTitle(bioCat)} is a living bio-culture and will be killed inside the drum if mixed with ${getSaltOnlyTitle(chemCat)}!`,
+        reasonKn: `ಜೈವಿಕ ಔಷಧಿ ಎಚ್ಚರಿಕೆ: ${getSaltOnlyTitle(bioCat)} ಜೀವಂತ ಸೂಕ್ಷ್ಮಾಣು ಆಗಿದ್ದು, ಇದನ್ನು ${getSaltOnlyTitle(chemCat)} ಜೊತೆ ಬೆರೆಸಿದರೆ ಜೈವಿಕ ಗುಣ ನಾಶವಾಗುತ್ತದೆ!`
+      };
+    }
+  }
+
+  // 3. Soluble (Non-EDTA) Calcium vs. Phosphate / Sulphate Precipitation Lock
+  const isCaA = isUnchelatedCalciumInput(catA), isCaB = isUnchelatedCalciumInput(catB);
   if ((isCaA && catB.incompatible_with_calcium) || (isCaB && catA.incompatible_with_calcium)) {
+    const caCat = isCaA ? catA : catB;
+    const otherCat = isCaA ? catB : catA;
     return {
       ok: false,
-      reasonEn: `❌ DRIP PRECIPITATION LOCK: Calcium Nitrate cannot be mixed with ${isCaA ? getSaltOnlyTitle(catB) : getSaltOnlyTitle(catA)}.`,
-      reasonKn: `❌ ಡ್ರಿಪ್ ಎಚ್ಚರಿಕೆ: ಕ್ಯಾಲ್ಸಿಯಂ ನೈಟ್ರೇಟ್ ಜೊತೆ ${isCaA ? getSaltOnlyTitle(catB) : getSaltOnlyTitle(catA)} ಬೆರೆಸಬೇಡಿ.`
+      reasonEn: `Calcium Precipitation Lock: ${getSaltOnlyTitle(caCat)} cannot be mixed with ${getSaltOnlyTitle(otherCat)} (forms insoluble Calcium Phosphate / Gypsum precipitate).`,
+      reasonKn: `ಕ್ಯಾಲ್ಸಿಯಂ ಒಡೆಯುವಿಕೆ ಎಚ್ಚರಿಕೆ: ${getSaltOnlyTitle(caCat)} ಜೊತೆ ${getSaltOnlyTitle(otherCat)} ಬೆರೆಸಬೇಡಿ (ಡ್ರಮ್/ಡ್ರಿಪ್‌ನಲ್ಲಿ ಗಟ್ಟಿಯಾಗುತ್ತದೆ).`
     };
   }
+
+  // 4. WP + EC Caution
   if (((catA.id === "FUN_CHLOROTHALONIL" || catA.id === "FUN_CAPTAF") && catB.formulation_type === "EC") ||
       ((catB.id === "FUN_CHLOROTHALONIL" || catB.id === "FUN_CAPTAF") && catA.formulation_type === "EC")) {
     return {
       ok: true,
-      cautionEn: `⚠️ EC + WP Caution: Dissolve WP powder first, add EC last, skip silicone spreader, and spray before 9:30 AM.`,
-      cautionKn: `⚠️ ಎಚ್ಚರಿಕೆ: ಮೊದಲು ಪೌಡರ್ ಕರಗಿಸಿ, ಕೊನೆಯಲ್ಲಿ EC ಹಾಕಿ, ಬೆಳಿಗ್ಗೆ 9:30 ರೊಳಗೆ ಸಿಂಪಡಿಸಿ.`
+      cautionEn: `EC + WP Caution: Dissolve WP powder first, add EC last, skip silicone spreader, and spray before 9:30 AM.`,
+      cautionKn: `ಎಚ್ಚರಿಕೆ: ಮೊದಲು ಪೌಡರ್ ಕರಗಿಸಿ, ಕೊನೆಯಲ್ಲಿ EC ಹಾಕಿ, ಬೆಳಿಗ್ಗೆ 9:30 ರೊಳಗೆ ಸಿಂಪಡಿಸಿ.`
     };
   }
   return { ok: true };
@@ -2066,13 +2122,13 @@ function getWalesMixingGuide(recipeArr, drumLiters = CFG.drumL, isFoliarCard = t
 
   if (!isFoliarCard) {
     return LANG === "KN"
-      ? `💧 <b>ಡ್ರಿಪ್ ವೆಂಚುರಿ ಮಿಶ್ರಣ ಕ್ರಮ:</b> ${steps.join(" → ")}`
-      : `💧 <b>Drip Venturi Mixing Order:</b> ${steps.join(" → ")}`;
+      ? `<b>ಡ್ರಿಪ್ ವೆಂಚುರಿ ಮಿಶ್ರಣ ಕ್ರಮ:</b> ${steps.join(" → ")}`
+      : `<b>Drip Venturi Mixing Order:</b> ${steps.join(" → ")}`;
   }
 
   return LANG === "KN"
-    ? `🪣 <b>${dL}L ಡ್ರಮ್ ಮಿಶ್ರಣ ಕ್ರಮ (W-A-L-E-S):</b> ${steps.join(" → ")}`
-    : `🪣 <b>${dL}L Drum Mixing Order (W-A-L-E-S):</b> ${steps.join(" → ")}`;
+    ? `<b>${dL}L ಡ್ರಮ್ ಮಿಶ್ರಣ ಕ್ರಮ (W-A-L-E-S):</b> ${steps.join(" → ")}`
+    : `<b>${dL}L Drum Mixing Order (W-A-L-E-S):</b> ${steps.join(" → ")}`;
 }
 
 // ============================================================================
@@ -2082,12 +2138,12 @@ function getMaxAllowedSpraysPerSeason(cat) {
   if (!cat) return { maxSalt: 4, maxGroup: 5 };
   if (cat.category === "FERTIGATION" || cat.category === "BIOSTIMULANT") return { maxSalt: 99, maxGroup: 99 };
   const grp = cat.irac_frac_group || "";
-  // Multi-site protectants (Copper M01, Sulphur M02, Mancozeb/Propineb/Ziram/Thiram M03, Captan M04, Chlorothalonil M05) & Bio/Botanicals
-  if (["FRAC-M01", "FRAC-M02", "FRAC-M03", "FRAC-M04", "FRAC-M05", "FRAC-P01", "BM02", "UN", "IRAC-UN"].includes(grp) || cat.is_copper_compound) {
+  const tokens = extractModeTokens(grp);
+  const MULTI_SITE_SET = new Set(["FRAC-M01", "FRAC-M02", "FRAC-M03", "FRAC-M04", "FRAC-M05", "FRAC-P01", "BM02", "UN", "IRAC-UN"]);
+  if ((tokens.length > 0 && tokens.every(t => MULTI_SITE_SET.has(t))) || cat.is_copper_compound) {
     return { maxSalt: 6, maxGroup: 8 };
   }
   if (cat.category === "BACTERICIDE") return { maxSalt: 4, maxGroup: 5 };
-  // Single-site systemic Insecticides & Fungicides (IRAC / FRAC Resistance Management: max 2 per salt, 3 per group)
   return { maxSalt: 2, maxGroup: 3 };
 }
 
@@ -2102,6 +2158,9 @@ function getSeasonSprayStats(refInputId) {
       saltDates[c.id].push(tk.current_scheduled_date);
       if (c.irac_frac_group) {
         groupCounts[c.irac_frac_group] = (groupCounts[c.irac_frac_group] || 0) + 1;
+        extractModeTokens(c.irac_frac_group).forEach(tok => {
+          if (tok !== c.irac_frac_group) groupCounts[tok] = (groupCounts[tok] || 0) + 1;
+        });
       }
     });
   });
@@ -2110,7 +2169,9 @@ function getSeasonSprayStats(refInputId) {
   const cat = catalog[refInputId];
   const limits = getMaxAllowedSpraysPerSeason(cat);
   const usedSalt = saltCounts[refInputId] || 0;
-  const usedGroup = (cat?.irac_frac_group && groupCounts[cat.irac_frac_group]) ? groupCounts[cat.irac_frac_group] : usedSalt;
+  const candTokens = extractModeTokens(cat?.irac_frac_group || "");
+  const maxTokenCount = candTokens.length > 0 ? Math.max(...candTokens.map(t => groupCounts[t] || 0)) : 0;
+  const usedGroup = Math.max(usedSalt, maxTokenCount);
   return {
     usedSalt,
     maxSalt: limits.maxSalt,
@@ -2130,8 +2191,8 @@ function validateCardCombinationRules(existingRecipe, candidateCat) {
   if (existingCats.some(c => c.id === candidateCat.id || (candNorm.length > 3 && normalizeSaltBase(c.active_ingredient) === candNorm))) {
     return {
       ok: false,
-      msgEn: `⚠️ ALREADY ON CARD: ${getSaltOnlyTitle(candidateCat)} is already in this recipe!`,
-      msgKn: `⚠️ ಈಗಾಗಲೇ ಕಾರ್ಡ್‌ನಲ್ಲಿದೆ: ${getSaltOnlyTitle(candidateCat)} ಈಗಾಗಲೇ ಈ ಪಟ್ಟಿಯಲ್ಲಿದೆ!`
+      msgEn: `Already on Card: ${getSaltOnlyTitle(candidateCat)} is already in this recipe!`,
+      msgKn: `ಈಗಾಗಲೇ ಕಾರ್ಡ್‌ನಲ್ಲಿದೆ: ${getSaltOnlyTitle(candidateCat)} ಈಗಾಗಲೇ ಈ ಪಟ್ಟಿಯಲ್ಲಿದೆ!`
     };
   }
 
@@ -2149,27 +2210,31 @@ function validateCardCombinationRules(existingRecipe, candidateCat) {
     if (pesticidesCount > 3) {
       return {
         ok: false,
-        msgEn: `⚠️ DRUM OVERLOAD (>3 Pesticides): Mixing ${pesticidesCount} pesticides in one drum risks fruit scorching. Keep max 3 pesticides (e.g., 2 Insecticides + 1 Fungicide).`,
-        msgKn: `⚠️ ಡ್ರಮ್ ಮಿತಿ (>3 ಔಷಧಿಗಳು): ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ 3 ಕ್ಕಿಂತ ಹೆಚ್ಚು ಕೀಟನಾಶಕ/ಶಿಲೀಂಧ್ರನಾಶಕ ಬೆರೆಸಬೇಡಿ.`
+        msgEn: `Drum Overload (>3 Pesticides): Mixing ${pesticidesCount} pesticides in one drum risks fruit scorching. Keep max 3 pesticides (e.g., 2 Insecticides + 1 Fungicide).`,
+        msgKn: `ಡ್ರಮ್ ಮಿತಿ (>3 ಔಷಧಿಗಳು): ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ 3 ಕ್ಕಿಂತ ಹೆಚ್ಚು ಕೀಟನಾಶಕ/ಶಿಲೀಂಧ್ರನಾಶಕ ಬೆರೆಸಬೇಡಿ.`
       };
     }
 
     if (insecticides.length > 2) {
       return {
         ok: false,
-        msgEn: `⚠️ TOO MANY INSECTICIDES (${insecticides.length}): Maximum 2 insecticides allowed in the same drum.`,
-        msgKn: `⚠️ ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ 2 ಕ್ಕಿಂತ ಹೆಚ್ಚು ಕೀಟನಾಶಕಗಳನ್ನು ಬೆರೆಸಬೇಡಿ.`
+        msgEn: `Too Many Insecticides (${insecticides.length}): Maximum 2 insecticides allowed in the same drum.`,
+        msgKn: `ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ 2 ಕ್ಕಿಂತ ಹೆಚ್ಚು ಕೀಟನಾಶಕಗಳನ್ನು ಬೆರೆಸಬೇಡಿ.`
       };
     }
 
-    if (candidateCat.category === "INSECTICIDE" && candidateCat.irac_frac_group) {
-      const sameIrac = existingCats.find(c => c.category === "INSECTICIDE" && c.irac_frac_group === candidateCat.irac_frac_group);
-      if (sameIrac) {
-        return {
-          ok: false,
-          msgEn: `⚠️ DUPLICATE IRAC GROUP (${candidateCat.irac_frac_group}): ${getSaltOnlyTitle(sameIrac)} and ${getSaltOnlyTitle(candidateCat)} belong to the exact same mode-of-action group!`,
-          msgKn: `⚠️ ಒಂದೇ ಗುಂಪಿನ ಕೀಟನಾಶಕ (${candidateCat.irac_frac_group}): ${getSaltOnlyTitle(sameIrac)} ಮತ್ತು ${getSaltOnlyTitle(candidateCat)} ಒಂದೇ ಗುಂಪಿಗೆ ಸೇರಿವೆ!`
-        };
+    // Token-aware IRAC / FRAC overlap check (catches Ampligo IRAC-28+3A + Coragen IRAC-28, or Custodia FRAC-11+3 + Merivon FRAC-7+11)
+    if (candidateCat.irac_frac_group) {
+      for (const ex of existingCats) {
+        if (!ex.irac_frac_group) continue;
+        const sharedTokens = getSharedModeTokens(ex.irac_frac_group, candidateCat.irac_frac_group, true);
+        if (sharedTokens.length > 0) {
+          return {
+            ok: false,
+            msgEn: `Duplicate Mode-of-Action Group (${sharedTokens.join(", ")}): ${getSaltOnlyTitle(ex)} (${ex.irac_frac_group}) and ${getSaltOnlyTitle(candidateCat)} (${candidateCat.irac_frac_group}) share the same active group!`,
+            msgKn: `ಒಂದೇ ಗುಂಪಿನ ಔಷಧಿ (${sharedTokens.join(", ")}): ${getSaltOnlyTitle(ex)} ಮತ್ತು ${getSaltOnlyTitle(candidateCat)} ಒಂದೇ ಗುಂಪಿಗೆ ಸೇರಿವೆ!`
+          };
+        }
       }
     }
 
@@ -2177,16 +2242,19 @@ function validateCardCombinationRules(existingRecipe, candidateCat) {
       if (fungicides.length > 2) {
         return {
           ok: false,
-          msgEn: `⚠️ TOO MANY FUNGICIDES (${fungicides.length}): Maximum 2 fungicides (1 Contact + 1 Systemic) per drum.`,
-          msgKn: `⚠️ ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ 2 ಕ್ಕಿಂತ ಹೆಚ್ಚು ಶಿಲೀಂಧ್ರನಾಶಕ ಬೆರೆಸಬೇಡಿ.`
+          msgEn: `Too Many Fungicides (${fungicides.length}): Maximum 2 fungicides (1 Contact + 1 Systemic) per drum.`,
+          msgKn: `ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ 2 ಕ್ಕಿಂತ ಹೆಚ್ಚು ಶಿಲೀಂಧ್ರನಾಶಕ ಬೆರೆಸಬೇಡಿ.`
         };
       }
-      const isContactMultiSite = (c) => /FRAC-M0[1-5]/.test(c.irac_frac_group || "");
-      if (fungicides.filter(isContactMultiSite).length === 0) {
+      const isPureContactMultiSite = (c) => {
+        const toks = extractModeTokens(c.irac_frac_group || "");
+        return toks.length > 0 && toks.every(t => /^FRAC-M0[1-5]$/.test(t));
+      };
+      if (fungicides.filter(isPureContactMultiSite).length === 0) {
         return {
           ok: false,
-          msgEn: `⚠️ DUAL SYSTEMIC FUNGICIDE LOCK: ${getSaltOnlyTitle(fungicides[0])} and ${getSaltOnlyTitle(fungicides[1])} are both systemic. Only mix 2 fungicides if one is Contact (Mancozeb/Captan) and one is Systemic!`,
-          msgKn: `⚠️ 2 ಸಿಸ್ಟೆಮಿಕ್ ಶಿಲೀಂಧ್ರನಾಶಕ ಎಚ್ಚರಿಕೆ: ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ಎರಡು ಸಿಸ್ಟೆಮಿಕ್ ಶಿಲೀಂಧ್ರನಾಶಕ ಬೆರೆಸಬೇಡಿ (1 ಕಾಂಟ್ಯಾಕ್ಟ್ + 1 ಸಿಸ್ಟೆಮಿಕ್ ಮಾತ್ರ).`
+          msgEn: `Dual Systemic Fungicide Lock: ${getSaltOnlyTitle(fungicides[0])} and ${getSaltOnlyTitle(fungicides[1])} both contain systemic fungicides. Only mix 2 fungicides if one is a pure Contact protectant (Mancozeb/Captan/Propineb)!`,
+          msgKn: `2 ಸಿಸ್ಟೆಮಿಕ್ ಶಿಲೀಂಧ್ರನಾಶಕ ಎಚ್ಚರಿಕೆ: ಒಂದೇ ಡ್ರಮ್‌ನಲ್ಲಿ ಎರಡು ಸಿಸ್ಟೆಮಿಕ್ ಶಿಲೀಂಧ್ರನಾಶಕ ಬೆರೆಸಬೇಡಿ (1 ಕಾಂಟ್ಯಾಕ್ಟ್ + 1 ಸಿಸ್ಟೆಮಿಕ್ ಮಾತ್ರ).`
         };
       }
     }
@@ -2283,7 +2351,10 @@ function pickRotationSafeRecipe(rawRecipe, refDateStr, excludeTaskId = null) {
 
 async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, curativeRecipe, curativeTaskId, extraExcludeId = null) {
   const curativeInputIds = new Set((curativeRecipe || []).map(r => r.input_id));
-  const curativeGroups = new Set((curativeRecipe || []).map(r => catalog[r.input_id]?.irac_frac_group).filter(Boolean));
+  const curativeGroupTokens = new Set();
+  (curativeRecipe || []).forEach(r => {
+    extractModeTokens(catalog[r.input_id]?.irac_frac_group || "").forEach(tok => curativeGroupTokens.add(tok));
+  });
   const isCopperCurative = (curativeRecipe || []).some(r => catalog[r.input_id]?.is_copper_compound);
 
   // Only look at uncompleted BASELINE sprays scheduled ON or AFTER curativeDateStr (diff >= 0, NEVER grab an earlier card!)
@@ -2321,7 +2392,7 @@ async function reconcileUpcomingBaselineFoliarAfterCurative(curativeDateStr, cur
       if (!rCat) return true;
       if (rCat.category === "BIOSTIMULANT" || rCat.category === "FERTIGATION") return true;
       if (curativeInputIds.has(r.input_id)) return false;
-      if (rCat.irac_frac_group && curativeGroups.has(rCat.irac_frac_group)) return false;
+      if (rCat.irac_frac_group && extractModeTokens(rCat.irac_frac_group).some(tok => curativeGroupTokens.has(tok))) return false;
       return true;
     });
 
@@ -4384,26 +4455,26 @@ function ensureBuiltInStoreBrands() {
     { id: "BIO_BACILLUS",           category: "FUNGICIDE",   active_ingredient: "Bacillus subtilis 1.5% WP / AS", popular_brands: "Serenade (Bayer), Subtilex", irac_frac_group: "BM02", formulation_type: "WP", application_method: "BOTH", base_dose_per_liter: 2.5, base_dose_per_acre: 1.0, unit: "g", phi_days: 0, is_copper_compound: false, incompatible_with_copper: true },
 
     // Pre-Mix / Combination & Broad-Spectrum Insecticides (Hamla 550, Profex Super, Lancergold, Ampligo, Voliam Flexi, Lesenta, Simodis, etc.)
-    { id: "INS_CHLORPYRIPHOS_CYPER",     category: "INSECTICIDE", active_ingredient: "Chlorpyriphos 50% + Cypermethrin 5% EC", popular_brands: "Hamla 550 (Gharda), Nurelle-D (Corteva), Koranda (Rallis), Super-D", irac_frac_group: "IRAC-1B+3A", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "ml", phi_days: 15, is_copper_compound: false, incompatible_with_copper: true },
-    { id: "INS_PROFENOFOS_CYPER",        category: "INSECTICIDE", active_ingredient: "Profenofos 40% + Cypermethrin 4% EC", popular_brands: "Profex Super (Nagarjuna), Roket (PI), Polytrin-C (Syngenta)", irac_frac_group: "IRAC-1B+3A", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "ml", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
-    { id: "INS_ACEPHATE_IMIDA",          category: "INSECTICIDE", active_ingredient: "Acephate 50% + Imidacloprid 1.8% SP", popular_brands: "Lancergold (UPL), Starthene Power", irac_frac_group: "IRAC-1B+4A", formulation_type: "SP", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "g", phi_days: 15, is_copper_compound: false, incompatible_with_copper: true },
+    { id: "INS_CHLORPYRIPHOS_CYPER",     category: "INSECTICIDE", active_ingredient: "Chlorpyriphos 50% + Cypermethrin 5% EC", popular_brands: "Hamla 550 (Gharda), Nurelle-D (Corteva), Koranda (Rallis), Super-D", irac_frac_group: "IRAC-1B+3A", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "ml", phi_days: 35, is_copper_compound: false, incompatible_with_copper: true },
+    { id: "INS_PROFENOFOS_CYPER",        category: "INSECTICIDE", active_ingredient: "Profenofos 40% + Cypermethrin 4% EC", popular_brands: "Profex Super (Nagarjuna), Roket (PI), Polytrin-C (Syngenta)", irac_frac_group: "IRAC-1B+3A", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "ml", phi_days: 35, is_copper_compound: false, incompatible_with_copper: true },
+    { id: "INS_ACEPHATE_IMIDA",          category: "INSECTICIDE", active_ingredient: "Acephate 50% + Imidacloprid 1.8% SP", popular_brands: "Lancergold (UPL), Starthene Power", irac_frac_group: "IRAC-1B+4A", formulation_type: "SP", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "g", phi_days: 30, is_copper_compound: false, incompatible_with_copper: true },
     { id: "INS_CHLORAN_LAMBDA",          category: "INSECTICIDE", active_ingredient: "Chlorantraniliprole 9.3% + Lambda-Cyhalothrin 4.6% ZC", popular_brands: "Ampligo (Syngenta)", irac_frac_group: "IRAC-28+3A", formulation_type: "SC", application_method: "FOLIAR", base_dose_per_liter: 0.5, unit: "ml", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
     { id: "INS_CHLORAN_THIAMETHOXAM",    category: "INSECTICIDE", active_ingredient: "Chlorantraniliprole 8.8% + Thiamethoxam 17.5% SC", popular_brands: "Voliam Flexi (Syngenta)", irac_frac_group: "IRAC-28+4A", formulation_type: "SC", application_method: "FOLIAR", base_dose_per_liter: 0.5, unit: "ml", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
-    { id: "INS_FIPRONIL_IMIDA",          category: "INSECTICIDE", active_ingredient: "Fipronil 40% + Imidacloprid 40% WG", popular_brands: "Lesenta (Bayer), Police (Gharda)", irac_frac_group: "IRAC-2B+4A", formulation_type: "WG", application_method: "FOLIAR", base_dose_per_liter: 0.4, unit: "g", phi_days: 15, is_copper_compound: false, incompatible_with_copper: true },
-    { id: "INS_PYRIPROXYFEN_FENPRO",     category: "INSECTICIDE", active_ingredient: "Pyriproxyfen 5% + Fenpropathrin 15% EC", popular_brands: "Sumiprempt (Sumitomo)", irac_frac_group: "IRAC-7C+3A", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 1.5, unit: "ml", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
+    { id: "INS_FIPRONIL_IMIDA",          category: "INSECTICIDE", active_ingredient: "Fipronil 40% + Imidacloprid 40% WG", popular_brands: "Lesenta (Bayer), Police (Gharda)", irac_frac_group: "IRAC-2B+4A", formulation_type: "WG", application_method: "FOLIAR", base_dose_per_liter: 0.4, unit: "g", phi_days: 21, is_copper_compound: false, incompatible_with_copper: true },
+    { id: "INS_PYRIPROXYFEN_FENPRO",     category: "INSECTICIDE", active_ingredient: "Pyriproxyfen 5% + Fenpropathrin 15% EC", popular_brands: "Sumiprempt (Sumitomo)", irac_frac_group: "IRAC-7C+3A", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 1.5, unit: "ml", phi_days: 21, is_copper_compound: false, incompatible_with_copper: true },
     { id: "INS_PYRIPROXYFEN_DIAFEN",     category: "INSECTICIDE", active_ingredient: "Pyriproxyfen 10% + Diafenthiuron 25% SE", popular_brands: "SLP, Polo Mix, Matos", irac_frac_group: "IRAC-7C+12A", formulation_type: "SC", application_method: "FOLIAR", base_dose_per_liter: 1.5, unit: "ml", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
-    { id: "INS_DELTAMETHRIN_TRIAZOPHOS", category: "INSECTICIDE", active_ingredient: "Deltamethrin 1% + Triazophos 35% EC", popular_brands: "Spark (Bayer), Delphos", irac_frac_group: "IRAC-3A+1B", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "ml", phi_days: 15, is_copper_compound: false, incompatible_with_copper: true },
-    { id: "INS_BUPROFEZIN_ACEPHATE",     category: "INSECTICIDE", active_ingredient: "Buprofezin 15% + Acephate 35% WP", popular_brands: "Bupkon, Hound (Rallis)", irac_frac_group: "IRAC-16+1B", formulation_type: "WP", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "g", phi_days: 15, is_copper_compound: false, incompatible_with_copper: true },
+    { id: "INS_DELTAMETHRIN_TRIAZOPHOS", category: "INSECTICIDE", active_ingredient: "Deltamethrin 1% + Triazophos 35% EC", popular_brands: "Spark (Bayer), Delphos", irac_frac_group: "IRAC-3A+1B", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "ml", phi_days: 35, is_copper_compound: false, incompatible_with_copper: true },
+    { id: "INS_BUPROFEZIN_ACEPHATE",     category: "INSECTICIDE", active_ingredient: "Buprofezin 15% + Acephate 35% WP", popular_brands: "Bupkon, Hound (Rallis)", irac_frac_group: "IRAC-16+1B", formulation_type: "WP", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "g", phi_days: 30, is_copper_compound: false, incompatible_with_copper: true },
     { id: "INS_ISOCYCLOSERAM",           category: "INSECTICIDE", active_ingredient: "Isocycloseram 9.2% w/w DC (10% w/v DC)", popular_brands: "Simodis (Syngenta)", irac_frac_group: "IRAC-30", formulation_type: "OD", application_method: "FOLIAR", base_dose_per_liter: 0.6, unit: "ml", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
     { id: "INS_CYPERMETHRIN_25",         category: "INSECTICIDE", active_ingredient: "Cypermethrin 25% EC", popular_brands: "Cymbush (Syngenta), Super Killer (Dhanuka), Ralothrin", irac_frac_group: "IRAC-3A", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 1.0, unit: "ml", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
-    { id: "INS_QUINALPHOS_25",           category: "INSECTICIDE", active_ingredient: "Quinalphos 25% EC", popular_brands: "Ekalux (Syngenta), Flash (Indofil)", irac_frac_group: "IRAC-1B", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "ml", phi_days: 15, is_copper_compound: false, incompatible_with_copper: true },
-    { id: "INS_DIMETHOATE_30",           category: "INSECTICIDE", active_ingredient: "Dimethoate 30% EC", popular_brands: "Rogor (FMC), Tafgor (Rallis)", irac_frac_group: "IRAC-1B", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 1.5, unit: "ml", phi_days: 15, is_copper_compound: false, incompatible_with_copper: true },
+    { id: "INS_QUINALPHOS_25",           category: "INSECTICIDE", active_ingredient: "Quinalphos 25% EC", popular_brands: "Ekalux (Syngenta), Flash (Indofil)", irac_frac_group: "IRAC-1B", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "ml", phi_days: 35, is_copper_compound: false, incompatible_with_copper: true },
+    { id: "INS_DIMETHOATE_30",           category: "INSECTICIDE", active_ingredient: "Dimethoate 30% EC", popular_brands: "Rogor (FMC), Tafgor (Rallis)", irac_frac_group: "IRAC-1B", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 1.5, unit: "ml", phi_days: 30, is_copper_compound: false, incompatible_with_copper: true },
 
     // NRCP & Store Combination / Single-Salt Fungicides
     { id: "FUN_AZOXY_DIFENO",       category: "FUNGICIDE", active_ingredient: "Azoxystrobin 20% + Difenoconazole 12.5% SC", popular_brands: "Amistar Top (Syngenta), Godiwa Super (Dhanuka)", irac_frac_group: "FRAC-11+3", formulation_type: "SC", application_method: "FOLIAR", base_dose_per_liter: 1.5, unit: "ml", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
     { id: "FUN_TRICYCLA_MANCO",     category: "FUNGICIDE", active_ingredient: "Tricyclazole 18% + Mancozeb 62% WP", popular_brands: "Merger (Indofil)", irac_frac_group: "FRAC-16.1+M03", formulation_type: "WP", application_method: "FOLIAR", base_dose_per_liter: 2.5, unit: "g", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
     { id: "FUN_ZINEB_HEXA",         category: "FUNGICIDE", active_ingredient: "Zineb 68% + Hexaconazole 4% WP", popular_brands: "Avtar (Indofil)", irac_frac_group: "FRAC-M03+3", formulation_type: "WP", application_method: "FOLIAR", base_dose_per_liter: 2.5, unit: "g", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
-    { id: "FUN_CARBENDAZIM_MANCO",  category: "FUNGICIDE", active_ingredient: "Carbendazim 12% + Mancozeb 63% WP", popular_brands: "Saaf (UPL), Sixer, Companion", irac_frac_group: "FRAC-1+M03", formulation_type: "WP", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "g", phi_days: 15, is_copper_compound: false, incompatible_with_copper: true },
+    { id: "FUN_CARBENDAZIM_MANCO",  category: "FUNGICIDE", active_ingredient: "Carbendazim 12% + Mancozeb 63% WP", popular_brands: "Saaf (UPL), Sixer, Companion", irac_frac_group: "FRAC-1+M03", formulation_type: "WP", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "g", phi_days: 35, is_copper_compound: false, incompatible_with_copper: true },
     { id: "FUN_CHLORO_METALAXYL",   category: "FUNGICIDE", active_ingredient: "Chlorothalonil 50% + Metalaxyl-M 3.75% SC", popular_brands: "Folio Gold (Syngenta)", irac_frac_group: "FRAC-M05+4", formulation_type: "SC", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "ml", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
     { id: "FUN_BOSCALID_PYRA",      category: "FUNGICIDE", active_ingredient: "Boscalid 25.2% + Pyraclostrobin 12.8% WG", popular_brands: "Signum (BASF)", irac_frac_group: "FRAC-7+11", formulation_type: "WG", application_method: "FOLIAR", base_dose_per_liter: 0.6, unit: "g", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
     { id: "FUN_PYRACLOSTROBIN",     category: "FUNGICIDE", active_ingredient: "Pyraclostrobin 20% WG", popular_brands: "Headline (BASF)", irac_frac_group: "FRAC-11", formulation_type: "WG", application_method: "FOLIAR", base_dose_per_liter: 0.5, unit: "g", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
@@ -4612,11 +4683,14 @@ function checkRecentSprayResistance(inputId, refDateStr, excludeTaskId = null) {
           msgKn: `ಒಂದೇ ಲವಣಾಂಶ ಎಚ್ಚರಿಕೆ: ನೀವು ಇದೇ ಲವಣಾಂಶವನ್ನು (${getSaltOnlyTitle(pastCat)}) ${t.current_scheduled_date} ರಂದು (${relKn}) ಸಿಂಪಡಿಸಿದ್ದೀರಿ!`
         };
       }
-      if (cat.irac_frac_group && pastCat.irac_frac_group === cat.irac_frac_group && !MULTI_SITE_EXEMPT.has(cat.irac_frac_group)) {
-        return {
-          msgEn: `Resistance Group Rotation Alert: ${getSaltOnlyTitle(cat)} is in group ${cat.irac_frac_group}, sprayed on ${t.current_scheduled_date} (${relEn} — ${getSaltOnlyTitle(pastCat)}).`,
-          msgKn: `ಗುಂಪು ಬದಲಾವಣೆ ಸಲಹೆ: ಇದು ${cat.irac_frac_group} ಗುಂಪಿಗೆ ಸೇರಿದೆ (${t.current_scheduled_date} ರಂದು ಬಳಸಲಾಗಿದೆ).`
-        };
+      if (cat.irac_frac_group && pastCat.irac_frac_group) {
+        const sharedGroupTokens = getSharedModeTokens(cat.irac_frac_group, pastCat.irac_frac_group, true);
+        if (sharedGroupTokens.length > 0) {
+          return {
+            msgEn: `Resistance Group Rotation Alert: ${getSaltOnlyTitle(cat)} shares mode-of-action group ${sharedGroupTokens.join(", ")} with ${getSaltOnlyTitle(pastCat)}, sprayed on ${t.current_scheduled_date} (${relEn}).`,
+            msgKn: `ಗುಂಪು ಬದಲಾವಣೆ ಸಲಹೆ: ${getSaltOnlyTitle(cat)} ಮತ್ತು ${getSaltOnlyTitle(pastCat)} ಒಂದೇ ${sharedGroupTokens.join(", ")} ಗುಂಪಿಗೆ ಸೇರಿವೆ (${t.current_scheduled_date} ರಂದು ಬಳಸಲಾಗಿದೆ).`
+          };
+        }
       }
     }
   }
@@ -6368,19 +6442,19 @@ function checkPhenologyAndPhiLock(cat, effectiveDad, effectiveGdd) {
     };
   }
 
-  // 2. Gate P1 Pre-Harvest PHI Residue Lock: Checks days remaining to 190 DAD or 2,800 GDD harvest
+  // 2. Gate P1 Pre-Harvest PHI Residue Lock: Blocks any chemical whenever remaining days to 190 DAD or 2,800 GDD harvest is less than its PHI
   const phi = Number(cat.phi_days) || 0;
   if (phi > 0) {
     const daysByDad = !Number.isNaN(dad) ? (190 - dad) : 999;
     const daysByGdd = (gdd !== null && !Number.isNaN(gdd)) ? Math.round((SUPER_BHAGWA_GDD_TARGET - gdd) / 15.0) : 999;
     const daysToFirstHarvest = Math.min(daysByDad, daysByGdd);
-    const inPreHarvestWindow = (!Number.isNaN(dad) && dad >= 165 && dad < 190) || (gdd !== null && gdd >= 2500 && gdd < SUPER_BHAGWA_GDD_TARGET);
+    const beforeHarvestEnd = (!Number.isNaN(dad) && dad > 0 && dad < 195) || (gdd !== null && gdd > 0 && gdd < SUPER_BHAGWA_GDD_TARGET);
 
-    if (inPreHarvestWindow && daysToFirstHarvest < phi) {
+    if (beforeHarvestEnd && daysToFirstHarvest > 0 && daysToFirstHarvest < phi) {
       return {
         ok: false, code: "PHI_LOCK",
-        reasonEn: `🔴 GATE P1 PRE-HARVEST RESIDUE LOCK (${dad} DAD): ${getSaltOnlyTitle(cat)} has a ${phi}-day PHI, but harvest is ~${daysToFirstHarvest} days away!`,
-        reasonKn: `🔴 ಕಟಾವಿಗೆ ಮುನ್ನ ಅವಶೇಷ ನಿರ್ಬಂಧ (${dad} DAD): ${getSaltOnlyTitle(cat)} ಗೆ ${phi} ದಿನಗಳ PHI ಅಂತರ ಬೇಕು!`
+        reasonEn: `Gate P1 Pre-Harvest Residue Lock (${dad} DAD): ${getSaltOnlyTitle(cat)} requires a ${phi}-day PHI, but harvest is ~${daysToFirstHarvest} days away!`,
+        reasonKn: `ಕಟಾವಿಗೆ ಮುನ್ನ ಅವಶೇಷ ನಿರ್ಬಂಧ (${dad} DAD): ${getSaltOnlyTitle(cat)} ಗೆ ${phi} ದಿನಗಳ PHI ಅಂತರ ಬೇಕು (ಕಟಾವಿಗೆ ~${daysToFirstHarvest} ದಿನ ಬಾಕಿ ಇದೆ)!`
       };
     }
   }
@@ -6784,8 +6858,7 @@ async function reconcileAllDripDeficitsAcrossSchedule(filterInputId = null, dryR
       }
 
       const bounds = getDripStageDoseBounds(c, tk.effective_dad, { ...r, orig_dose_per_acre: baseOrigDose });
-      const stageSafeMax = Math.max(baseOrigDose, bounds.maxPerAcre);
-
+      const stageSafeMax = bounds.maxPerAcre === 0 ? 0 : Math.max(baseOrigDose, bounds.maxPerAcre);
       let targetDosePerAc = baseOrigDose;
       let targetCompDate = null;
 
