@@ -191,118 +191,168 @@ CREATE TABLE IF NOT EXISTS farm_rain_logs (
 );
 
 -- ============================================================================
--- V8: SERVER-SIDE 6-GATE RULE ENGINE RPC & 05:30 AM IST DAILY CRON (pg_cron)
+-- V8: SERVER-SIDE 6-GATE RULE ENGINE RPC & IST DAILY CRON (pg_cron)
+-- Fixes: A1, A2 (RLS + search_path), B6 (Idempotency), B7 (DATE + 2 math),
+--        B9 (ROW_COUNT sum), B10 (orchard_blocks lookup), B11 (telemetry guard),
+--        B12 (Asia/Kolkata date), B13 (block_id + PHI lock + catalog doses),
+--        B14 (clean variables & RH >= 72%), C26 (15.2 GDD fallback).
 -- ============================================================================
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
-CREATE OR REPLACE FUNCTION public.run_daily_orchard_engine(target_date DATE DEFAULT CURRENT_DATE)
+CREATE OR REPLACE FUNCTION public.run_daily_orchard_engine(
+    target_date DATE DEFAULT (NOW() AT TIME ZONE 'Asia/Kolkata')::DATE
+)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
+    v_block_id UUID;
     v_ethrel_date DATE := '2026-08-15';
-    v_dad INT := (target_date - v_ethrel_date);
+    v_harvest_date DATE := '2027-02-21'; -- 190 DAD canonical harvest horizon
+    v_dad INT;
+    v_has_telemetry BOOLEAN := FALSE;
     v_rain_today NUMERIC(5,1) := 0;
-    v_rain_72h NUMERIC(5,1) := 0;
-    v_rh_72h NUMERIC(5,1) := 60;
-    v_tmax_72h NUMERIC(4,1) := 30.0;
-    v_tmin_today NUMERIC(4,1) := 18.5;
     v_cum_gdd NUMERIC(8,2) := 0;
     v_epi_high_days INT := 0;
     v_recent_copper INT := 0;
     v_existing_curative INT := 0;
+    v_rows_tmp INT := 0;
     v_shifted_drips INT := 0;
     v_injected_sprays INT := 0;
+    v_cop_dose NUMERIC(8,3) := 2.0;
+    v_bron_dose NUMERIC(8,3) := 0.5;
+    v_cop_phi INT := 7;
+    v_days_to_harvest INT;
     v_env TEXT;
 BEGIN
-    -- 1. Merge Automated Telemetry with Priority Manual Farm Rain Override (Gate P0)
+    -- 1. Load canonical block metadata from orchard_blocks (Item B10 & B13)
+    SELECT id, ethrel_spray_date, COALESCE(expected_harvest_date, ethrel_spray_date + 190)
+    INTO v_block_id, v_ethrel_date, v_harvest_date
+    FROM public.orchard_blocks
+    ORDER BY ethrel_spray_date DESC
+    LIMIT 1;
+
+    v_ethrel_date := COALESCE(v_ethrel_date, '2026-08-15'::DATE);
+    v_harvest_date := COALESCE(v_harvest_date, v_ethrel_date + 190);
+    v_dad := (target_date - v_ethrel_date);
+    v_days_to_harvest := (v_harvest_date - (target_date + 1));
+
+    -- 2. Verify whether today's telemetry or manual farm rain log exists yet (Item B11)
+    SELECT (
+        EXISTS (SELECT 1 FROM public.weather_telemetry_history WHERE log_date = target_date)
+        OR EXISTS (SELECT 1 FROM public.farm_rain_logs WHERE log_date = target_date)
+    ) INTO v_has_telemetry;
+
+    IF NOT v_has_telemetry THEN
+        RETURN jsonb_build_object(
+            'status', 'SKIPPED_NO_TELEMETRY',
+            'evaluated_date', target_date,
+            'dad', v_dad
+        );
+    END IF;
+
+    -- 3. Merge Automated Telemetry with Priority Manual Farm Rain Override (Gate P0)
     SELECT COALESCE(
-        (SELECT rain_mm FROM farm_rain_logs WHERE log_date = target_date),
-        (SELECT rain_mm FROM weather_telemetry_history WHERE log_date = target_date),
+        (SELECT rain_mm FROM public.farm_rain_logs WHERE log_date = target_date),
+        (SELECT rain_mm FROM public.weather_telemetry_history WHERE log_date = target_date),
         0
     ) INTO v_rain_today;
 
-    SELECT
-        COALESCE(SUM(rain_mm), 0),
-        COALESCE(AVG(humidity_mean_pct), 60),
-        COALESCE(AVG(temp_max_c), 30.0)
-    INTO v_rain_72h, v_rh_72h, v_tmax_72h
-    FROM weather_telemetry_history
-    WHERE log_date BETWEEN (target_date - INTERVAL '2 days')::DATE AND target_date;
-
-    SELECT COALESCE(temp_min_c, 18.5)
-    INTO v_tmin_today
-    FROM weather_telemetry_history
-    WHERE log_date = target_date;
-
-    -- 2. Compute Cumulative Thermal GDD Since Ethrel Defoliation (2026-08-15)
-    SELECT COALESCE(SUM(daily_gdd), v_dad * 15.8)
+    -- 4. Compute Cumulative Thermal GDD Since Ethrel Defoliation (Item C26: 15.2 GDD/day fallback)
+    SELECT COALESCE(SUM(daily_gdd), GREATEST(0, v_dad) * 15.2)
     INTO v_cum_gdd
-    FROM weather_telemetry_history
+    FROM public.weather_telemetry_history
     WHERE log_date BETWEEN v_ethrel_date AND target_date;
 
-    -- 3. Evaluate 72-Hour Epidemiological Microclimate Window (RH > 80% & Temp 25°C–32°C for 3 days)
+    -- 5. Evaluate 72-Hour Epidemiological Microclimate Window (RH >= 72% & Temp 25.0–32.5°C for 3 days)
     SELECT COUNT(*)
     INTO v_epi_high_days
-    FROM weather_telemetry_history
-    WHERE log_date BETWEEN (target_date - INTERVAL '2 days')::DATE AND target_date
-      AND humidity_mean_pct >= 80
+    FROM public.weather_telemetry_history
+    WHERE log_date BETWEEN (target_date - 2) AND target_date
+      AND humidity_mean_pct >= 72
       AND temp_max_c BETWEEN 25.0 AND 32.5;
+
+    -- 6. Look up Copper Hydroxide & Bronopol PHI / doses from inputs_catalog (Item B13)
+    SELECT COALESCE(GREATEST(base_dose_per_liter, 2.0), 2.0), COALESCE(phi_days, 7)
+    INTO v_cop_dose, v_cop_phi
+    FROM public.inputs_catalog
+    WHERE id = 'BAC_COPPER_HYDROXIDE';
+
+    SELECT COALESCE(base_dose_per_liter, 0.5)
+    INTO v_bron_dose
+    FROM public.inputs_catalog
+    WHERE id = 'BAC_BRONOPOL';
 
     -- Run across both PROD and DEV environments
     FOREACH v_env IN ARRAY ARRAY['PROD', 'DEV'] LOOP
 
-        -- 4. Gate P0 + P4: Heavy Rain (>= 15 mm) -> Pause & Shift Pending Drip Tasks Forward by +2 Days
+        -- 7. Gate P0 + P4 (Idempotent): Heavy Rain (>= 15 mm) -> Shift Un-Shifted Drip Tasks Forward by +2 Days
+        -- Fixes B6 (skips tasks already delayed for RAIN), B7 (uses date + 2 integer math), B9 (accumulates ROW_COUNT)
         IF v_rain_today >= 15.0 THEN
-            UPDATE daily_task_queue
-            SET current_scheduled_date = current_scheduled_date + INTERVAL '2 days',
-                effective_dad = (current_scheduled_date + INTERVAL '2 days' - v_ethrel_date),
+            UPDATE public.daily_task_queue
+            SET current_scheduled_date = current_scheduled_date + 2,
+                effective_dad = ((current_scheduled_date + 2) - v_ethrel_date),
                 status = 'DELAYED',
                 delay_reason = 'RAIN',
                 updated_by = 'AUTO_CRON_0530',
                 updated_at = NOW()
             WHERE env = v_env
               AND status IN ('PENDING', 'DELAYED')
+              AND COALESCE(delay_reason, '') <> 'RAIN'
               AND task_type LIKE 'DRIP%'
-              AND current_scheduled_date BETWEEN target_date AND (target_date + INTERVAL '3 days')::DATE;
+              AND current_scheduled_date BETWEEN target_date AND (target_date + 3);
 
-            GET DIAGNOSTICS v_shifted_drips = ROW_COUNT;
+            GET DIAGNOSTICS v_rows_tmp = ROW_COUNT;
+            v_shifted_drips := v_shifted_drips + v_rows_tmp;
         END IF;
 
-        -- 5. Gate P0 + P2 + P3: Proactive Bactericide Injection on Heavy Rain (>=15mm) OR 72h Epidemiological Trigger
-        IF (v_rain_today >= 15.0 OR v_epi_high_days >= 3) THEN
-            -- Respect Gate P2 5-day Copper Cooldown
+        -- 8. Gate P0 + P1 + P2: Proactive Bactericide Injection on Heavy Rain (>=15mm) OR 72h Epidemiological Trigger
+        -- Respects Pre-Harvest PHI Lock (v_days_to_harvest >= v_cop_phi) and 5-day Copper Cooldown
+        IF (v_rain_today >= 15.0 OR v_epi_high_days >= 3) AND (v_days_to_harvest >= v_cop_phi) THEN
             SELECT COUNT(*) INTO v_recent_copper
-            FROM daily_task_queue
-            WHERE env = v_env
-              AND status = 'COMPLETED'
-              AND current_scheduled_date BETWEEN (target_date - INTERVAL '5 days')::DATE AND target_date
-              AND (task_type = 'STANDALONE_COPPER' OR resolved_recipe::TEXT ILIKE '%COPPER%');
+            FROM public.daily_task_queue q
+            WHERE q.env = v_env
+              AND q.status = 'COMPLETED'
+              AND q.current_scheduled_date BETWEEN (target_date - 5) AND target_date
+              AND (
+                  q.task_type = 'STANDALONE_COPPER'
+                  OR EXISTS (
+                      SELECT 1
+                      FROM jsonb_array_elements(q.resolved_recipe) AS elem
+                      JOIN public.inputs_catalog ic ON ic.id = (elem->>'input_id')
+                      WHERE ic.is_copper_compound IS TRUE
+                  )
+              );
 
             SELECT COUNT(*) INTO v_existing_curative
-            FROM daily_task_queue
+            FROM public.daily_task_queue
             WHERE env = v_env
               AND status IN ('PENDING', 'DELAYED')
-              AND current_scheduled_date BETWEEN target_date AND (target_date + INTERVAL '4 days')::DATE
+              AND current_scheduled_date BETWEEN target_date AND (target_date + 4)
               AND (task_type = 'STANDALONE_COPPER' OR trigger_source IN ('RAIN_EMERGENCY', 'SCOUTING_CURATIVE'));
 
             IF v_recent_copper = 0 AND v_existing_curative = 0 THEN
-                INSERT INTO daily_task_queue (
-                    id, env, originally_scheduled_date, current_scheduled_date, effective_dad,
+                INSERT INTO public.daily_task_queue (
+                    id, block_id, env, originally_scheduled_date, current_scheduled_date, effective_dad,
                     task_type, trigger_source, status, resolved_recipe,
                     custom_title_en, custom_title_kn, updated_by, updated_at
                 ) VALUES (
                     gen_random_uuid(),
+                    v_block_id,
                     v_env,
-                    (target_date + INTERVAL '1 day')::DATE,
-                    (target_date + INTERVAL '1 day')::DATE,
+                    (target_date + 1),
+                    (target_date + 1),
                     v_dad + 1,
                     'STANDALONE_COPPER',
                     CASE WHEN v_rain_today >= 15.0 THEN 'RAIN_EMERGENCY' ELSE 'SCOUTING_CURATIVE' END,
                     'PENDING',
-                    '[{"input_id":"BAC_COPPER_HYDROXIDE","dose_per_liter":1.5},{"input_id":"BAC_BRONOPOL","dose_per_liter":0.5}]'::JSONB,
+                    jsonb_build_array(
+                        jsonb_build_object('input_id', 'BAC_COPPER_HYDROXIDE', 'dose_per_liter', v_cop_dose),
+                        jsonb_build_object('input_id', 'BAC_BRONOPOL', 'dose_per_liter', v_bron_dose)
+                    ),
                     'Curative Copper Bactericide Spray',
                     'ತುರ್ತು ಕಾಪರ್ ಬ್ಯಾಕ್ಟೀರಿಯಾ ಸಿಂಪಡಣೆ',
                     'AUTO_CRON_0530',
@@ -327,9 +377,42 @@ BEGIN
 END;
 $$;
 
--- Schedule automatic execution every day at 05:30 AM IST (00:00 UTC)
+-- Harden RPC permissions (Item A2): revoke PUBLIC default, grant to authenticated/service_role (and anon until Supabase Auth UI is enabled)
+REVOKE ALL ON FUNCTION public.run_daily_orchard_engine(DATE) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.run_daily_orchard_engine(DATE) TO authenticated, service_role, anon;
+-- NOTE: Once you enable a shared family login via Supabase Auth in index.html, run:
+-- REVOKE EXECUTE ON FUNCTION public.run_daily_orchard_engine(DATE) FROM anon;
+
+-- Enable Row-Level Security (RLS) on all tables (Item A1)
+ALTER TABLE public.orchard_blocks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inputs_catalog ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shed_leftovers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.substitution_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.baseline_schedule_template ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daily_task_queue ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.weather_telemetry_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.farm_rain_logs ENABLE ROW LEVEL SECURITY;
+
+-- Idempotent RLS Policies (Change `TO authenticated, anon` -> `TO authenticated` once shared login is enabled)
+DO $$
+DECLARE
+    t TEXT;
+BEGIN
+    FOREACH t IN ARRAY ARRAY[
+        'orchard_blocks', 'inputs_catalog', 'shed_leftovers', 'substitution_rules',
+        'baseline_schedule_template', 'daily_task_queue', 'weather_telemetry_history', 'farm_rain_logs'
+    ] LOOP
+        EXECUTE format('DROP POLICY IF EXISTS orchard_access_policy ON public.%I;', t);
+        EXECUTE format(
+            'CREATE POLICY orchard_access_policy ON public.%I FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);',
+            t
+        );
+    END LOOP;
+END $$;
+
+-- Schedule automatic execution at 08:30 AM IST (03:00 UTC) after morning telemetry is available
 SELECT cron.schedule(
     'hosahalli-daily-0530-ist-engine',
-    '0 0 * * *',
-    $$SELECT public.run_daily_orchard_engine(CURRENT_DATE);$$
+    '0 3 * * *',
+    $$SELECT public.run_daily_orchard_engine((NOW() AT TIME ZONE 'Asia/Kolkata')::DATE);$$
 );
