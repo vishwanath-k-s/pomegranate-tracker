@@ -1893,17 +1893,19 @@ function evaluate72hEpidemiologicalWindow(daySnap) {
   const rh72 = Number(daySnap.rh72Avg || 0);
   const tMax = Number(daySnap.tMax || 30);
   const rain72 = Number(daySnap.rain72Sum || 0);
-  const consecHumidDays = Number(daySnap.humidTempConsecDays ?? ((rh72 >= 80 && tMax >= 25 && tMax <= 32.5) ? 3 : 0));
+  // In semi-arid Karnataka, a 72h mean RH >= 72% indicates 8–10 hrs/night of >85% dew humidity
+  const consecHumidDays = Number(daySnap.humidTempConsecDays ?? ((rh72 >= 72 && tMax >= 25 && tMax <= 32.5) ? 3 : 0));
   const isOptimalTempBand = tMax >= 25.0 && tMax <= 32.5;
-  const isMicroclimateActive = (rh72 >= 80 && isOptimalTempBand && consecHumidDays >= 3);
+  const isMicroclimateActive = (rh72 >= 72 && isOptimalTempBand && consecHumidDays >= 3);
   const dryHumidBonus = (isMicroclimateActive && rain72 < 3) ? 18 : (isMicroclimateActive ? 10 : 0);
   return {
     active: isMicroclimateActive,
     consecHumidDays,
     dryHumidBonus,
     recommendedIntervalDays: isMicroclimateActive ? 4 : 7,
-    tagEn: isMicroclimateActive ? `• 72h Microclimate Alert (RH ${rh72}% & ${tMax}°C for 3d: 4d spray interval)` : "",
-    tagKn: isMicroclimateActive ? `• 72ಗಂ ಸೂಕ್ಷ್ಮ-ಹವಾಮಾನ ಎಚ್ಚರಿಕೆ (ತೇವಾಂಶ ${rh72}% & ${tMax}°C: 4 ದಿನಗಳ ಸಿಂಪಡಣೆ ಅಂತರ)` : ""
+    copperIntervalDays: isMicroclimateActive ? 7 : 10,
+    tagEn: isMicroclimateActive ? `• 72h Microclimate Alert (RH ${rh72}% & ${tMax}°C: 7d Copper / 4d Foliar interval)` : "",
+    tagKn: isMicroclimateActive ? `• 72ಗಂ ಸೂಕ್ಷ್ಮ-ಹವಾಮಾನ ಎಚ್ಚರಿಕೆ (ತೇವಾಂಶ ${rh72}% & ${tMax}°C: 7 ದಿನಗಳ ಕಾಪರ್ ಅಂತರ)` : ""
   };
 }
 
@@ -1940,6 +1942,8 @@ function computeInstantRisksForDay(daySnap, dayDad, caDeficit, shieldsOnDay) {
   const rawRotRainPts = cleanRain72 >= 20 ? 25 : cleanRain72 >= 10 ? 18 : cleanRain72 >= 5 ? 10 : cleanRain72 >= 3 ? 4 : (prob4 >= 75 && rh72Avg >= 70 ? 5 : 0);
   rot += Math.round(rawRotRainPts * satConfidenceMult);
   rot += epi72.dryHumidBonus;
+  // NRCP: Protect open flowers (15–45 DAD) against latent Alternaria black heart rot stigma entry during humid weather
+  if (dayDad >= 15 && dayDad <= 45 && rh72Avg >= 62) rot += 10;
   if (dayDad >= 90) rot += 10;
   rot = applyTimeDecayingShield(rot, shieldsOnDay.funDays, 9);
 
@@ -3237,7 +3241,7 @@ async function loadWeather() {
       const rPrev2 = i >= 2 ? getSanitizedDayRain(i - 2).mm : 0;
       const dayRain72 = Number((rPrev2 + rPrev1 + dRain).toFixed(1));
 
-      if (dayRh72 >= 80 && dMax >= 25.0 && dMax <= 32.5) humidTempStreak++;
+      if (dayRh72 >= 72 && dMax >= 25.0 && dMax <= 32.5) humidTempStreak++;
       else humidTempStreak = 0;
 
       const isFutureForecast = i > todayIdx;
@@ -4260,6 +4264,9 @@ function renderAnalyticsTab() {
   const kPctNow = Math.round((del.K / kTargetNow) * 100);
   const caKAntagonism = (kPctNow >= 95 && caPctNow < 75);
 
+  const pScale = (fs.P && fs.P > 100) ? (100 / fs.P) : 1.0;
+  const pTargetToDate = Math.max(1, Number(((schedTgt.P ? schedTgt.P * pScale : 100 * progressRatio)).toFixed(1)));
+
   const seasonTargets = [
     {
       key: "N", labelEn: "Nitrogen (N) — Canopy & Early Fruit Sizing", labelKn: "ಸಾರಜನಕ (N) — ಚಿಗುರು ಮತ್ತು ಆರಂಭಿಕ ಕಾಯಿ ಬೆಳವಣಿಗೆ",
@@ -4268,11 +4275,11 @@ function renderAnalyticsTab() {
     },
     {
       key: "P", labelEn: "Phosphorus (P₂O₅) — Flowering, Root Flush & Cell Division", labelKn: "ರಂಜಕ (P₂O₅) — ಹೂವು, ಬೇರು ಮತ್ತು ಕೋಶ ವಿಭಜನೆ",
-      targetToDate: Math.max(1, Number((schedTgt.P || 145 * progressRatio).toFixed(1))),
-      fullSeason: Math.round(fs.P || 145), nrcpRef: "145g P₂O₅ (63.3g Pure P)", color: "bg-teal-700",
+      targetToDate: pTargetToDate,
+      fullSeason: 100, nrcpRef: "100g WSF P₂O₅ (43.6g Pure P)", color: "bg-teal-700",
       elemSub: LANG === "KN"
-        ? `ಶುದ್ಧ ರಂಜಕ (Pure Elemental P = P₂O₅ × 0.4364): <b>${del.P_elem.toFixed(1)} g</b> / ${((schedTgt.P || 50) * 0.4364).toFixed(1)} g`
-        : `Pure Elemental P (P₂O₅ × 0.4364): <b>${del.P_elem.toFixed(1)} g</b> / ${((schedTgt.P || 50) * 0.4364).toFixed(1)} g scheduled`
+        ? `ಶುದ್ಧ ರಂಜಕ (Pure Elemental P = P₂O₅ × 0.4364): <b>${del.P_elem.toFixed(1)} g</b> / ${(pTargetToDate * 0.4364).toFixed(1)} g`
+        : `Pure Elemental P (P₂O₅ × 0.4364): <b>${del.P_elem.toFixed(1)} g</b> / ${(pTargetToDate * 0.4364).toFixed(1)} g scheduled`
     },
     {
       key: "K", labelEn: "Potassium (K₂O) — Aril Weight, TSS Sweetness & Red Color", labelKn: "ಪೊಟ್ಯಾಷ್ (K₂O) — ಕಾಳಿನ ತೂಕ, ಸಿಹಿ ಮತ್ತು ಕೆಂಪು ಬಣ್ಣ",
@@ -6088,16 +6095,18 @@ function renderSeasonSprayAndDripGuides() {
 
   const EFFECTIVE_AREA_M2 = 4.79;
   const DRIP_STAGES = [
-    { gddRange: "0–950 GDD",     dadRange: "0–58d",    kc: 0.60, baseLiters: 14, stageEn: "Stage A: Flowering & Early Sizing",     stageKn: "ಹಂತ A: ಹೂವು & ಆರಂಭಿಕ ಕಾಯಿ", freqEn: "Daily / Alternate Day",      freqKn: "ಪ್ರತಿದಿನ / ದಿನ ಬಿಟ್ಟು ದಿನ" },
-    { gddRange: "950–1450 GDD",  dadRange: "59–90d",   kc: 0.85, baseLiters: 20, stageEn: "Stage B: Guava-Size Expansion",         stageKn: "ಹಂತ B: ಪೇರಳೆ ಗಾತ್ರದ ಹಂತ",    freqEn: "Daily (Morning)",            freqKn: "ಪ್ರತಿದಿನ (ಬೆಳಿಗ್ಗೆ)" },
-    { gddRange: "1450–2150 GDD", dadRange: "91–135d",  kc: 1.10, baseLiters: 26, stageEn: "Stage C1: Aril Swelling & Weight Gain", stageKn: "ಹಂತ C1: ಕಾಳು ತುಂಬುವ ಹಂತ",     freqEn: "Split 2× (60% AM / 40% PM)",  freqKn: "ದಿನಕ್ಕೆ 2 ಬಾರಿ (ಬೆಳಿಗ್ಗೆ 60% / ಸಂಜೆ 40%)" },
-    { gddRange: "2150–2500 GDD", dadRange: "136–158d", kc: 0.95, baseLiters: 22, stageEn: "Stage C2: Color Stage (Zero-N)",        stageKn: "ಹಂತ C2: ಕೆಂಪು ಬಣ್ಣದ ಹಂತ",    freqEn: "Split 2× (Steady Moisture)",  freqKn: "ಸಮಾನ ತೇವಾಂಶ (ಏರುಪೇರು ಬೇಡ)" },
-    { gddRange: "2500–2800 GDD", dadRange: "159–178d", kc: 0.70, baseLiters: 16, stageEn: "Stage D1: Deep Ripening & Brix Surge",  stageKn: "ಹಂತ D1: ಮಾಗುವ ಹಂತ (-20% ನೀರು)", freqEn: "Controlled Deficit (-20%)",   freqKn: "ನಿಯಂತ್ರಿತ ನೀರು (-20%)" },
-    { gddRange: "2800+ GDD",     dadRange: "178–190d", kc: 0.52, baseLiters: 12, stageEn: "Stage D2: Pre-Harvest & Harvest",       stageKn: "ಹಂತ D2: ಕಟಾವು ಹಂತ",          freqEn: "Light Pulsed Water Only",    freqKn: "ಕಡಿಮೆ ಪ್ರಮಾಣದ ಶುದ್ಧ ನೀರು" }
+    { minGdd: 0,    maxGdd: 450,  gddRange: "0–450 GDD",     dadRange: "0–28d",    kc: 0.42, baseLiters: 10, stageEn: "Stage A1: Bud Break & Flowering",       stageKn: "ಹಂತ A1: ಚಿಗುರು & ಹೂವು ಮೂಡುವ ಹಂತ", freqEn: "Alternate Day / Light AM",   freqKn: "ಮಿತವಾದ ನೀರು (ಹೂವು ಉದುರುವುದನ್ನು ತಡೆಯಲು)" },
+    { minGdd: 450,  maxGdd: 950,  gddRange: "450–950 GDD",   dadRange: "29–58d",   kc: 0.60, baseLiters: 15, stageEn: "Stage A2: Fruit Set & Early Sizing",    stageKn: "ಹಂತ A2: ಕಾಯಿ ಕಟ್ಟುವ & ಆರಂಭಿಕ ಬೆಳವಣಿಗೆ", freqEn: "Daily (Morning)",            freqKn: "ಪ್ರತಿದಿನ (ಬೆಳಿಗ್ಗೆ)" },
+    { minGdd: 950,  maxGdd: 1450, gddRange: "950–1450 GDD",  dadRange: "59–90d",   kc: 0.85, baseLiters: 20, stageEn: "Stage B: Guava-Size Expansion",         stageKn: "ಹಂತ B: ಪೇರಳೆ ಗಾತ್ರದ ಹಂತ",    freqEn: "Daily (Morning)",            freqKn: "ಪ್ರತಿದಿನ (ಬೆಳಿಗ್ಗೆ)" },
+    { minGdd: 1450, maxGdd: 2150, gddRange: "1450–2150 GDD", dadRange: "91–135d",  kc: 1.10, baseLiters: 26, stageEn: "Stage C1: Aril Swelling & Weight Gain", stageKn: "ಹಂತ C1: ಕಾಳು ತುಂಬುವ ಹಂತ",     freqEn: "Split 2× (60% AM / 40% PM)",  freqKn: "ದಿನಕ್ಕೆ 2 ಬಾರಿ (ಬೆಳಿಗ್ಗೆ 60% / ಸಂಜೆ 40%)" },
+    { minGdd: 2150, maxGdd: 2500, gddRange: "2150–2500 GDD", dadRange: "136–158d", kc: 0.95, baseLiters: 22, stageEn: "Stage C2: Color Stage (Zero-N)",        stageKn: "ಹಂತ C2: ಕೆಂಪು ಬಣ್ಣದ ಹಂತ",    freqEn: "Split 2× (Steady Moisture)",  freqKn: "ಸಮಾನ ತೇವಾಂಶ (ಏರುಪೇರು ಬೇಡ)" },
+    { minGdd: 2500, maxGdd: 2800, gddRange: "2500–2800 GDD", dadRange: "159–178d", kc: 0.70, baseLiters: 16, stageEn: "Stage D1: Deep Ripening & Brix Surge",  stageKn: "ಹಂತ D1: ಮಾಗುವ ಹಂತ (-20% ನೀರು)", freqEn: "Controlled Deficit (-20%)",   freqKn: "ನಿಯಂತ್ರಿತ ನೀರು (-20%)" },
+    { minGdd: 2800, maxGdd: 9999, gddRange: "2800+ GDD",     dadRange: "178–190d", kc: 0.52, baseLiters: 12, stageEn: "Stage D2: Pre-Harvest & Harvest",       stageKn: "ಹಂತ D2: ಕಟಾವು ಹಂತ",          freqEn: "Light Pulsed Water Only",    freqKn: "ಕಡಿಮೆ ಪ್ರಮಾಣದ ಶುದ್ಧ ನೀರು" }
   ];
 
-  const curStageIdx = Math.max(0, SUPER_BHAGWA_STAGES.findIndex(s => s.en === gModel.currentStage.en));
-  const activeDripStage = DRIP_STAGES[curStageIdx] || DRIP_STAGES[1];
+  const foundDripIdx = DRIP_STAGES.findIndex(ds => gModel.actualGdd >= ds.minGdd && gModel.actualGdd < ds.maxGdd);
+  const curStageIdx = foundDripIdx !== -1 ? foundDripIdx : (DRIP_STAGES.length - 1);
+  const activeDripStage = DRIP_STAGES[curStageIdx] || DRIP_STAGES[2];
 
   let lockedSnap = null;
   if (wState.mode !== "SIM") {
