@@ -6,7 +6,7 @@
   <meta name="text-scale" content="scale" />
   <title>Hosahalli Pomegranate Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 pb-24 font-sans">
 
@@ -814,7 +814,18 @@
 
 <script>
 const sb = window.supabase.createClient("https://mjkcmghhtbsgxohpzlsq.supabase.co", "sb_publishable_pKLBohG_JzhsQ8C4jqwayw_tQCn4bJA");
-const CFG = { lat: 14.661830, lon: 76.454375, acres: 3, plants: 1500, drums: 7, drumL: 200 };
+const CFG = { lat: 14.661830, lon: 76.454375, acres: 3, plants: 1500, drums: 7, drumL: 200, harvestDad: 190 };
+
+// Escapes untrusted/user-entered strings before innerHTML interpolation to prevent DOM XSS (Item A4)
+function escHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 let APP_ENV = localStorage.getItem("h_env") || "PROD";
 let LANG = localStorage.getItem("h_lang") || "EN";
@@ -983,7 +994,7 @@ function getSaltOnlyTitle(cat, langOverride) {
 
 function getBrandOnlySubtitle(cat) {
   if (!cat) return "";
-  return cat.popular_brands || (LANG === "KN" ? "ಯಾವುದೇ ಪ್ರಮಾಣಿತ ಕಂಪನಿ" : "Standard Approved Brand");
+  return escHtml(cat.popular_brands || (LANG === "KN" ? "ಯಾವುದೇ ಪ್ರಮಾಣಿತ ಕಂಪನಿ" : "Standard Approved Brand"));
 }
   
 function getDealerWarning(cat) {
@@ -4420,8 +4431,9 @@ async function saveFarmRain(mm, label) {
       ? `${val} ಮಿ.ಮೀ ಮಳೆ ದಾಖಲಾಗಿದೆ! ಮುಂದಿನ ಡ್ರಿಪ್ ಗೊಬ್ಬರವನ್ನು +2 ದಿನ ಮುಂದೂಡಿ, ನಾಳೆಗೆ ತುರ್ತು ಕಾಪರ್ + ಬ್ರೊನೊಪಾಲ್ ಸಿಂಪಡಣೆ ಸೇರಿಸಲೇ?`
       : `${val} mm heavy rain logged! Shift next upcoming Drip by +2 days and add a Standalone Copper + Bronopol spray for tomorrow?`;
     if (confirm(ask)) {
+      // Skip any drip card that was already shifted for RAIN today so client & server engine never double-shift
       const nextDrip = tasks
-        .filter(t => (t.status === "PENDING" || t.status === "DELAYED") && (t.task_type || "").startsWith("DRIP") && t.current_scheduled_date >= tStr)
+        .filter(t => (t.status === "PENDING" || t.status === "DELAYED") && t.delay_reason !== "RAIN" && (t.task_type || "").startsWith("DRIP") && t.current_scheduled_date >= tStr)
         .sort((a, b) => a.current_scheduled_date.localeCompare(b.current_scheduled_date))[0];
       if (nextDrip) await applyScheduleShift(nextDrip, addDaysYMD(nextDrip.current_scheduled_date, 2), "TRACK", "RAIN");
       await addScoutingTask("BLIGHT_SPOT");
@@ -4441,17 +4453,19 @@ async function clearFarmRain() {
 function renderUserDropdown() {
   const sel = document.getElementById("userSelect");
   if (!usersList.some(u => u.name === activeUser) && usersList.length > 0) { activeUser = usersList[0].name; localStorage.setItem("h_user", activeUser); }
-  sel.innerHTML = usersList.map(u => `<option value="${u.name}" class="text-slate-900" ${u.name === activeUser ? "selected" : ""}>${u.name}</option>`).join("");
+  sel.innerHTML = usersList.map(u => `<option value="${escHtml(u.name)}" class="text-slate-900" ${u.name === activeUser ? "selected" : ""}>${escHtml(u.name)}</option>`).join("");
 }
 function changeActiveUser(v) { activeUser = v; localStorage.setItem("h_user", v); }
 function openUserModal() { renderUserModalList(); document.getElementById("userModal").classList.remove("hidden"); }
 function renderUserModalList() {
-  document.getElementById("userListContainer").innerHTML = usersList.map(u => `
-    <div class="py-2 flex items-center justify-between gap-2">
-      <input type="text" id="editUser_${u.id}" value="${u.name}" class="border rounded px-2 py-1 font-bold text-slate-800 flex-1" />
-      <button onclick="renameUser(${u.id})" class="bg-sky-600 text-white font-bold px-2.5 py-1 rounded">💾 Save</button>
-      ${usersList.length > 1 ? `<button onclick="deleteUser(${u.id},'${u.name}')" class="bg-red-600 text-white font-bold px-2.5 py-1 rounded">🗑️</button>` : ""}
-    </div>`).join("");
+  document.getElementById("userListContainer").innerHTML = usersList.map(u => {
+    const safeId = Number(u.id) || 0;
+    return `<div class="py-2 flex items-center justify-between gap-2">
+      <input type="text" id="editUser_${safeId}" value="${escHtml(u.name)}" class="border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-slate-900 flex-1" />
+      <button type="button" onclick="renameUser(${safeId})" class="bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-3 py-1.5 rounded-lg">Save</button>
+      ${usersList.length > 1 ? `<button type="button" onclick="deleteUser(${safeId})" aria-label="Delete user" class="bg-red-50 hover:bg-red-100 border border-red-300 text-red-700 font-bold px-2.5 py-1.5 rounded-lg">✕</button>` : ""}
+    </div>`;
+  }).join("");
 }
 async function addUser() {
   const inp = document.getElementById("newUserName"), name = inp.value.trim(); if (!name) return;
@@ -4461,15 +4475,21 @@ async function addUser() {
   renderUserDropdown(); renderUserModalList();
 }
 async function renameUser(id) {
-  const newName = document.getElementById(`editUser_${id}`).value.trim(); if (!newName) return;
-  const u = usersList.find(x => x.id === id);
+  const newName = document.getElementById(`editUser_${id}`)?.value.trim(); if (!newName) return;
+  const u = usersList.find(x => Number(x.id) === Number(id));
   if (u) { if (activeUser === u.name) activeUser = newName; u.name = newName; }
   renderUserDropdown(); renderUserModalList();
   await dbMutate({ table: "app_users", type: "update", payload: { name: newName }, matchCol: "id", matchVal: id });
 }
-async function deleteUser(id, name) {
+async function deleteUser(id) {
   if (usersList.length <= 1) return;
-  usersList = usersList.filter(u => u.id !== id);
+  const target = usersList.find(u => Number(u.id) === Number(id));
+  if (!target) return;
+  usersList = usersList.filter(u => Number(u.id) !== Number(id));
+  if (activeUser === target.name && usersList.length > 0) {
+    activeUser = usersList[0].name;
+    localStorage.setItem("h_user", activeUser);
+  }
   renderUserDropdown(); renderUserModalList();
   await dbMutate({ table: "app_users", type: "delete", matchCol: "id", matchVal: id });
 }
@@ -5627,7 +5647,7 @@ function render() {
 
   document.getElementById("auditLogBox").innerHTML = auditLogs.map(a => {
     const dt = new Date(a.created_at).toLocaleString(loc, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-    return `<div class="py-2 flex justify-between gap-2"><div><b class="text-slate-900">${a.actor_name}</b> — <span class="font-bold text-emerald-800">${a.action_type}</span>: ${a.task_summary} <span class="text-slate-600">${a.details || ""}</span></div><div class="text-slate-500 shrink-0 text-[11px]">${dt}</div></div>`;
+    return `<div class="py-2 flex justify-between gap-2"><div><b class="text-slate-900">${escHtml(a.actor_name)}</b> — <span class="font-bold text-emerald-800">${escHtml(a.action_type)}</span>: ${escHtml(a.task_summary)} <span class="text-slate-600">${escHtml(a.details || "")}</span></div><div class="text-slate-500 shrink-0 text-[11px]">${escHtml(dt)}</div></div>`;
   }).join("") || `<div class="py-2 text-slate-500">${LANG === "KN" ? "ಇನ್ನೂ ಯಾವುದೇ ಬದಲಾವಣೆ ದಾಖಲಾಗಿಲ್ಲ." : "No activity logged yet in this environment."}</div>`;
 
   document.getElementById("allWeeksBody").innerHTML = tasks.map(t => {
