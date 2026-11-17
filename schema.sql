@@ -128,13 +128,13 @@ INSERT INTO inputs_catalog (
 
 -- Bactericides (Critical for Pomegranate Blight)
 ('BAC_COPPER_HYDROXIDE', 'Copper Hydroxide 53.8% DF', 'ಕಾಪರ್ ಹೈಡ್ರಾಕ್ಸೈಡ್', 'BACTERICIDE', 'Copper Hydroxide 53.8% DF', 'Kocide 2000, Hidrokop', 'FRAC-M01', 'FOLIAR', 1.5, NULL, 'g', '250g, 500g', 'FLEXIBLE', 'If Kocide 2000 is unavailable, use Copper Oxychloride 50% WP at 2.0 g/L. Spray standalone.', 7, TRUE, FALSE, FALSE, FALSE),
-('BAC_COPPER_OXY', 'Copper Oxychloride 50% WP', 'ಕಾಪರ್ ಆಕ್ಸಿಕ್ಲೋರೈಡ್ (COC)', 'BACTERICIDE', 'Copper Oxychloride 50% WP', 'Blitox, Blue Copper, Trucop', 'FRAC-M01', 'FOLIAR', 2.0, NULL, 'g', '500g, 1kg', 'FLEXIBLE', 'Spray standalone with Bronopol. Do not mix with amino acids or insecticides.', 7, TRUE, FALSE, FALSE, FALSE),
+('BAC_COPPER_OXY', 'Copper Oxychloride 50% WP', 'ಕಾಪರ್ ಆಕ್ಸಿಕ್ಲೋರೈಡ್ (COC)', 'BACTERICIDE', 'Copper Oxychloride 50% WP', 'Blitox, Blue Copper, Trucop', 'FRAC-M01', 'FOLIAR', 2.5, NULL, 'g', '500g, 1kg', 'FLEXIBLE', 'Spray standalone with Bronopol. Do not mix with amino acids or insecticides.', 7, TRUE, FALSE, FALSE, FALSE),
 ('BAC_BRONOPOL', 'Bronopol 95% (Bactericide)', 'ಬ್ರೊನೊಪಾಲ್ (ಬ್ಯಾಕ್ಟೀರಿಯಾ ನಾಶಕ)', 'BACTERICIDE', '2-Bromo-2-nitropropane-1,3-diol', 'Bactrinashak, Bronocil, Balwan', 'BACTERICIDE', 'FOLIAR', 0.5, NULL, 'g', '50g, 100g', 'CRITICAL_MUST_SOURCE', 'Essential partner with Copper for Bacterial Blight. If unavailable, ask for Kasugamycin 3% SL (1.5 ml/L).', 7, FALSE, FALSE, FALSE, FALSE),
 
 -- Insecticides (With Ranked Substitutes for Store Counter)
 ('INS_SPINETORAM', 'Spinetoram 11.7% SC', 'ಸ್ಪೈನೆಟೊರಾಮ್', 'INSECTICIDE', 'Spinetoram 11.7% SC', 'Delegate (Corteva), Largo (Dhanuka)', 'IRAC-5', 'FOLIAR', 0.8, NULL, 'ml', '100ml, 180ml, 500ml', 'FLEXIBLE', 'Top choice for Thrips & Fruit Borer without triggering mite flare-ups. Do not substitute with cheap synthetic pyrethroids.', 14, FALSE, TRUE, FALSE, FALSE),
 ('INS_CYANTRANILIPROLE', 'Cyantraniliprole 10.26% OD', 'ಸೈಯಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್', 'INSECTICIDE', 'Cyantraniliprole 10.26% OD', 'Benevia (FMC)', 'IRAC-28', 'FOLIAR', 0.7, NULL, 'ml', '90ml, 180ml, 450ml', 'FLEXIBLE', 'Excellent substitute if Spinetoram is out of stock; controls both Thrips and Fruit Borer.', 14, FALSE, TRUE, FALSE, FALSE),
-('INS_SPINOSAD', 'Spinosad 45% SC', 'ಸ್ಪೈನೋಸಾಡ್', 'INSECTICIDE', 'Spinosad 45% SC', 'Tracer (Corteva), Conserve', 'IRAC-5', 'FOLIAR', 0.3, NULL, 'ml', '75ml, 150ml', 'FLEXIBLE', 'Safe short-PHI thrips alternative, especially in January/February.', 7, FALSE, TRUE, FALSE, FALSE),
+('INS_SPINOSAD', 'Spinosad 45% SC', 'ಸ್ಪೈನೋಸಾಡ್', 'INSECTICIDE', 'Spinosad 45% SC', 'Tracer (Corteva), Conserve', 'IRAC-5', 'FOLIAR', 0.5, NULL, 'ml', '75ml, 150ml', 'FLEXIBLE', 'Safe short-PHI thrips alternative, especially in January/February.', 7, FALSE, TRUE, FALSE, FALSE),
 ('INS_CHLORANTRANILIPROLE', 'Chlorantraniliprole 18.5% SC', 'ಕ್ಲೋರಾಂಟ್ರಾನಿಲಿಪ್ರೋಲ್', 'INSECTICIDE', 'Chlorantraniliprole 18.5% SC', 'Coragen (FMC), Cover', 'IRAC-28', 'FOLIAR', 0.3, NULL, 'ml', '60ml, 150ml', 'FLEXIBLE', 'Targets Fruit Borer (Deudorix) caterpillars only; does not control Thrips.', 14, FALSE, TRUE, FALSE, FALSE),
 
 -- Fungicides (Anthracnose, Cercospora, Fruit Rot)
@@ -146,8 +146,8 @@ INSERT INTO inputs_catalog (
 -- Seed Store Substitution Matrix
 INSERT INTO substitution_rules (primary_input_id, substitute_input_id, target_purpose, priority_rank, adjustment_note_en) VALUES
 ('INS_SPINETORAM', 'INS_CYANTRANILIPROLE', 'Thrips & Early Fruit Borer Control', 1, 'Switch dose from 0.8 ml/L (160 ml/drum) to 0.7 ml/L (140 ml/drum).'),
-('INS_SPINETORAM', 'INS_SPINOSAD', 'Thrips Knockdown', 2, 'Switch dose from 0.8 ml/L (160 ml/drum) to 0.3 ml/L (60 ml/drum).'),
-('BAC_COPPER_HYDROXIDE', 'BAC_COPPER_OXY', 'Bacterial Blight Prophylaxis', 1, 'Switch dose from 1.5 g/L (300 g/drum) to 2.0 g/L (400 g/drum).'),
+('INS_SPINETORAM', 'INS_SPINOSAD', 'Thrips Knockdown', 2, 'Switch dose from 0.8 ml/L (160 ml/drum) to 0.5 ml/L (100 ml/drum).'),
+('BAC_COPPER_HYDROXIDE', 'BAC_COPPER_OXY', 'Bacterial Blight Prophylaxis', 1, 'Switch dose from 1.5 g/L (300 g/drum) to 2.5 g/L (500 g/drum).'),
 ('FUN_AZOXY_TEBU', 'FUN_FLUOPYRAM_TEBU', 'Anthracnose & Fruit Spot Control', 1, 'Switch dose from 1.0 ml/L (200 ml/drum) to 0.8 ml/L (160 ml/drum).'),
 ('FUN_AZOXY_TEBU', 'FUN_DIFENOCONAZOLE', 'Fungal Scab & Fruit Spot', 2, 'Switch dose from 1.0 ml/L (200 ml/drum) to 0.5 ml/L (100 ml/drum).'),
 ('FUN_FLUXA_PYRA', 'FUN_FLUOPYRAM_TEBU', 'Monsoon Fruit Rot Protection', 1, 'Switch dose from 0.6 ml/L (120 ml/drum) to 0.8 ml/L (160 ml/drum).');
