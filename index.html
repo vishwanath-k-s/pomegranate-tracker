@@ -1429,6 +1429,10 @@ function enqueueOfflineOp(op) {
 }
 
 async function dbMutate(op) {
+  // Item C24: In DEV mode, never mutate shared tables (farm_rain_logs, shed_leftovers, app_users) that lack an `env` column so DEV tests never touch PROD data!
+  if (APP_ENV === "DEV" && ["farm_rain_logs", "shed_leftovers", "app_users"].includes(op.table)) {
+    return { data: op.payload, devLocalOnly: true };
+  }
   // CRITICAL: ONLY daily_task_queue uses a UUID primary key; activity_audit_log & commercial_brands_directory use SERIAL integers!
   if (op.type === "insert" && Array.isArray(op.payload) && op.table === "daily_task_queue") {
     op.payload = op.payload.map(row => ({ id: row.id && /^[0-9a-f-]{36}$/i.test(row.id) ? row.id : genUUID(), ...row }));
