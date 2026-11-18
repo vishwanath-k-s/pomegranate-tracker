@@ -1390,22 +1390,53 @@ function saveOutbox(q) {
   updateSyncBadge();
 }
 
+function getFailedOps() {
+  try { return JSON.parse(localStorage.getItem("h_failed_ops") || "[]"); } catch { return []; }
+}
+function recordFailedOp(op, errObj) {
+  const list = getFailedOps();
+  list.unshift({
+    table: op.table,
+    type: op.type,
+    code: String(errObj?.code || "ERR"),
+    message: String(errObj?.message || errObj || "Database rejected operation"),
+    at: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  });
+  try { localStorage.setItem("h_failed_ops", JSON.stringify(list.slice(0, 10))); } catch {}
+  updateSyncBadge();
+}
+function inspectOrClearFailedOps() {
+  const failed = getFailedOps();
+  if (!failed.length) return;
+  const summary = failed.map((f, i) => `${i + 1}. [${f.at}] ${f.table} (${f.type}) — ${f.code}: ${f.message}`).join("\n");
+  if (confirm(`⚠️ Database Sync Errors (${failed.length}):\n\n${summary}\n\nClear these error notifications?`)) {
+    localStorage.removeItem("h_failed_ops");
+    updateSyncBadge();
+  }
+}
+
 function updateSyncBadge() {
   const b = document.getElementById("syncBadge"); if (!b) return;
   const q = getOutbox();
+  const failed = getFailedOps();
   const isKn = (typeof LANG !== "undefined" && LANG === "KN");
-  if (q.length > 0) {
+  if (failed.length > 0) {
+    b.textContent = isKn ? `⚠️ ಸಿಂಕ್ ದೋಷ (${failed.length})` : `⚠️ Sync Error (${failed.length})`;
+    b.className = "cursor-pointer text-[10px] px-2 py-0.5 rounded-full bg-red-600 text-white font-extrabold";
+    b.onclick = inspectOrClearFailedOps;
+  } else if (q.length > 0) {
     b.textContent = isKn ? `🟠 ಬಾಕಿ ಸಿಂಕ್ (${q.length})` : `🟠 IDB Queued (${q.length})`;
-    b.className = "text-[10px] px-2 py-1 rounded-full bg-amber-500 text-slate-950 font-extrabold";
+    b.className = "text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-extrabold";
+    b.onclick = null;
   } else {
     b.textContent = navigator.onLine ? `🟢 ${APP_ENV}` : (isKn ? `🟠 ಆಫ್‌ಲೈನ್` : `🟠 Offline`);
-    b.className = navigator.onLine ? "text-[10px] px-2 py-1 rounded-full bg-emerald-700 text-white font-bold" : "text-[10px] px-2 py-1 rounded-full bg-amber-600 text-white font-bold";
+    b.className = navigator.onLine ? "text-[10px] px-2 py-0.5 rounded-full bg-emerald-800 border border-emerald-600 text-white font-bold" : "text-[10px] px-2 py-0.5 rounded-full bg-amber-600 text-white font-bold";
+    b.onclick = null;
   }
 }
 
 function enqueueOfflineOp(op) {
-  // Never enqueue mock QA test IDs into the real IndexedDB outbox
-  if (op.table === "daily_task_queue" && op.matchCol === "id" && op.matchVal && !/^[0-9a-f-]{36}$/i.test(String(op.matchVal))) {
+  if (op.table === "daily_task_queue" && op.matchCol === "id" && op.matchVal && !/^[0-9a-f-]{36}$/i.test(String(op.matchVal)) && !String(op.matchVal).startsWith("mock-uuid")) {
     return;
   }
   const q = [...getOutbox()];
@@ -1415,7 +1446,6 @@ function enqueueOfflineOp(op) {
     qid: op.qid || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     queuedAt: new Date().toISOString()
   };
-  // Coalesce consecutive updates to the exact same row & table while offline
   if (stamped.type === "update" && stamped.matchCol && stamped.matchVal) {
     const existingIdx = q.findIndex(x => x.table === stamped.table && x.type === "update" && x.matchCol === stamped.matchCol && x.matchVal === stamped.matchVal);
     if (existingIdx !== -1) {
@@ -1429,11 +1459,9 @@ function enqueueOfflineOp(op) {
 }
 
 async function dbMutate(op) {
-  // Item C24: In DEV mode, never mutate shared tables (farm_rain_logs, shed_leftovers, app_users) that lack an `env` column so DEV tests never touch PROD data!
   if (APP_ENV === "DEV" && ["farm_rain_logs", "shed_leftovers", "app_users"].includes(op.table)) {
     return { data: op.payload, devLocalOnly: true };
   }
-  // CRITICAL: ONLY daily_task_queue uses a UUID primary key; activity_audit_log & commercial_brands_directory use SERIAL integers!
   if (op.type === "insert" && Array.isArray(op.payload) && op.table === "daily_task_queue") {
     op.payload = op.payload.map(row => ({ id: row.id && /^[0-9a-f-]{36}$/i.test(row.id) ? row.id : genUUID(), ...row }));
   } else if (op.type === "insert" && Array.isArray(op.payload) && op.table !== "daily_task_queue") {
@@ -1455,9 +1483,11 @@ async function dbMutate(op) {
     return { data };
   } catch (err) {
     const errCode = String(err?.code || "");
-    if (!/^(22|23|42)/.test(errCode)) {
-      enqueueOfflineOp(op);
+    if (/^(22|23|42)/.test(errCode)) {
+      recordFailedOp(op, err);
+      return { queued: false, error: err, data: op.payload };
     }
+    enqueueOfflineOp(op);
     return { queued: true, data: op.payload };
   }
 }
@@ -1471,7 +1501,6 @@ async function flushOutbox() {
   const remaining = [];
   try {
     for (const op of q) {
-      // Evict any legacy mock/non-UUID task mutations (e.g. "t36-2", "t36-3") immediately
       if (op.table === "daily_task_queue" && op.matchCol === "id" && op.matchVal && !/^[0-9a-f-]{36}$/i.test(String(op.matchVal))) {
         continue;
       }
@@ -1488,8 +1517,9 @@ async function flushOutbox() {
         if (res?.error) throw res.error;
       } catch (e) {
         const code = String(e?.code || "");
-        // Keep only transient network/timeout errors; evict permanent PostgreSQL syntax/constraint errors (22xxx, 23xxx, 42xxx)
-        if (!/^(22|23|42)/.test(code)) {
+        if (/^(22|23|42)/.test(code)) {
+          recordFailedOp(op, e);
+        } else {
           remaining.push(op);
         }
       }
@@ -2732,10 +2762,52 @@ async function queueCombinedSelectedRisks(codesArrayOverride) {
         return true;
       });
 
+      const refDadForMerge = computeDynamicDadAndWeek(foliarDateStr).dad;
       synergisticRecipe.forEach(newItem => {
         const candCat = catalog[newItem.input_id];
-        if (!existingFoliarCard.resolved_recipe.some(x => x.input_id === newItem.input_id) && validateCardCombinationRules(existingFoliarCard.resolved_recipe, candCat).ok) {
+        if (!candCat || existingFoliarCard.resolved_recipe.some(x => x.input_id === newItem.input_id)) return;
+
+        // 1. Direct add if compatible with existing items on card
+        if (validateCardCombinationRules(existingFoliarCard.resolved_recipe, candCat).ok) {
           existingFoliarCard.resolved_recipe.push(newItem);
+          return;
+        }
+
+        // 2. If blocked by a same-IRAC/FRAC group item on the card (e.g. INS_SPIROTETRAMAT [IRAC-23] vs INS_SPIROMESIFEN [IRAC-23]),
+        //    first try adding a non-conflicting approved alternative covering the requested threat (e.g. INS_BUPROFEZIN [IRAC-16] for Mealybug)
+        const neededThreats = foliarIssues.map(x => x.code).filter(code =>
+          doesItemCoverThreat(newItem.input_id, code) &&
+          !existingFoliarCard.resolved_recipe.some(r => r.item_status !== "SKIPPED" && doesItemCoverThreat(r.input_id, code))
+        );
+        const alts = getApprovedAlternativesForInput(newItem.input_id, neededThreats.length ? neededThreats : null);
+        const compatAlt = alts.find(a =>
+          a.cat &&
+          !existingFoliarCard.resolved_recipe.some(x => x.input_id === a.cat.id) &&
+          !checkRecentSprayResistance(a.cat.id, foliarDateStr, existingFoliarCard.id) &&
+          checkPhenologyAndPhiLock(a.cat, refDadForMerge).ok &&
+          validateCardCombinationRules(existingFoliarCard.resolved_recipe, a.cat).ok
+        );
+
+        if (compatAlt) {
+          const altCat = compatAlt.cat;
+          existingFoliarCard.resolved_recipe.push({
+            input_id: altCat.id,
+            dose_per_liter: Number(altCat.base_dose_per_liter || 1.0)
+          });
+          return;
+        }
+
+        // 3. Otherwise, if candCat (e.g. INS_SPIROTETRAMAT) is a broader-spectrum superset of the same-group item on the card (e.g. INS_SPIROMESIFEN), upgrade it in place!
+        const clashIdx = existingFoliarCard.resolved_recipe.findIndex(r => {
+          const exCat = catalog[r.input_id];
+          return exCat && getSharedModeTokens(exCat.irac_frac_group || "", candCat.irac_frac_group || "", true).length > 0;
+        });
+        if (clashIdx !== -1) {
+          const oldItem = existingFoliarCard.resolved_recipe[clashIdx];
+          const oldThreats = getThreatsCoveredByItem(oldItem.input_id);
+          if (oldThreats.every(code => doesItemCoverThreat(candCat.id, code))) {
+            existingFoliarCard.resolved_recipe[clashIdx] = newItem;
+          }
         }
       });
 
@@ -3129,12 +3201,10 @@ async function switchEnv(newEnv) { APP_ENV = newEnv; localStorage.setItem("h_env
 async function loadWeather() {
   try {
     const tStr = todayYMD();
-    // Anchor forecast end_date to UTC date + 14d so 00:00–05:30 AM IST never exceeds Open-Meteo's 16-day UTC limit!
-    const utcTodayStr = new Date().toISOString().split("T")[0];
-    const forecastEndStr = addDaysYMD(utcTodayStr, 14);
-    // Keep Open-Meteo start_date within 60 days so we never hit Open-Meteo's 92-day past limit after Nov 15 (92 DAD)!
-    const apiStartStr = addDaysYMD(utcTodayStr, -60) > "2026-08-15" ? addDaysYMD(utcTodayStr, -60) : "2026-08-15";
-    const sixDaysAgoStr = addDaysYMD(tStr, -6);
+    // Item D28: Anchor start/end dates to IST todayYMD() (capped to +14d so it never exceeds Open-Meteo's 16d limit)
+    const forecastEndStr = addDaysYMD(tStr, 14);
+    const apiStartStr = addDaysYMD(tStr, -60) > "2026-08-15" ? addDaysYMD(tStr, -60) : "2026-08-15";
+    const sixDaysAgoStr = addDaysYMD(tStr, -10);
 
     const [r, rainRes, histTelRes] = await Promise.all([
       fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CFG.lat}&longitude=${CFG.lon}&current=temperature_2m,relative_humidity_2m,precipitation&hourly=precipitation,precipitation_probability,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FKolkata&start_date=${apiStartStr}&end_date=${forecastEndStr}`),
@@ -3146,7 +3216,6 @@ async function loadWeather() {
     const d = await r.json(), hr = new Date().getHours();
     if (!d || !d.daily || !Array.isArray(d.daily.time)) throw new Error("Open-Meteo daily array missing");
 
-    // Prepend any archived days before apiStartStr from Supabase weather_telemetry_history so 2026-08-15 -> Harvest is 100% continuous!
     const archivedRows = histTelRes?.data || [];
     if (archivedRows.length > 0 && d.daily.time[0] > "2026-08-15") {
       const preTimes = [], preMax = [], preMin = [], preRain = [], preHourlyRh = [], preHourlyPrecip = [], preHourlyProb = [];
@@ -3186,10 +3255,6 @@ async function loadWeather() {
     const todayIdx = rawTodayIdx >= 0 ? rawTodayIdx : Math.max(0, datesArr.filter(dt => dt <= tStr).length - 1);
     const hrPrecipAll = d.hourly?.precipitation || [];
 
-    // Returns sanitized daily rain (mm):
-    // 1. If Farm Rain Log exists for that date (including 0mm dry override!), use it 100%.
-    // 2. For Today, sum ONLY elapsed hours (00:00 -> current hour), ignoring future forecasted hours tonight.
-    // 3. Filter out <2.5mm Open-Meteo model drizzle noise as 0mm.
     const getSanitizedDayRain = (idx) => {
       const dt = datesArr[idx];
       if (dt && recentFarmRains[dt] !== undefined) {
@@ -3219,6 +3284,8 @@ async function loadWeather() {
     const tMin = d.daily.temperature_2m_min[todayIdx] || 18.2;
     const prob4 = Math.max(...(d.hourly?.precipitation_probability || []).slice(todayIdx * 24 + hr, todayIdx * 24 + hr + 4), 0);
 
+    // Only credit today's GDD into completed `realCumGdd` after 18:00 IST (when daily max/min heat is over); before 18:00 IST, realCumGdd reflects completed days up through yesterday!
+    const isTodayHeatComplete = hr >= 18;
     let runningCumGdd = 0, realCumGdd = 0, observedDays = 0, forecast15dGddSum = 0, forecastDaysCount = 0;
     const telemetryUpserts = [], gddSeries = [];
 
@@ -3228,14 +3295,13 @@ async function loadWeather() {
       const trueDad = diffDaysYMD("2026-08-15", datesArr[i]);
       if (trueDad < 0) continue;
 
-      // If any historical archive day was missing between prevDad and trueDad, interpolate with 15.2 GDD/day so cumulative GDD never undercounts
       if (trueDad > prevDad + 1) {
         for (let missingDad = prevDad + 1; missingDad < trueDad; missingDad++) {
           const missingDateStr = addDaysYMD("2026-08-15", missingDad);
           runningCumGdd += 15.2;
-          const isMissingFuture = missingDateStr > tStr;
-          gddSeries.push({ dateStr: missingDateStr, dad: missingDad, dailyGdd: 15.2, cumGdd: Number(runningCumGdd.toFixed(1)), isForecast: isMissingFuture });
-          if (!isMissingFuture) {
+          const isMissingCompleted = missingDateStr < tStr || (missingDateStr === tStr && isTodayHeatComplete);
+          gddSeries.push({ dateStr: missingDateStr, dad: missingDad, dailyGdd: 15.2, cumGdd: Number(runningCumGdd.toFixed(1)), isForecast: !isMissingCompleted });
+          if (isMissingCompleted) {
             realCumGdd = runningCumGdd;
             observedDays++;
           }
@@ -3259,12 +3325,18 @@ async function loadWeather() {
       if (dayRh72 >= 72 && dMax >= 25.0 && dMax <= 32.5) humidTempStreak++;
       else humidTempStreak = 0;
 
-      const isFutureForecast = i > todayIdx;
-      gddSeries.push({ dateStr: datesArr[i], dad: trueDad, dailyGdd: dGdd, cumGdd: Number(runningCumGdd.toFixed(1)), isForecast: isFutureForecast });
+      const isCompletedDay = (i < todayIdx) || (i === todayIdx && isTodayHeatComplete);
+      gddSeries.push({ dateStr: datesArr[i], dad: trueDad, dailyGdd: dGdd, cumGdd: Number(runningCumGdd.toFixed(1)), isForecast: !isCompletedDay });
 
-      if (!isFutureForecast) {
+      if (isCompletedDay) {
         realCumGdd = runningCumGdd;
         observedDays++;
+      } else {
+        forecast15dGddSum += dGdd;
+        forecastDaysCount++;
+      }
+
+      if (i <= todayIdx) {
         const dayInstRisks = computeInstantRisksForDay(
           { rh72Avg: dayRh72, tMax: dMax, tMin: dMin, rain24: dRain, rain72Sum: dayRain72, prob4: 0, humidTempConsecDays: humidTempStreak, isFarmRain: rInfo.isFarm },
           trueDad, false, { copDays: null, funDays: null, insDays: null, mealyDays: null, caDays: null }
@@ -3274,14 +3346,26 @@ async function loadWeather() {
           humidity_mean_pct: dayRh72, rain_mm: dRain,
           daily_gdd: dGdd, disease_risk_score: Math.max(dayInstRisks.BLIGHT_SPOT, dayInstRisks.FRUIT_ROT)
         });
-      } else {
-        forecast15dGddSum += dGdd;
-        forecastDaysCount++;
       }
     }
 
-    const avgDailyGdd = observedDays > 0 ? Number((realCumGdd / observedDays).toFixed(2)) : 16.2;
-    const forecast15dDailyRate = forecastDaysCount > 0 ? Number((forecast15dGddSum / forecastDaysCount).toFixed(2)) : Number((avgDailyGdd * 0.94).toFixed(2));
+    const avgDailyGdd = observedDays > 0 ? Number((realCumGdd / observedDays).toFixed(2)) : 15.8;
+    const rawForecast15dRate = forecastDaysCount > 0 ? Number((forecast15dGddSum / forecastDaysCount).toFixed(2)) : Number((avgDailyGdd * 0.94).toFixed(2));
+
+    // Lock the daily GDD curve & 15-day forecast rate for today (tStr) so 1st & 2nd Harvest Windows never jitter during the day!
+    const gddLockKey = `h_gdd_daily_lock_${tStr}_${isTodayHeatComplete ? 'EOD' : 'AM'}`;
+    let lockedGddSnap = null;
+    try { lockedGddSnap = JSON.parse(localStorage.getItem(gddLockKey) || "null"); } catch {}
+    if (!lockedGddSnap || !Array.isArray(lockedGddSnap.gddSeries) || lockedGddSnap.gddSeries.length < 50) {
+      lockedGddSnap = {
+        cumulativeGdd: Number(realCumGdd.toFixed(1)),
+        avgDailyGdd,
+        forecast15dDailyRate: rawForecast15dRate,
+        daysTracked: observedDays,
+        gddSeries
+      };
+      try { localStorage.setItem(gddLockKey, JSON.stringify(lockedGddSnap)); } catch {}
+    }
 
     const history6d = [];
     for (let idx = Math.max(2, todayIdx - 10); idx < todayIdx; idx++) {
@@ -3304,9 +3388,13 @@ async function loadWeather() {
       ...wState,
       tempNow: d.current?.temperature_2m ?? 29.5, humidity: d.current?.relative_humidity_2m ?? 55,
       rain24, rawSatRain24: todayRainObj.rawSatMm, isFarmRain: todayRainObj.isFarm,
-      prob4, tMax, tMin, rh72Avg, rain72Sum, history6d, gddSeries,
-      cumulativeGdd: Number(realCumGdd.toFixed(1)), avgDailyGdd, forecast15dDailyRate,
-      daysTracked: observedDays,
+      prob4, tMax, tMin, rh72Avg, rain72Sum, history6d,
+      gddSeries: lockedGddSnap.gddSeries,
+      cumulativeGdd: lockedGddSnap.cumulativeGdd,
+      avgDailyGdd: lockedGddSnap.avgDailyGdd,
+      forecast15dDailyRate: lockedGddSnap.forecast15dDailyRate,
+      daysTracked: lockedGddSnap.daysTracked,
+      isTodayHeatComplete,
       updatedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       mode: farmRainToday !== null ? "FARM_LOGGED" : "LIVE"
     };
@@ -4056,10 +4144,31 @@ function renderAnalyticsTab() {
   const heatArrestActive = tMax > 38.0;
   const heatPenalty = heatArrestActive ? Number(((tMax - 38.0) * 0.5).toFixed(2)) : 0;
 
-  const histExpectedGddToDate = Math.round((todayDad + 1) * 14.2);
+  // Map actualGdd onto the Super Bhagwa 6-stage reference curve so Biological Age (GDD-Days) vs. Calendar DAD is 100% consistent with stage boundaries!
+  const STAGE_DAD_CURVE = [
+    { minG: 0,    maxG: 950,  minD: 0,   maxD: 58  },
+    { minG: 950,  maxG: 1450, minD: 58,  maxD: 90  },
+    { minG: 1450, maxG: 2150, minD: 90,  maxD: 135 },
+    { minG: 2150, maxG: 2500, minD: 135, maxD: 158 },
+    { minG: 2500, maxG: 2800, minD: 158, maxD: 178 },
+    { minG: 2800, maxG: 3000, minD: 178, maxD: 190 }
+  ];
+  const completedRefDad = wState.isTodayHeatComplete ? todayDad : Math.max(1, todayDad - 1);
+  const getRefGddForDad = (dVal) => {
+    const seg = STAGE_DAD_CURVE.find(s => dVal >= s.minD && dVal <= s.maxD) || STAGE_DAD_CURVE[STAGE_DAD_CURVE.length - 1];
+    const ratio = (dVal - seg.minD) / Math.max(1, seg.maxD - seg.minD);
+    return Math.round(seg.minG + ratio * (seg.maxG - seg.minG));
+  };
+  const getBioDadForGdd = (gVal) => {
+    const seg = STAGE_DAD_CURVE.find(s => gVal >= s.minG && gVal <= s.maxG) || STAGE_DAD_CURVE[STAGE_DAD_CURVE.length - 1];
+    const ratio = (gVal - seg.minG) / Math.max(1, seg.maxG - seg.minG);
+    return Math.round(seg.minD + ratio * (seg.maxD - seg.minD));
+  };
+
+  const histExpectedGddToDate = getRefGddForDad(completedRefDad);
   const gddDiffVsNormal = Math.round(actualGdd - histExpectedGddToDate);
-  const biologicalThermalAgeDays = Math.round(actualGdd / 14.2);
-  const daysAheadBehind = biologicalThermalAgeDays - (todayDad + 1);
+  const biologicalThermalAgeDays = getBioDadForGdd(actualGdd);
+  const daysAheadBehind = biologicalThermalAgeDays - completedRefDad;
 
   const forecast15dTotal = Number(wState.forecast15dTotalGdd || (futureDailyGddRate * 15).toFixed(1));
   const anomalyFactor = Math.min(1.15, Math.max(0.90, ((realDailyMeanGdd * 0.5) + (futureDailyGddRate * 0.5)) / 15.6));
@@ -4133,33 +4242,35 @@ function renderAnalyticsTab() {
   // Cohesive 4-Column Stat-Block Strip for GDD Telemetry
   const telemetryBoxesHtml = `
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 my-2.5 text-[11px]">
-      <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+     <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
         <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಇಂದಿನ ಉಷ್ಣಾಂಶ & GDD" : "Today's Real-Time GDD"}</div>
         <div class="text-sm font-extrabold text-slate-900">+${todayDailyGdd} GDD <span class="text-xs font-semibold text-slate-500">(${tMax}° / ${tMin}°C)</span></div>
         <div class="text-[10px] ${heatArrestActive ? 'text-red-700 font-bold' : 'text-emerald-800 font-medium'}">
-          ${heatArrestActive
-            ? (LANG === "KN" ? `>38°C ಬಿಸಿಲು ತಡೆ (-${heatPenalty} GDD ಕಡಿತ)` : `>38°C Stomatal Arrest (-${heatPenalty} GDD)`)
-            : (LANG === "KN" ? "<38°C ಸೂಕ್ತ ದ್ಯುತಿಸಂಶ್ಲೇಷಣೆ (ಸಕ್ರಿಯ ಬೆಳವಣಿಗೆ)" : "<38°C Optimal Stomatal Assimilation")}
+          ${wState.isTodayHeatComplete
+            ? (LANG === "KN" ? "ಇಂದಿನ GDD ಒಟ್ಟು ಲೆಕ್ಕಕ್ಕೆ ಸೇರಿದೆ (6 PM ನಂತರ)" : "Added to completed GDD total (after 6 PM)")
+            : (LANG === "KN" ? "ಇಂದಿನ ಹಗಲು ಮುಗಿದ ನಂತರ ಒಟ್ಟು ಲೆಕ್ಕಕ್ಕೆ ಸೇರಿಸಲಾಗುತ್ತದೆ" : "In progress — credits to total at 6:00 PM IST")}
         </div>
       </div>
 
       <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಹಂತ 1: ನೈಜ ಸರಾಸರಿ (15 Aug – ಇಂದು)" : "Tier 1: Observed (15 Aug – Today)"}</div>
-        <div class="text-sm font-extrabold text-slate-900">${realDailyMeanGdd} GDD/d <span class="text-xs font-semibold text-slate-500">(${todayDad + 1}d)</span></div>
+        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಹಂತ 1: ಪೂರ್ಣಗೊಂಡ ದಿನಗಳ ಸರಾಸರಿ" : "Tier 1: Completed Days Mean"}</div>
+        <div class="text-sm font-extrabold text-slate-900">${realDailyMeanGdd} GDD/d <span class="text-xs font-semibold text-slate-500">(${completedRefDad}d)</span></div>
         <div class="text-[10px] text-slate-600">
           ${LANG === "KN"
-            ? `ವಾಡಿಕೆ ಸರಾಸರಿ (14.2/d): ${histExpectedGddToDate} GDD (${gddDiffVsNormal >= 0 ? '+' + gddDiffVsNormal : gddDiffVsNormal} GDD)`
-            : `Vs. Normal 14.2/d (${histExpectedGddToDate} GDD): <b>${gddDiffVsNormal >= 0 ? '+' + gddDiffVsNormal : gddDiffVsNormal} GDD</b>`}
+            ? `ಹಂತದ ಗುರಿ (${histExpectedGddToDate} GDD): <b>${gddDiffVsNormal >= 0 ? '+' + gddDiffVsNormal : gddDiffVsNormal} GDD</b>`
+            : `Vs. Stage Ref (${histExpectedGddToDate} GDD): <b>${gddDiffVsNormal >= 0 ? '+' + gddDiffVsNormal : gddDiffVsNormal} GDD</b>`}
         </div>
       </div>
 
       <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
         <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${LANG === "KN" ? "ಜೈವಿಕ ವಯಸ್ಸು vs ಕ್ಯಾಲೆಂಡರ್ ದಿನ" : "Biological Age vs. Calendar DAD"}</div>
-        <div class="text-sm font-extrabold text-slate-900">${biologicalThermalAgeDays} GDD-Days <span class="text-xs font-semibold text-slate-500">vs ${todayDad} DAD</span></div>
+        <div class="text-sm font-extrabold text-slate-900">${biologicalThermalAgeDays} GDD-Days <span class="text-xs font-semibold text-slate-500">vs ${completedRefDad} DAD</span></div>
         <div class="text-[10px] font-bold ${daysAheadBehind >= 0 ? 'text-emerald-800' : 'text-amber-800'}">
-          ${daysAheadBehind >= 0
-            ? (LANG === "KN" ? `ವಾಡಿಕೆಗಿಂತ +${daysAheadBehind} ದಿನ ಮುಂದಿದೆ` : `+${daysAheadBehind} days ahead of historical norm`)
-            : (LANG === "KN" ? `ವಾಡಿಕೆಗಿಂತ ${daysAheadBehind} ದಿನ ಹಿಂದಿದೆ` : `${daysAheadBehind} days behind historical norm`)}
+          ${daysAheadBehind === 0
+            ? (LANG === "KN" ? "ಹಂತದ ವೇಳಾಪಟ್ಟಿಗೆ ಸರಿಯಾಗಿ ಹೊಂದಿಕೆಯಾಗಿದೆ (0 ದಿನ ವ್ಯತ್ಯಾಸ)" : "Exactly on track with stage reference (0d diff)")
+            : daysAheadBehind > 0
+              ? (LANG === "KN" ? `ಹಂತದ ವಾಡಿಕೆಗಿಂತ +${daysAheadBehind} ದಿನ ಮುಂದಿದೆ` : `+${daysAheadBehind} days ahead of stage reference`)
+              : (LANG === "KN" ? `ಹಂತದ ವಾಡಿಕೆಗಿಂತ ${daysAheadBehind} ದಿನ ಹಿಂದಿದೆ` : `${daysAheadBehind} days behind stage reference`)}
         </div>
       </div>
 
@@ -5423,88 +5534,72 @@ function render() {
 
         const dripBounds = !metrics.isFoliar ? getDripStageDoseBounds(cat, tk.effective_dad, it) : null;
         const qtyLabel = itemSt === "COMPLETED"
-          ? (LANG === "KN" ? "ಬಳಸಿದ್ದು (3 ಎಕರೆ)" : "USED (3 AC)")
-          : (LANG === "KN" ? "ಒಟ್ಟು (3 ಎಕರೆ)" : "TOTAL (3 AC)");
+          ? (LANG === "KN" ? "ಬಳಸಿದ್ದು:" : "Used:")
+          : (LANG === "KN" ? "ಒಟ್ಟು:" : "Total:");
 
-        // 3-Column Stat-Blocks (Compact single-line headers so all 3 boxes stay equal height on mobile)
-        const statBlocksGridHtml = metrics.isFoliar
-          ? `<div class="grid grid-cols-3 gap-1.5 mt-2 pt-2 border-t border-slate-200/80 text-left">
-               <div class="bg-white border border-slate-200/90 rounded-lg px-2 py-1.5">
-                 <div class="text-[10px] font-bold uppercase text-slate-600 truncate">${LANG === "KN" ? "ಪ್ರತಿ ಲೀಟರ್‌ಗೆ" : "REC. RATE"}</div>
-                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900 flex items-baseline gap-0.5">
-                   <input type="number" readonly value="${metrics.ratePerL}" onclick="updateItemRate('${tk.id}',${idx},this.value)" style="field-sizing:content;width:auto;min-inline-size:2.8ch;max-inline-size:6ch" class="bg-transparent font-extrabold text-emerald-900 cursor-not-allowed focus:outline-none" />
-                   <span class="text-[11px] text-slate-600">${metrics.rateUnit}/L</span>
-                 </div>
-               </div>
-               <div class="bg-white border border-slate-200/90 rounded-lg px-2 py-1.5">
-                 <div class="text-[10px] font-bold uppercase text-slate-600 truncate">${LANG === "KN" ? `${metrics.drumLiters}L ಡ್ರಮ್‌ಗೆ` : `PER ${metrics.drumLiters}L`}</div>
-                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-emerald-900">${metrics.perDrumQty} <span class="text-[11px] font-bold text-slate-600">${metrics.rateUnit}</span></div>
-               </div>
-               <div class="bg-white border border-emerald-400 rounded-lg px-2 py-1.5 shadow-2xs">
-                 <div class="text-[10px] font-bold uppercase text-emerald-900 truncate">${qtyLabel}</div>
-                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900 flex items-baseline gap-1">
-                   <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" style="field-sizing:content;width:auto;min-inline-size:3.2ch;max-inline-size:7ch" class="font-extrabold text-slate-900 bg-slate-50 border border-slate-300 rounded px-1 text-right focus:outline-none focus:border-emerald-600" />
-                   <span class="text-[11px] font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
-                 </div>
-               </div>
+        // Compact inline dose pills placed right alongside the chemical row & action icons to save vertical space
+        const inlineDosePillsHtml = metrics.isFoliar
+          ? `<div class="flex flex-wrap items-center gap-1 text-[11px]">
+               <span class="inline-flex items-center gap-0.5 bg-white border border-slate-200 rounded-md px-1.5 py-0.5 text-slate-700 font-semibold" title="Recommended Rate per Liter">
+                 <input type="number" readonly value="${metrics.ratePerL}" onclick="updateItemRate('${tk.id}',${idx},this.value)" class="bg-transparent font-extrabold text-emerald-900 cursor-not-allowed focus:outline-none text-right" />
+                 <span>${metrics.rateUnit}/L</span>
+               </span>
+               <span class="inline-flex items-center bg-white border border-slate-200 rounded-md px-1.5 py-0.5 text-slate-700 font-semibold">
+                 <b class="text-emerald-900">${metrics.perDrumQty}${metrics.rateUnit}</b>/${metrics.drumLiters}L
+               </span>
+               <span class="inline-flex items-center gap-1 bg-white border border-emerald-400 rounded-md px-1.5 py-0.5 text-slate-900 font-bold shadow-2xs">
+                 <span class="text-[10px] text-emerald-800 uppercase">${qtyLabel}</span>
+                 <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" class="font-extrabold text-slate-900 bg-slate-50 border border-slate-300 rounded px-1 text-right focus:outline-none focus:border-emerald-600" />
+                 <span class="text-[10px] text-slate-600">${metrics.displayUnit || cat.unit}</span>
+               </span>
              </div>`
-          : `<div class="grid grid-cols-3 gap-1.5 mt-2 pt-2 border-t border-slate-200/80 text-left">
-               <div class="bg-white border border-slate-200/90 rounded-lg px-2 py-1.5">
-                 <div class="text-[10px] font-bold uppercase text-slate-600 truncate">${LANG === "KN" ? "ಪ್ರತಿ ಎಕರೆಗೆ" : "PER ACRE"} <span class="text-teal-800">(≤${dripBounds.maxPerAcre})</span></div>
-                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900 flex items-baseline gap-1">
-                   <input type="number" step="0.25" min="${dripBounds.minPerAcre}" max="${dripBounds.maxPerAcre}" value="${metrics.perAcreQty}" onchange="updateItemRate('${tk.id}',${idx},this.value)" style="field-sizing:content;width:auto;min-inline-size:3ch;max-inline-size:6ch" class="bg-slate-50 rounded px-1 font-extrabold text-teal-950 text-right border border-slate-300 focus:outline-none focus:border-teal-600" />
-                   <span class="text-[11px] font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
-                 </div>
-               </div>
-               <div class="bg-white border border-slate-200/90 rounded-lg px-2 py-1.5">
-                 <div class="text-[10px] font-bold uppercase text-slate-600 truncate">${LANG === "KN" ? "ಪ್ರತಿ ಗಿಡಕ್ಕೆ" : "PER PLANT"}</div>
-                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900">${metrics.perPlantGrams} <span class="text-[11px] font-bold text-slate-600">g</span></div>
-               </div>
-               <div class="bg-white border border-teal-400 rounded-lg px-2 py-1.5 shadow-2xs">
-                 <div class="text-[10px] font-bold uppercase text-teal-900 truncate">${qtyLabel}</div>
-                 <div class="mt-0.5 font-extrabold text-xs sm:text-sm text-slate-900 flex items-baseline gap-1">
-                   <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" style="field-sizing:content;width:auto;min-inline-size:3.2ch;max-inline-size:7ch" class="font-extrabold text-slate-900 bg-slate-50 border border-slate-300 rounded px-1 text-right focus:outline-none focus:border-teal-600" />
-                   <span class="text-[11px] font-bold text-slate-600">${metrics.displayUnit || cat.unit}</span>
-                 </div>
-               </div>
+          : `<div class="flex flex-wrap items-center gap-1 text-[11px]">
+               <span class="inline-flex items-center gap-0.5 bg-white border border-slate-200 rounded-md px-1.5 py-0.5 text-slate-700 font-semibold" title="Per Acre (Stage Max ≤${dripBounds.maxPerAcre})">
+                 <input type="number" step="0.25" min="${dripBounds.minPerAcre}" max="${dripBounds.maxPerAcre}" value="${metrics.perAcreQty}" onchange="updateItemRate('${tk.id}',${idx},this.value)" class="bg-slate-50 rounded px-1 font-extrabold text-teal-950 text-right border border-slate-300 focus:outline-none focus:border-teal-600" />
+                 <span>${metrics.displayUnit || cat.unit}/ac</span>
+               </span>
+               <span class="inline-flex items-center bg-white border border-slate-200 rounded-md px-1.5 py-0.5 text-slate-700 font-semibold">
+                 <b class="text-slate-900">${metrics.perPlantGrams}g</b>/${LANG === "KN" ? "ಗಿಡ" : "plant"}
+               </span>
+               <span class="inline-flex items-center gap-1 bg-white border border-teal-400 rounded-md px-1.5 py-0.5 text-slate-900 font-bold shadow-2xs">
+                 <span class="text-[10px] text-teal-800 uppercase">${qtyLabel}</span>
+                 <input type="number" step="0.1" min="0" value="${currentTotal3Ac}" onchange="updateItemQty('${tk.id}',${idx},this.value,${suggestedTotal3Ac})" class="font-extrabold text-slate-900 bg-slate-50 border border-slate-300 rounded px-1 text-right focus:outline-none focus:border-teal-600" />
+                 <span class="text-[10px] text-slate-600">${metrics.displayUnit || cat.unit}</span>
+               </span>
              </div>`;
 
         const cardResWarn = itemSt !== "SKIPPED" ? checkRecentSprayResistance(cat.id, tk.current_scheduled_date, tk.id) : null;
         const repeatWarnHtml = cardResWarn
-          ? `<div class="mt-2 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-300 text-[11px] font-bold text-amber-950">${LANG === "KN" ? cardResWarn.msgKn : cardResWarn.msgEn}</div>`
+          ? `<div class="mt-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-[11px] font-bold text-amber-950">${LANG === "KN" ? cardResWarn.msgKn : cardResWarn.msgEn}</div>`
           : "";
 
-        return `<div class="p-2.5 sm:p-3 rounded-xl border ${rowBg} space-y-1.5">
-          <!-- Full-Width Chemical Title, Badges & Un-Truncated Store Brands -->
-          <div class="w-full space-y-1">
-            <div class="font-extrabold text-xs sm:text-sm text-slate-900 leading-snug flex items-center gap-1.5 flex-wrap">
-              <svg class="w-3.5 h-3.5 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/></svg>
-              <span>${saltTitle}</span>
-              ${groupBadge}
-              <span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${isCrit ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-200/80 text-slate-700'}">${isCrit ? L.mustSource.replace(/^🔴\s*/, '') : L.flexible.replace(/^🟢\s*/, '')}</span>
-              ${it.compensated_from_date ? `<span class="bg-amber-100 border border-amber-300 text-amber-950 rounded px-1.5 py-0.5 text-[10px] font-extrabold">+Make-Up (${it.compensated_from_date})</span>` : ""}
+        return `<div class="p-2.5 rounded-xl border ${rowBg} space-y-1.5">
+          <div class="flex flex-wrap items-start justify-between gap-1.5">
+            <div class="min-w-0 flex-1">
+              <div class="font-extrabold text-xs sm:text-sm text-slate-900 leading-snug flex items-center gap-1.5 flex-wrap">
+                <svg class="w-3.5 h-3.5 text-emerald-700 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/></svg>
+                <span>${saltTitle}</span>
+                ${groupBadge}
+                <span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${isCrit ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-200/80 text-slate-700'}">${isCrit ? L.mustSource.replace(/^🔴\s*/, '') : L.flexible.replace(/^🟢\s*/, '')}</span>
+                ${it.compensated_from_date ? `<span class="bg-amber-100 border border-amber-300 text-amber-950 rounded px-1.5 py-0.5 text-[10px] font-extrabold">+Make-Up (${it.compensated_from_date})</span>` : ""}
+              </div>
+              <div class="text-[11px] text-slate-600 leading-snug break-words mt-0.5"><b>${LANG === "KN" ? "ಮಾರುಕಟ್ಟೆ ಹೆಸರು:" : "Brands:"}</b> ${brandsSubtitle}</div>
             </div>
-            <div class="text-[11px] text-slate-700 leading-snug break-words"><b>${LANG === "KN" ? "ಮಾರುಕಟ್ಟೆ ಹೆಸರು:" : "Store Brands:"}</b> ${brandsSubtitle}</div>
           </div>
 
-          ${statBlocksGridHtml}
-
-          <!-- Compact Full-Width Line-Item Action Strip -->
-          <div class="flex items-center justify-between gap-1.5 pt-1.5 border-t border-slate-200/70">
-            <div class="flex items-center gap-1.5">
-              <button type="button" onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'COMPLETED' ? 'PENDING' : 'COMPLETED'}',${suggestedTotal3Ac})" class="px-2.5 py-1 rounded-lg border text-[11px] font-bold inline-flex items-center gap-1 transition ${itemSt === 'COMPLETED' ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs' : 'bg-white hover:bg-emerald-50 text-slate-700 border-slate-300'}">
+          <!-- Single-Line Inline Dose Pills + Compact Action Icons -->
+          <div class="flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-slate-200/70">
+            ${inlineDosePillsHtml}
+            <div class="flex items-center gap-1 ml-auto shrink-0">
+              <button type="button" onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'COMPLETED' ? 'PENDING' : 'COMPLETED'}',${suggestedTotal3Ac})" title="${LANG === 'KN' ? 'ಪೂರ್ಣ' : 'Done'}" class="px-2 py-1 rounded-lg border text-[11px] font-bold inline-flex items-center gap-1 transition ${itemSt === 'COMPLETED' ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs' : 'bg-white hover:bg-emerald-50 text-slate-700 border-slate-300'}">
                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-                <span>${LANG === "KN" ? "ಪೂರ್ಣ" : "Done"}</span>
               </button>
-              <button type="button" onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'SKIPPED' ? 'PENDING' : 'SKIPPED'}',${suggestedTotal3Ac})" class="px-2.5 py-1 rounded-lg border text-[11px] font-bold inline-flex items-center gap-1 transition ${itemSt === 'SKIPPED' ? 'bg-slate-700 text-white border-slate-800' : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-300'}">
+              <button type="button" onclick="setItemStatus('${tk.id}',${idx},'${itemSt === 'SKIPPED' ? 'PENDING' : 'SKIPPED'}',${suggestedTotal3Ac})" title="${LANG === 'KN' ? 'ಬಿಡಿ' : 'Skip'}" class="px-2 py-1 rounded-lg border text-[11px] font-bold inline-flex items-center gap-1 transition ${itemSt === 'SKIPPED' ? 'bg-slate-700 text-white border-slate-800' : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-300'}">
                 <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
-                <span>${LANG === "KN" ? "ಬಿಡಿ" : "Skip"}</span>
               </button>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <button type="button" onclick="openSwap('${tk.id}',${idx},'${cat.id}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-bold transition">
+              <button type="button" onclick="openSwap('${tk.id}',${idx},'${cat.id}')" title="${LANG === 'KN' ? 'ಬದಲಿಸಿ / ಕಂಪನಿ' : 'Swap / Brand'}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-[11px] font-bold transition">
                 <svg class="w-3 h-3 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
-                <span>${LANG === "KN" ? "ಬದಲಿಸಿ / ಕಂಪನಿ" : "Swap / Brand"}</span>
+                <span>${LANG === "KN" ? "ಬದಲಿಸಿ" : "Swap"}</span>
               </button>
               ${recipeArr.length > 1 ? `<button type="button" onclick="removeItemFromTaskCard('${tk.id}',${idx})" title="${LANG === 'KN' ? 'ತೆಗೆದುಹಾಕಿ' : 'Remove item'}" aria-label="Remove item" class="p-1 rounded-lg bg-white hover:bg-red-50 border border-slate-300 hover:border-red-300 text-slate-500 hover:text-red-700 transition">
                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -5543,7 +5638,7 @@ function render() {
         <header class="px-3 py-2 ${hdr} rounded-t-xl flex items-center justify-between gap-1.5 text-xs font-bold relative">
           <div class="flex items-center gap-1.5 min-w-0">
             ${typeSvg}
-            <span class="leading-tight">${baseTypeTitle}</span>
+            <span class="leading-tight truncate">${baseTypeTitle}</span>
           </div>
           <div class="flex items-center gap-1 shrink-0">
             <span class="inline-flex items-center gap-1 text-[11px] font-semibold bg-black/20 px-2 py-0.5 rounded-full whitespace-nowrap">
@@ -5569,17 +5664,18 @@ function render() {
           </div>
         </header>
 
-        <!-- Card Body -->
-        <div class="p-3 space-y-2.5">
-          <div class="flex flex-wrap justify-between items-start gap-1.5">
-            <div class="min-w-0 flex-1">
-              <div class="font-extrabold text-xs sm:text-sm text-slate-900 leading-snug">${descText}</div>
-              ${wasShifted ? `<div class="text-[11px] text-amber-800 font-semibold mt-0.5">↪ ${LANG === "KN" ? "ಮೂಲ ದಿನಾಂಕ:" : "Original date:"} ${tk.originally_scheduled_date}</div>` : ""}
+        <!-- Card Body: Full-Width Title on Row 1, Tank Spec & Original Date on Sub-Row 2 -->
+        <div class="p-3 space-y-2">
+          <div class="space-y-1">
+            <div class="flex items-center justify-between gap-2">
+              <div class="font-extrabold text-xs sm:text-sm text-slate-900 leading-snug min-w-0 flex-1">${descText}</div>
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap ${statusBadgeCls}">${statusText}</span>
             </div>
-            <div class="flex items-center gap-1.5 shrink-0">
+            ${(inlineDrumSpecHtml || wasShifted) ? `
+            <div class="flex flex-wrap items-center justify-between gap-1.5 pt-0.5">
+              ${wasShifted ? `<span class="text-[11px] text-amber-800 font-semibold">↪ ${LANG === "KN" ? "ಮೂಲ ದಿನಾಂಕ:" : "Original:"} ${tk.originally_scheduled_date}</span>` : `<span></span>`}
               ${inlineDrumSpecHtml}
-              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${statusBadgeCls}">${statusText}</span>
-            </div>
+            </div>` : ""}
           </div>
           ${itemsHtml ? `<div class="space-y-2">${itemsHtml}</div>` : ""}
           ${addItemBarHtml}
@@ -5757,14 +5853,24 @@ function ensureModernWebGuidanceStyles() {
   const st = document.createElement("style");
   st.id = "mwg-enforced-styles";
   st.textContent = `
-    /* 1. Force Auto-Fitting Numeric Inputs */
+    /* 1. Force Auto-Fitting Numeric Inputs & Hide Spin Arrows so digits are never clipped */
     #panel_TASKS input[type="number"],
     #shopBox input[type="number"],
-    #panel_MANUAL input[type="number"] {
+    #panel_MANUAL input[type="number"],
+    #dripWaterCard input[type="number"] {
       field-sizing: content !important;
       width: auto !important;
-      min-inline-size: 3.5ch !important;
-      max-inline-size: 10ch !important;
+      min-inline-size: 3.8ch !important;
+      max-inline-size: 9ch !important;
+      -moz-appearance: textfield !important;
+      appearance: textfield !important;
+    }
+    #panel_TASKS input[type="number"]::-webkit-inner-spin-button,
+    #panel_TASKS input[type="number"]::-webkit-outer-spin-button,
+    #dripWaterCard input[type="number"]::-webkit-inner-spin-button,
+    #dripWaterCard input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none !important;
+      margin: 0 !important;
     }
     /* 2. Bounded vertical scroll container + sticky header for 30-Week Master Schedule table */
     div:has(> table > #allWeeksBody) {
