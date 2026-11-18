@@ -1070,7 +1070,7 @@ const CURATED_APPROVED_SUBS = {
     { id: "INS_FLONICAMID",         noteEn: "IRAC-29 selective thrips & sucking blocker (Ulala — 150 g/drum).", noteKn: "IRAC-29 ಗುಂಪಿನ ಥ್ರಿಪ್ಸ್ ನಿಯಂತ್ರಕ (Ulala — 150 ಗ್ರಾಂ/ಡ್ರಮ್)." },
     { id: "INS_CYANTRANILIPROLE",   noteEn: "Broad-spectrum IRAC-28 rotation (Benevia — 140 ml/drum).", noteKn: "IRAC-28 ಗುಂಪಿನ ಪರ್ಯಾಯ (Benevia — 140 ಮಿ.ಲೀ/ಡ್ರಮ್)." },
     { id: "INS_EXPONUS",            noteEn: "Novel IRAC-30 mode of action (Exponus).", noteKn: "IRAC-30 ಹೊಸ ಗುಂಪಿನ ಪರ್ಯಾಯ (Exponus)." },
-    { id: "INS_SPINOSAD",           noteEn: "Same IRAC-5 spinosyn class (Tracer — 60 ml/drum).", noteKn: "ಅದೇ IRAC-5 ಗುಂಪಿನ ಪರ್ಯಾಯ (Tracer — 60 ಮಿ.ಲೀ/ಡ್ರಮ್)." }
+    { id: "INS_SPINOSAD",           noteEn: "Same IRAC-5 spinosyn class (Tracer — 0.35 ml/L = 70 ml/drum).", noteKn: "ಅದೇ IRAC-5 ಗುಂಪಿನ ಪರ್ಯಾಯ (Tracer — 0.35 ಮಿ.ಲೀ/ಲೀ = 70 ಮಿ.ಲೀ/ಡ್ರಮ್)." }
   ],
   INS_SPINOSAD: [
     { id: "INS_FIPRONIL",           noteEn: "IRAC-2B thrips rotation (Agadi SC / Regent SC — 300 ml/drum).", noteKn: "IRAC-2B ಗುಂಪಿನ ಪರ್ಯಾಯ (Agadi SC / Regent SC — 300 ಮಿ.ಲೀ/ಡ್ರಮ್)." },
@@ -1561,7 +1561,7 @@ function formatDateWithWeekday(s) {
 // FAO-56 / ICAR-NRCP THERMAL GDD FORMULA (T_base = 10°C, T_upper = 36°C)
 // ============================================================================
 // Super Bhagwa GDD Thresholds (Base 10°C / Upper 38°C Heat-Stress Arrest)
-const SUPER_BHAGWA_GDD_TARGET = 2800; // 1st Harvest for Super Bhagwa (~175-180 DAD)
+const SUPER_BHAGWA_GDD_TARGET = 2800; // 1st Harvest for Super Bhagwa (Canonical Horizon: 190 DAD)
 const SUPER_BHAGWA_STAGES = [
   { minGdd: 0,    maxGdd: 950,  dadRange: "0–58d",    en: "Stage A: Flowering & Early Sizing",      kn: "ಹಂತ A: ಹೂವು ಮತ್ತು ಆರಂಭಿಕ ಕಾಯಿ ಬೆಳವಣಿಗೆ" },
   { minGdd: 950,  maxGdd: 1450, dadRange: "59–90d",   en: "Stage B: Guava-Size Rapid Expansion",    kn: "ಹಂತ B: ಪೇರಳೆ ಗಾತ್ರದ ವೇಗದ ಬೆಳವಣಿಗೆ" },
@@ -2065,7 +2065,7 @@ function computeAllSixRisks() {
   const tempSwing = Number((tMax - tMin).toFixed(1));
 
   const delNpk = getCumulativeNutrientsPerPlant();
-  const targetCaToDate = Math.max(1, Math.round(45 * Math.min(1, Math.max(0.1, todayDad / 200))));
+  const targetCaToDate = Math.max(1, Math.round(45 * Math.min(1, Math.max(0.1, todayDad / (CFG.harvestDad || 190)))));
   const caDeficit = (delNpk.Ca / targetCaToDate) < 0.70 || (todayDad >= 90 && delNpk.B < 0.35);
 
   const shieldsToday = getShieldsActiveOnDate(tStr);
@@ -4145,30 +4145,12 @@ function renderAnalyticsTab() {
   const heatPenalty = heatArrestActive ? Number(((tMax - 38.0) * 0.5).toFixed(2)) : 0;
 
   // Map actualGdd onto the Super Bhagwa 6-stage reference curve so Biological Age (GDD-Days) vs. Calendar DAD is 100% consistent with stage boundaries!
-  const STAGE_DAD_CURVE = [
-    { minG: 0,    maxG: 950,  minD: 0,   maxD: 58  },
-    { minG: 950,  maxG: 1450, minD: 58,  maxD: 90  },
-    { minG: 1450, maxG: 2150, minD: 90,  maxD: 135 },
-    { minG: 2150, maxG: 2500, minD: 135, maxD: 158 },
-    { minG: 2500, maxG: 2800, minD: 158, maxD: 178 },
-    { minG: 2800, maxG: 3000, minD: 178, maxD: 190 }
-  ];
+  // Compare completed GDD against the 14.2 GDD/day seasonal baseline (with 1-decimal precision so daily +0.1d progress is always visible!)
   const completedRefDad = wState.isTodayHeatComplete ? todayDad : Math.max(1, todayDad - 1);
-  const getRefGddForDad = (dVal) => {
-    const seg = STAGE_DAD_CURVE.find(s => dVal >= s.minD && dVal <= s.maxD) || STAGE_DAD_CURVE[STAGE_DAD_CURVE.length - 1];
-    const ratio = (dVal - seg.minD) / Math.max(1, seg.maxD - seg.minD);
-    return Math.round(seg.minG + ratio * (seg.maxG - seg.minG));
-  };
-  const getBioDadForGdd = (gVal) => {
-    const seg = STAGE_DAD_CURVE.find(s => gVal >= s.minG && gVal <= s.maxG) || STAGE_DAD_CURVE[STAGE_DAD_CURVE.length - 1];
-    const ratio = (gVal - seg.minG) / Math.max(1, seg.maxG - seg.minG);
-    return Math.round(seg.minD + ratio * (seg.maxD - seg.minD));
-  };
-
-  const histExpectedGddToDate = getRefGddForDad(completedRefDad);
+  const histExpectedGddToDate = Math.round(completedRefDad * 14.2);
   const gddDiffVsNormal = Math.round(actualGdd - histExpectedGddToDate);
-  const biologicalThermalAgeDays = getBioDadForGdd(actualGdd);
-  const daysAheadBehind = biologicalThermalAgeDays - completedRefDad;
+  const biologicalThermalAgeDays = Number((actualGdd / 14.2).toFixed(1));
+  const daysAheadBehind = Number((biologicalThermalAgeDays - completedRefDad).toFixed(1));
 
   const forecast15dTotal = Number(wState.forecast15dTotalGdd || (futureDailyGddRate * 15).toFixed(1));
   const anomalyFactor = Math.min(1.15, Math.max(0.90, ((realDailyMeanGdd * 0.5) + (futureDailyGddRate * 0.5)) / 15.6));
@@ -4377,7 +4359,7 @@ function renderAnalyticsTab() {
   // 3. Cumulative Elemental Nutrient Ledger (Cohesive Emerald/Teal Palette & Stat-Blocks)
   const del = getCumulativeNutrientsPerPlant();
   const schedTgt = computeScheduleTrueTargetsToDate(tStr);
-  const progressRatio = Math.min(1, Math.max(0.1, todayDad / 185));
+  const progressRatio = Math.min(1, Math.max(0.1, todayDad / (CFG.harvestDad || 190)));
   const fs = schedTgt.fullSeason || {};
 
   const kToNRatio = del.N > 0.5 ? Number((del.K / del.N).toFixed(2)) : 0;
@@ -4722,8 +4704,9 @@ function ensureBuiltInStoreBrands() {
     { id: "FUN_ZIRAM_27",           category: "FUNGICIDE", active_ingredient: "Ziram 27% SC", popular_brands: "Cuman-L (Syngenta)", irac_frac_group: "FRAC-M03", formulation_type: "SC", application_method: "FOLIAR", base_dose_per_liter: 2.5, unit: "ml", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
     { id: "FUN_THIRAM_75",          category: "FUNGICIDE", active_ingredient: "Thiram 75% WP", popular_brands: "Thiride", irac_frac_group: "FRAC-M03", formulation_type: "WP", application_method: "FOLIAR", base_dose_per_liter: 2.0, unit: "g", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
     { id: "FUN_KITAZIN_48",         category: "FUNGICIDE", active_ingredient: "Iprobenfos 48% EC", popular_brands: "Kitazin (PI Industries)", irac_frac_group: "FRAC-6", formulation_type: "EC", application_method: "FOLIAR", base_dose_per_liter: 1.0, unit: "ml", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
+    { id: "FUN_CABRIO_TOP",         category: "FUNGICIDE", active_ingredient: "Metiram 55% + Pyraclostrobin 5% WG", popular_brands: "Cabrio Top (BASF)", irac_frac_group: "FRAC-M03+11", formulation_type: "WG", application_method: "FOLIAR", base_dose_per_liter: 3.0, unit: "g", phi_days: 14, is_copper_compound: false, incompatible_with_copper: true },
     { id: "MIC_ONZIIM_MIX",         category: "BIOSTIMULANT", active_ingredient: "Zinc 3.0% + Iron 0.5% + Manganese 0.2% + Boron 0.5% SP", popular_brands: "Onziim (Kingdao Agrochem)", irac_frac_group: null, formulation_type: "SP", application_method: "BOTH", base_dose_per_liter: 1.25, base_dose_per_acre: 2.5, unit: "g", phi_days: 0, is_copper_compound: false, incompatible_with_copper: true, b_pct: 0.5 }
-  ];
+   ];
 
   builtInCatalogExtensions.forEach(ext => {
     if (!catalog[ext.id]) {
@@ -4743,7 +4726,7 @@ function ensureBuiltInStoreBrands() {
   const nrcpDoseOverrides = {
     INS_FENPYROXIMATE: { base_dose_per_liter: 0.5 },
     INS_SPIROMESIFEN:  { base_dose_per_liter: 0.5 },
-    INS_SPINOSAD:      { base_dose_per_liter: 0.5 },
+    INS_SPINOSAD:      { base_dose_per_liter: 0.35 },
     BAC_COPPER_OXY:    { base_dose_per_liter: 2.5 },
     BAC_KASUGA_COC:    { base_dose_per_liter: 2.5, phi_days: 14 },
     FUN_CABRIO_TOP:    { base_dose_per_liter: 3.0 }
@@ -7789,6 +7772,24 @@ function runEnterpriseQASuite() {
   tasks = savedTasks36;
   assert("36. Retroactive Skipped Card & 2-Card Rollover", c2Dose === 4.5 && c3Dose === 4.5 && mockPendCard2.resolved_recipe[0].compensated_from_date === "2026-10-26" && mockPendCard3.resolved_recipe[0].compensated_from_date === "2026-10-26", `Skipping 3.5 kg/ac boosts Card 2 (3.5→${c2Dose} kg/ac Stage B cap) & rolls remaining 2.5 kg/ac deficit into Card 3 (2.0→${c3Dose} kg/ac)`);
 
+  // Test 37: ICAR-NRCP / CIB&RC Calibrated Dosages & MgO -> Elemental Mg (×0.603) Stoichiometry
+  const oberonDose = catalog["INS_SPIROMESIFEN"]?.base_dose_per_liter;
+  const spinosadDose = catalog["INS_SPINOSAD"]?.base_dose_per_liter;
+  const cabrioDose = catalog["FUN_CABRIO_TOP"]?.base_dose_per_liter;
+  const parsedMgoGrade = getEffectiveNutrientPct({ id: "TEST_MGO", active_ingredient: "NPK 00:35:30:8 (8% MgO)" });
+  assert("37. NRCP/CIB&RC Dose Calibration & MgO→Mg (×0.603) Math", oberonDose === 0.5 && spinosadDose === 0.35 && cabrioDose === 3.0 && parsedMgoGrade.mg === 4.82, `Oberon=${oberonDose} ml/L (100ml/drum), Spinosad=${spinosadDose} ml/L (70ml/drum), Cabrio Top=${cabrioDose} g/L; 8% MgO = ${parsedMgoGrade.mg}% pure Mg`);
+
+  // Test 38: Contact Copper Rain Wash-Off (>=15mm) & Pre-Mix IRAC-28+3A Token Collision Lock
+  const savedW38 = { ...wState }, savedT38 = tasks;
+  const sprayDate38 = addDaysYMD(todayYMD(), -3), rainDate38 = addDaysYMD(todayYMD(), -1);
+  tasks = [{ id: "mock-cop-wash", status: "COMPLETED", task_type: "STANDALONE_COPPER", current_scheduled_date: sprayDate38, resolved_recipe: [{ input_id: "BAC_COPPER_HYDROXIDE", item_status: "COMPLETED" }] }];
+  wState = { ...wState, rain24: 0, history6d: [{ dateStr: rainDate38, rain24: 18.0, rh72Avg: 82, tMax: 29, tMin: 20 }] };
+  const shieldsAfterWash = getShieldsActiveOnDate(todayYMD());
+  wState = savedW38; tasks = savedT38;
+  const ampligo = catalog["INS_CHLORAN_LAMBDA"] || { id: "INS_CHLORAN_LAMBDA", category: "INSECTICIDE", irac_frac_group: "IRAC-28+3A", application_method: "FOLIAR" };
+  const coragen = catalog["INS_CHLORANTRANILIPROLE"] || { id: "INS_CHLORANTRANILIPROLE", category: "INSECTICIDE", irac_frac_group: "IRAC-28", application_method: "FOLIAR" };
+  const preMixBlocked = !validateCardCombinationRules([{ input_id: coragen.id }], ampligo).ok;
+  assert("38. Contact Spray Rain Wash-Off (≥15mm) & Pre-Mix IRAC Token Lock", shieldsAfterWash.copper === false && shieldsAfterWash.washedOffCopperDate === sprayDate38 && preMixBlocked, `18mm rain on ${rainDate38} invalidates ${sprayDate38} Copper shield; blocks Coragen (IRAC-28) + Ampligo (IRAC-28+3A)`);
   const sortedResults = [...results].sort((a, b) => Number(a.pass) - Number(b.pass));
   const passed = results.filter(r => r.pass).length;
   const allPass = passed === results.length;
